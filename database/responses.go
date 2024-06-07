@@ -7,7 +7,11 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
-func (p Postgres) InsertResponse(ctx context.Context, resp *llms.ContentResponse) error {
+type ResponseWriter interface {
+	InsertResponse(ctx context.Context, resp *llms.ContentResponse) error
+}
+
+func (p *Postgres) InsertResponse(ctx context.Context, resp *llms.ContentResponse) error {
 	var isUsed bool
 	for i, choice := range resp.Choices {
 		if i == 0 {

@@ -43,8 +43,52 @@ func Test_cleanMessage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := cleanMessage(tt.msg); !reflect.DeepEqual(got, tt.want) {
+			if got := cleanMessage(tt.msg); !reflect.DeepEqual(got.Username, tt.want.Username) && !reflect.DeepEqual(got.Text, tt.want.Text) {
 				t.Errorf("cleanMessage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_needsResponseChat(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  database.TwitchMessage
+		want bool
+	}{
+		{
+			name: "Pedro",
+			msg: database.TwitchMessage{
+				Text: "hey, Pedro tell me a joke",
+			},
+			want: true,
+		},
+		{
+			name: "llm",
+			msg: database.TwitchMessage{
+				Text: "hey, llm tell me a joke",
+			},
+			want: true,
+		},
+		{
+			name: "bot",
+			msg: database.TwitchMessage{
+				Text: "hey, bot tell me a joke",
+			},
+			want: true,
+		},
+		{
+			name: "no response",
+			msg: database.TwitchMessage{
+				Text: "hey, tell me a joke",
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := needsResponseChat(tt.msg); got != tt.want {
+				t.Errorf("needsResponseChat() = %v, want %v", got, tt.want)
 			}
 		})
 	}

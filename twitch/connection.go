@@ -16,17 +16,18 @@ const peteTwitchChannel = "soypetetech"
 
 // IRC Connection to the twitch IRC server.
 type IRC struct {
-	db     database.Postgres
-	wg     sync.WaitGroup
-	Client *v2.Client
-	tok    *oauth2.Token
-	llm    *langchain.Client
+	db       database.MessageWriter
+	wg       sync.WaitGroup
+	Client   *v2.Client
+	tok      *oauth2.Token
+	llm      *langchain.Client
+	authCode string
 }
 
 // SetupTwitchIRC sets up the IRC, configures oauth, and inits connection functions.
 func SetupTwitchIRC(wg sync.WaitGroup, llm *langchain.Client, db database.Postgres) (*IRC, error) {
 	irc := &IRC{
-		db:  db,
+		db:  &db,
 		wg:  wg,
 		llm: llm,
 	}
@@ -46,7 +47,9 @@ func (irc *IRC) ConnectIRC(ctx context.Context) error {
 	c := v2.NewClient(peteTwitchChannel, "oauth:"+irc.tok.AccessToken)
 	c.Join(peteTwitchChannel)
 	// TODO: have predro introduce itself
-	c.OnConnect(func() { c.Say(peteTwitchChannel, "Hello, my name is Pedro_el_asistente I am here to help you.") })
+	c.OnConnect(func() {
+		c.Say(peteTwitchChannel, "Hello, my name is Pedro_el_asistente I am here to help you.")
+	})
 	c.OnPrivateMessage(func(msg v2.PrivateMessage) {
 		irc.HandleChat(ctx, msg)
 	})

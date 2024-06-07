@@ -4,12 +4,13 @@ import (
 	"fmt"
 
 	"github.com/Soypete/twitch-llm-bot/database"
+	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
 )
 
 type Client struct {
-	llm *openai.LLM
-	db  database.Postgres
+	llm llms.Model
+	db  database.ResponseWriter
 }
 
 func Setup(db database.Postgres) (*Client, error) {
@@ -22,6 +23,6 @@ func Setup(db database.Postgres) (*Client, error) {
 	}
 	return &Client{
 		llm: llm,
-		db:  db,
+		db:  &db,
 	}, nil
 }

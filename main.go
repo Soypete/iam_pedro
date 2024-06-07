@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -13,6 +14,13 @@ import (
 )
 
 func main() {
+	// read in json file with helpful links and prompts
+	// TODOL pass in file path as a flag
+	prompts, err := os.ReadFile("links.txt")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	// TODO: 120 second timeout is to short. we need a better way to handle this
 	ctx := context.Background()
 	// setup postgres connection
@@ -45,25 +53,24 @@ func main() {
 	// TODO: break out of the main function
 	go func() {
 		log.Println("Starting prompt loop")
+		// replaces nightbot timers
+		// once every 30 minutes prompt the llm to generate a message
+		// that message will have the context
 		for {
-			timeout := 5 * time.Minute
+			timeout := 30 * time.Minute
 			time.Sleep(timeout)
-			log.Println("Getting prompt")
-			prompt, err := llm.PromptWithChat(ctx, timeout)
-			// weird error handling
+			// generate prompts
+			resp, err := llm.GenerateTimer(ctx, string(prompts))
 			if err != nil {
 				log.Println(err)
 				continue
 			}
-			if prompt == "" {
-				log.Println("prompt is empty")
-				prompt, err = llm.PromptWithoutChat(ctx)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
+			if resp == "" {
+				log.Println("empty response")
+				continue
 			}
-			irc.Client.Say("soypetetech", prompt)
+			// send message to twitch
+			irc.Client.Say("soypetetech", resp)
 		}
 	}()
 
