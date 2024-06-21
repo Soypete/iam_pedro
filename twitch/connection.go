@@ -46,14 +46,15 @@ func (irc *IRC) ConnectIRC(ctx context.Context) error {
 	log.Println("Connecting to twitch IRC")
 	c := v2.NewClient(peteTwitchChannel, "oauth:"+irc.tok.AccessToken)
 	c.Join(peteTwitchChannel)
-	// TODO: have predro introduce itself
+	// TODO: This is reconnecting repeatedly and causing a flood of messages to the channel
 	c.OnConnect(func() {
-		c.Say(peteTwitchChannel, "Hello, my name is Pedro_el_asistente I am here to help you.")
+		log.Println("connection to twitch IRC established")
 	})
 	c.OnPrivateMessage(func(msg v2.PrivateMessage) {
 		irc.HandleChat(ctx, msg)
 	})
 
+	c.Say(peteTwitchChannel, "Hello, my name is Pedro_el_asistente I am here to help you.")
 	irc.Client = c
 	return nil
 }

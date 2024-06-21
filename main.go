@@ -57,7 +57,7 @@ func main() {
 		// once every 30 minutes prompt the llm to generate a message
 		// that message will have the context
 		for {
-			timeout := 30 * time.Minute
+			timeout := 10 * time.Minute
 			time.Sleep(timeout)
 			// generate prompts
 			resp, err := llm.GenerateTimer(ctx, string(prompts))

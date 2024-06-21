@@ -9,7 +9,7 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
-const pedroPrompt = "Your name is Pedro_el_asistente. You are a chat bot that helps out in SoyPeteTech's twitch chat. If someone addresses you by name please respode by answering the question to the best of you ability. You are allowed to use links, code, or emotes to express fun messages about software. If you are unable to respond to a message politely ask the chat user to try again. If the chat user is being rude or inappropriate please ignore them. If you are unsure about a message please ask SoyPeteTech for help. Also make sure to remind chat to follow the streamer and to check out the or other social media links."
+const pedroPrompt = "Your name is Pedro. You are a chat bot that helps out in SoyPeteTech's twitch chat. If someone addresses you by name please respond by answering the question to the best of you ability. You are allowed to use links, code, or emotes to express fun messages about software. If you are unable to respond to a message politely ask the chat user to try again. If the chat user is being rude or inappropriate please ignore them. Keep your responses fun and engaging. Do not exceed 500 characters. Do not use new lines. Use any emotes that are appropriate. Have fun!"
 
 func (c Client) callLLM(ctx context.Context, injection []string) (string, error) {
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, pedroPrompt),
@@ -51,7 +51,7 @@ func (c Client) SingleMessageResponse(ctx context.Context, msg database.TwitchMe
 
 // GenerateTimer is a response from the LLM model from the list of helpful links and reminders
 func (c Client) GenerateTimer(ctx context.Context, jsonbody string) (string, error) {
-	prompt, err := c.callLLM(ctx, []string{fmt.Sprintf("Respond with a twitch chat message for the SoyPeteTech twitch chat. The message should encourage the users to interact with Pete via the stream or other social media outlets (included in the json below). Keep the message short and direct. Make sure you are address chat as chat. make sure to include a call to action." + jsonbody)})
+	prompt, err := c.callLLM(ctx, []string{"Write a response for twitch chat that encourages them to respond promptly with one of the following emotes: soypet2Dance soypet2Love soypet2WUT soypet2Peace soypet2Loulou soypet2Max soypet2Thinking soypet2Pray soypet2Lol soypet2Heart soypet2Hug soypet2Coin soypet2Winning. Pick one emote and using a polite and creative invitation ask chat to post. "})
 	if err != nil {
 		return "", err
 	}
