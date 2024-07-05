@@ -7,7 +7,11 @@ import (
 	"time"
 )
 
-func (p Postgres) InsertMessage(ctx context.Context, msg TwitchMessage) error {
+type MessageWriter interface {
+	InsertMessage(ctx context.Context, msg TwitchMessage) error
+}
+
+func (p *Postgres) InsertMessage(ctx context.Context, msg TwitchMessage) error {
 	query := "INSERT INTO twitch_chat (username, message, isCommand, created_at) VALUES ($1, $2, $3, $4)"
 	_, err := p.connections.ExecContext(ctx, query, msg.Username, msg.Text, msg.IsCommand, msg.Time)
 	if err != nil {
@@ -17,7 +21,7 @@ func (p Postgres) InsertMessage(ctx context.Context, msg TwitchMessage) error {
 	return nil
 }
 
-func (p Postgres) InsertChatHistory(ctx context.Context, messages []string) error {
+func (p *Postgres) InsertChatHistory(ctx context.Context, messages []string) error {
 	query := "INSERT INTO twitch_chat (chats, created_at) VALUES ($1, $2)"
 	_, err := p.connections.ExecContext(ctx, query, messages, time.Now())
 	if err != nil {
@@ -26,6 +30,7 @@ func (p Postgres) InsertChatHistory(ctx context.Context, messages []string) erro
 	return nil
 }
 
+// TODO: I need to move this
 type TwitchMessage struct {
 	Username  string
 	Text      string
@@ -33,7 +38,7 @@ type TwitchMessage struct {
 	Time      time.Time
 }
 
-func (p Postgres) QueryMessageHistory(interval time.Duration) ([]TwitchMessage, error) {
+func (p *Postgres) QueryMessageHistory(interval time.Duration) ([]TwitchMessage, error) {
 	var messages []TwitchMessage
 	rows, err := p.connections.Query(`select
   username,

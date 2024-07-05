@@ -3,64 +3,27 @@ package langchain
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
-	"time"
 
+	database "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/tmc/langchaingo/llms"
 )
 
-const pedroPrompt = "Your name is Pedro_el_asistente. You are a chat bot that helps out in SoyPeteTech's twitch chat. You are allowed to use links, code, or emotes to express fun messages about software. Helpful links are always appreciated, such as SoyPeteTech's github https://github.com/Soypete, youtube https://www.youtube.com/channel/UCEkM7JXVQIdvz7Z7gG53lqw, or linktree https://linktr.ee/soypete_tech."
+const pedroPrompt = "Your name is Pedro. You are a chat bot that helps out in SoyPeteTech's twitch chat. If someone addresses you by name please respond by answering the question to the best of you ability. You are allowed to use links, code, or emotes to express fun messages about software. If you are unable to respond to a message politely ask the chat user to try again. If the chat user is being rude or inappropriate please ignore them. Keep your responses fun and engaging. Do not exceed 500 characters. Do not use new lines. Use any emotes that are appropriate. Have fun!"
 
-func (c Client) PromptWithoutChat(ctx context.Context) (string, error) {
-	content, err := llms.GenerateFromSinglePrompt(ctx,
-		c.llm,
-		pedroPrompt,
-		llms.WithTemperature(0.8),
-		llms.WithMaxLength(500),
-		llms.WithStopWords([]string{"twitch, SoyPeteTech, bot, assistant, silent, stream, software"}),
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to get llm response: %w", err)
-	}
-	return content, nil
-}
+func (c Client) callLLM(ctx context.Context, injection []string) (string, error) {
+	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, pedroPrompt),
+		llms.TextParts(llms.ChatMessageTypeHuman, strings.Join(injection, " "))}
 
-func (c Client) GetMessageHistory(interval time.Duration) ([]llms.MessageContent, error) {
-	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, pedroPrompt+"\nHere is the twitch chat history for you to respond to:")}
-	// get message history from database
-	messages, err := c.db.QueryMessageHistory(interval)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if len(messages) == 0 {
-		return nil, fmt.Errorf("no messages found")
-	}
-	var twitchChatHistory []string
-	for _, message := range messages {
-		twitchChatHistory = append(twitchChatHistory, fmt.Sprintf("%s: %s", message.Username, message.Text))
-	}
-	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, twitchChatHistory...))
-	return messageHistory, nil
-}
-
-func (c Client) PromptWithChat(ctx context.Context, interval time.Duration) (string, error) {
-	log.Println("Getting message history")
-	messageHistory, err := c.GetMessageHistory(interval)
-	if err != nil {
-		return "", fmt.Errorf("failed to get message history: %w", err)
-	}
-	log.Println("Generating bot response")
 	resp, err := c.llm.GenerateContent(ctx, messageHistory,
 		llms.WithCandidateCount(1),
 		llms.WithMaxLength(500),
 		llms.WithTemperature(0.7),
 		llms.WithPresencePenalty(1.0), // 2 is the largest penalty for using a work that has already been used
-		llms.WithStopWords([]string{"twitch", "stream", "SoyPeteTech", "bot", "assistant", "silent", "software"}))
+		llms.WithStopWords([]string{"LUL, PogChamp, Kappa, KappaPride, KappaRoss, KappaWealth"}))
 	if err != nil {
-		return "", fmt.Errorf("failed to generate content: %w", err)
+		return "", fmt.Errorf("failed to get llm response: %w", err)
 	}
-
 	err = c.db.InsertResponse(ctx, resp)
 	if err != nil {
 		return cleanResponse(resp.Choices[0].Content), fmt.Errorf("failed to write to db: %w", (err))
@@ -72,6 +35,25 @@ func (c Client) PromptWithChat(ctx context.Context, interval time.Duration) (str
 func cleanResponse(resp string) string {
 	// remove any newlines
 	resp = strings.ReplaceAll(resp, "\n", " ")
-	resp = strings.ReplaceAll(resp, "<|im_start|>user", " ")
+	resp = strings.ReplaceAll(resp, "<|im_start|>", " ")
+	resp = strings.ReplaceAll(resp, "<|im_end|>", "")
 	return strings.TrimSpace(resp)
+}
+
+// SingleMessageResponse is a response from the LLM model to a single message, but to work it needs to have context of chat history
+func (c Client) SingleMessageResponse(ctx context.Context, msg database.TwitchMessage) (string, error) {
+	prompt, err := c.callLLM(ctx, []string{fmt.Sprintf("%s: %s", msg.Username, msg.Text)})
+	if err != nil {
+		return "", err
+	}
+	return prompt, nil
+}
+
+// GenerateTimer is a response from the LLM model from the list of helpful links and reminders
+func (c Client) GenerateTimer(ctx context.Context, jsonbody string) (string, error) {
+	prompt, err := c.callLLM(ctx, []string{"Write a response for twitch chat that encourages them to respond promptly with one of the following emotes: soypet2Dance soypet2Love soypet2WUT soypet2Peace soypet2Loulou soypet2Max soypet2Thinking soypet2Pray soypet2Lol soypet2Heart soypet2Hug soypet2Coin soypet2Winning. Pick one emote and using a polite and creative invitation ask chat to post. "})
+	if err != nil {
+		return "", err
+	}
+	return prompt, nil
 }

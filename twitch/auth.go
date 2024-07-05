@@ -3,28 +3,27 @@ package twitchirc
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/twitch"
 )
 
-func parseAuthCode(w http.ResponseWriter, req *http.Request) {
+func (irc *IRC) parseAuthCode(w http.ResponseWriter, req *http.Request) {
 	err := req.ParseForm()
 	if err != nil {
 		fmt.Printf("could not parse query: %v", err)
 		http.Error(w, "could not parse query", http.StatusBadRequest)
 	}
-	code := req.FormValue("code")
-	fmt.Fprint(os.Stdout, code)
+	irc.authCode = req.FormValue("code")
 }
 
 // AuthTwitch use oauth2 protocol to retrieve oauth2 token for twitch IRC.
 // _NOTE_: this has not been tested on long standing projects.
 func (irc *IRC) AuthTwitch(ctx context.Context) error {
-	http.HandleFunc("/oauth/redirect", parseAuthCode)
+	http.HandleFunc("/oauth/redirect", irc.parseAuthCode)
 	go http.ListenAndServe("localhost:3000", nil)
 
 	conf := &oauth2.Config{
@@ -43,17 +42,12 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 		defer irc.wg.Done()
 		url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
 		fmt.Printf("Visit the URL for the auth dialog: %v\n", url)
-
-		var code string
-		_, err := fmt.Scan(&code)
-		if err != nil {
-			// print until we have ctx.done
-			fmt.Println(fmt.Errorf("cannot get input from standard in: %w", err))
+		// wait for auth code
+		for irc.authCode == "" {
+			time.Sleep(1 * time.Second)
 		}
-
-		log.Printf("code: %v", code)
-
-		irc.tok, err = conf.Exchange(ctx, code)
+		var err error
+		irc.tok, err = conf.Exchange(ctx, irc.authCode)
 		if err != nil {
 			// print until we have ctx.done
 			fmt.Println(fmt.Errorf("failed to get token with auth code: %w", err))

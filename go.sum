@@ -42,8 +42,6 @@ github.com/sethvargo/go-retry v0.2.4 h1:T+jHEQy/zKJf5s95UkguisicE0zuF9y7+/vgz08O
 github.com/sethvargo/go-retry v0.2.4/go.mod h1:1afjQuvh7s4gflMObvjLPaWgluLLyhA1wmVZ6KLpICw=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
-github.com/tmc/langchaingo v0.1.9 h1:6dtKgK52u2+9ksTTzTNvIpS5MiT5IfxtAVR4gDCxfn0=
-github.com/tmc/langchaingo v0.1.9/go.mod h1:MJpoh929t7a3JkbCW2cXTWwInjdaY2NMBDU4JeetwFo=
 github.com/tmc/langchaingo v0.1.10 h1:+cssnyaY1avZwzdDFvJYlVUsch9oFRgoqw3Avk5Zig4=
 github.com/tmc/langchaingo v0.1.10/go.mod h1:lPKUIu8ZGI7RAksRFtKbgtS2v3LL0j7LcccHPCvgNfY=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=

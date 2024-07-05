@@ -23,19 +23,46 @@ func cleanMessage(msg v2.PrivateMessage) database.TwitchMessage {
 	}
 
 	if strings.Contains(msg.User.DisplayName, "RestreamBot") {
-		words := strings.Split(msg.Message, "]")
-		chat.Username = strings.Replace(words[0], "Youtube:", "", 1) // sets username to the first word after the video source.
-		chat.Text = strings.Join(words[1:], " ")                     // create a clean message without the video source.
+		text := strings.ReplaceAll(msg.Message, "]", ":")
+		words := strings.Split(text, ":")
+
+		chat.Username = strings.TrimSpace(words[1]) // sets username to the first word after the video source.
+		chat.Text = strings.TrimSpace(words[2])     // create a clean message without the video source.
 	}
 	return chat
 }
 
+func needsResponseChat(msg database.TwitchMessage) bool {
+	switch {
+	case strings.Contains(msg.Text, "pedro"):
+		return true
+	case strings.Contains(msg.Text, "Pedro"):
+		return true
+	case strings.Contains(msg.Text, "llm"):
+		return true
+	case strings.Contains(msg.Text, "LLM"):
+		return true
+	case strings.Contains(msg.Text, "bot"):
+		return true
+	default:
+		return false
+	}
+}
+
 func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 	chat := cleanMessage(msg)
+	// do not persist	messages from the Nightbot
 	if msg.User.DisplayName == "Nightbot" {
 		return
 	}
-	// TODO: respond to pedro commands
+	// TODO: replace nitbot commands with a classifier model that prompts the LLM
+	if strings.Contains(chat.Text, "Pedro") || strings.Contains(chat.Text, "pedro") || strings.Contains(chat.Text, "soy_llm_bot") {
+		resp, err := irc.llm.SingleMessageResponse(ctx, chat)
+		if err != nil {
+			log.Println("Failed to get response from LLM")
+		}
+		irc.Client.Say("soypetetech", resp)
+	}
 	if err := irc.db.InsertMessage(ctx, chat); err != nil {
 		log.Println("Failed to insert message into database")
 	}
