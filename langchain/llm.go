@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	database "github.com/Soypete/twitch-llm-bot/database"
+	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/tmc/langchaingo/llms"
 )
 
@@ -44,14 +45,21 @@ func cleanResponse(resp string) string {
 func (c Client) SingleMessageResponse(ctx context.Context, msg database.TwitchMessage) (string, error) {
 	prompt, err := c.callLLM(ctx, []string{fmt.Sprintf("%s: %s", msg.Username, msg.Text)})
 	if err != nil {
+		metrics.FailedLLMGen.Add(1)
 		return "", err
 	}
+	if prompt == "" {
+		metrics.EmptyLLMResponse.Add(1)
+		// We are trying to tag the user to get them to try again with a better prompt.
+		return fmt.Sprintf("sorry, I cannot respont to @%s. Please try again", msg.Username), nil
+	}
+	metrics.SuccessfulLLMGen.Add(1)
 	return prompt, nil
 }
 
 // GenerateTimer is a response from the LLM model from the list of helpful links and reminders
-func (c Client) GenerateTimer(ctx context.Context, jsonbody string) (string, error) {
-	prompt, err := c.callLLM(ctx, []string{"Write a response for twitch chat that encourages them to respond promptly with one of the following emotes: soypet2Dance soypet2Love soypet2WUT soypet2Peace soypet2Loulou soypet2Max soypet2Thinking soypet2Pray soypet2Lol soypet2Heart soypet2Hug soypet2Coin soypet2Winning. Pick one emote and using a polite and creative invitation ask chat to post. "})
+func (c Client) GenerateTimer(ctx context.Context) (string, error) {
+	prompt, err := c.callLLM(ctx, []string{"Using one of the following emotes, ask chat a question about software. soypet2Dance soypet2Love soypet2WUT soypet2Peace soypet2Loulou soypet2Max soypet2Thinking soypet2Pray soypet2Lol soypet2Heart.  "})
 	if err != nil {
 		return "", err
 	}
