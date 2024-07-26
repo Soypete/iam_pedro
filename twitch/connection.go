@@ -7,6 +7,7 @@ import (
 
 	"github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/langchain"
+	"github.com/Soypete/twitch-llm-bot/metrics"
 	v2 "github.com/gempir/go-twitch-irc/v2"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
@@ -20,12 +21,12 @@ type IRC struct {
 	wg       sync.WaitGroup
 	Client   *v2.Client
 	tok      *oauth2.Token
-	llm      *langchain.Client
+	llm      langchain.Inferencer
 	authCode string
 }
 
 // SetupTwitchIRC sets up the IRC, configures oauth, and inits connection functions.
-func SetupTwitchIRC(wg sync.WaitGroup, llm *langchain.Client, db database.Postgres) (*IRC, error) {
+func SetupTwitchIRC(wg sync.WaitGroup, llm langchain.Inferencer, db database.Postgres) (*IRC, error) {
 	irc := &IRC{
 		db:  &db,
 		wg:  wg,
@@ -48,9 +49,11 @@ func (irc *IRC) ConnectIRC(ctx context.Context) error {
 	c.Join(peteTwitchChannel)
 	// TODO: This is reconnecting repeatedly and causing a flood of messages to the channel
 	c.OnConnect(func() {
+		metrics.TwitchConnectionCount.Add(1)
 		log.Println("connection to twitch IRC established")
 	})
 	c.OnPrivateMessage(func(msg v2.PrivateMessage) {
+		metrics.TwitchMessageRecievedCount.Add(1)
 		irc.HandleChat(ctx, msg)
 	})
 
