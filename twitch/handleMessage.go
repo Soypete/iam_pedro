@@ -7,6 +7,7 @@ import (
 	"time"
 
 	database "github.com/Soypete/twitch-llm-bot/database"
+	"github.com/Soypete/twitch-llm-bot/metrics"
 	v2 "github.com/gempir/go-twitch-irc/v2"
 )
 
@@ -62,6 +63,7 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 			log.Println("Failed to get response from LLM")
 		}
 		irc.Client.Say("soypetetech", resp)
+		metrics.TwitchMessageSentCount.Add(1)
 	}
 	if err := irc.db.InsertMessage(ctx, chat); err != nil {
 		log.Println("Failed to insert message into database")

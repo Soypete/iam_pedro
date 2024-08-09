@@ -13,10 +13,21 @@ require (
 )
 
 require (
+	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/prometheus/client_model v0.5.0 // indirect
+	github.com/prometheus/common v0.48.0 // indirect
+	github.com/prometheus/procfs v0.12.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
+)
+
+require (
 	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/pkoukk/tiktoken-go v0.1.6 // indirect
+	github.com/prometheus/client_golang v1.19.1
 	github.com/sethvargo/go-retry v0.2.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect

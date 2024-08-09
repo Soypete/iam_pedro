@@ -4,22 +4,20 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"time"
 
 	database "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/langchain"
+	"github.com/Soypete/twitch-llm-bot/metrics"
 	twitchirc "github.com/Soypete/twitch-llm-bot/twitch"
 )
 
 func main() {
-	// read in json file with helpful links and prompts
-	// TODOL pass in file path as a flag
-	prompts, err := os.ReadFile("links.txt")
-	if err != nil {
-		log.Fatalln(err)
-	}
+
+	// listen and serve for metrics server.
+	server := metrics.SetupServer()
+	go server.Run()
 
 	// TODO: 120 second timeout is to short. we need a better way to handle this
 	ctx := context.Background()
@@ -33,10 +31,6 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	if llm == nil {
-		log.Fatalln("llm is nil")
-	}
-
 	// TODO: audit waitgroup
 	wg := sync.WaitGroup{}
 	// setup twitch IRC
@@ -60,13 +54,9 @@ func main() {
 			timeout := 10 * time.Minute
 			time.Sleep(timeout)
 			// generate prompts
-			resp, err := llm.GenerateTimer(ctx, string(prompts))
+			resp, err := llm.GenerateTimer(ctx)
 			if err != nil {
 				log.Println(err)
-				continue
-			}
-			if resp == "" {
-				log.Println("empty response")
 				continue
 			}
 			// send message to twitch
