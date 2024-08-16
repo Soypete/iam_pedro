@@ -40,7 +40,6 @@ func NewPostgres() (Postgres, error) {
 
 	return Postgres{
 		connections: dbx,
-		modelName:   "Mistral_7B_v0.1.4",
 	}, nil
 }
 
