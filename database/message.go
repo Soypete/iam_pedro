@@ -3,73 +3,35 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type MessageWriter interface {
-	InsertMessage(ctx context.Context, msg TwitchMessage) error
+	InsertMessage(ctx context.Context, msg TwitchMessage) (uuid.UUID, error)
 }
 
-func (p *Postgres) InsertMessage(ctx context.Context, msg TwitchMessage) error {
-	query := "INSERT INTO twitch_chat (username, message, isCommand, created_at) VALUES ($1, $2, $3, $4)"
-	_, err := p.connections.ExecContext(ctx, query, msg.Username, msg.Text, msg.IsCommand, msg.Time)
+// InsertMessage inserts a message into the database and returns the message ID if successful.
+func (p *Postgres) InsertMessage(ctx context.Context, msg TwitchMessage) (uuid.UUID, error) {
+	ID, err := uuid.NewUUID()
 	if err != nil {
-		log.Println("error inserting message: ", err)
-		return fmt.Errorf("error inserting message: %w", err)
+		return uuid.UUID{}, fmt.Errorf("error generating UUID: %w", err)
 	}
-	return nil
-}
-
-func (p *Postgres) InsertChatHistory(ctx context.Context, messages []string) error {
-	query := "INSERT INTO twitch_chat (chats, created_at) VALUES ($1, $2)"
-	_, err := p.connections.ExecContext(ctx, query, messages, time.Now())
+	msg.UUID = ID
+	query := "INSERT INTO twitch_chat (username, message, isCommand, created_at, uuid) VALUES (:username, :message, :isCommand, :created_at, :uuid)"
+	_, err = p.connections.NamedExecContext(ctx, query, msg)
 	if err != nil {
-		return fmt.Errorf("error inserting chat history: %w", err)
+		return uuid.UUID{}, fmt.Errorf("error inserting message: %w", err)
 	}
-	return nil
+	return ID, nil
 }
 
 // TODO: I need to move this
 type TwitchMessage struct {
-	Username  string
-	Text      string
-	IsCommand bool
-	Time      time.Time
-}
-
-func (p *Postgres) QueryMessageHistory(interval time.Duration) ([]TwitchMessage, error) {
-	var messages []TwitchMessage
-	rows, err := p.connections.Query(`select
-  username,
-  message,
-  ts
-from (
-  select
-    username,
-    message,
-    created_at as ts
-  from
-    twitch_chat
-  where
-    isCommand = false
-    and created_at > current_date
-  order by 
-    created_at desc
-  limit 10
-) subquery
-order by 
-  ts asc;`)
-	if err != nil {
-		return nil, fmt.Errorf("error querying message history: %w", err)
-	}
-	for rows.Next() {
-		var message TwitchMessage
-		err := rows.Scan(&message.Username, &message.Text, &message.Time)
-		if err != nil {
-			return nil, fmt.Errorf("error scanning message: %w", err)
-		}
-		messages = append(messages, message)
-	}
-	return messages, nil
+	Username  string    `db:"username"`
+	Text      string    `db:"message"`
+	IsCommand bool      `db:"isCommand"`
+	Time      time.Time `db:"created_at"`
+	UUID      uuid.UUID `db:"uuid"`
 }

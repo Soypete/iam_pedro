@@ -7,12 +7,13 @@ import (
 
 	database "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/metrics"
+	"github.com/google/uuid"
 	"github.com/tmc/langchaingo/llms"
 )
 
 const pedroPrompt = "Your name is Pedro. You are a chat bot that helps out in SoyPeteTech's twitch chat. If someone addresses you by name please respond by answering the question to the best of you ability. You are allowed to use links, code, or emotes to express fun messages about software. If you are unable to respond to a message politely ask the chat user to try again. If the chat user is being rude or inappropriate please ignore them. Keep your responses fun and engaging. Do not exceed 500 characters. Do not use new lines. Use any emotes that are appropriate. Have fun!"
 
-func (c Client) callLLM(ctx context.Context, injection []string) (string, error) {
+func (c Client) callLLM(ctx context.Context, injection []string, messageID uuid.UUID) (string, error) {
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, pedroPrompt),
 		llms.TextParts(llms.ChatMessageTypeHuman, strings.Join(injection, " "))}
 
@@ -25,7 +26,7 @@ func (c Client) callLLM(ctx context.Context, injection []string) (string, error)
 	if err != nil {
 		return "", fmt.Errorf("failed to get llm response: %w", err)
 	}
-	err = c.db.InsertResponse(ctx, resp)
+	err = c.db.InsertResponse(ctx, resp, messageID, c.modelName)
 	if err != nil {
 		return cleanResponse(resp.Choices[0].Content), fmt.Errorf("failed to write to db: %w", (err))
 	}
@@ -38,12 +39,16 @@ func cleanResponse(resp string) string {
 	resp = strings.ReplaceAll(resp, "\n", " ")
 	resp = strings.ReplaceAll(resp, "<|im_start|>", " ")
 	resp = strings.ReplaceAll(resp, "<|im_end|>", "")
+	resp = strings.ReplaceAll(resp, "user", "")
+	resp = strings.ReplaceAll(resp, "!", "")
+	resp = strings.ReplaceAll(resp, "/", "")
 	return strings.TrimSpace(resp)
 }
 
 // SingleMessageResponse is a response from the LLM model to a single message, but to work it needs to have context of chat history
-func (c Client) SingleMessageResponse(ctx context.Context, msg database.TwitchMessage) (string, error) {
-	prompt, err := c.callLLM(ctx, []string{fmt.Sprintf("%s: %s", msg.Username, msg.Text)})
+func (c Client) SingleMessageResponse(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error) {
+	// TODO: i don't like passing the []string here. it should be cast in the callLLM function
+	prompt, err := c.callLLM(ctx, []string{fmt.Sprintf("%s: %s", msg.Username, msg.Text)}, messageID)
 	if err != nil {
 		metrics.FailedLLMGen.Add(1)
 		return "", err
@@ -59,7 +64,9 @@ func (c Client) SingleMessageResponse(ctx context.Context, msg database.TwitchMe
 
 // GenerateTimer is a response from the LLM model from the list of helpful links and reminders
 func (c Client) GenerateTimer(ctx context.Context) (string, error) {
-	prompt, err := c.callLLM(ctx, []string{"Using one of the following emotes, ask chat a question about software. soypet2Dance soypet2Love soypet2WUT soypet2Peace soypet2Loulou soypet2Max soypet2Thinking soypet2Pray soypet2Lol soypet2Heart.  "})
+	prompt, err := c.callLLM(ctx,
+		[]string{"Chat has been silent for a while. Help spark the conversation. Using one of the following emotes, ask chat a question about software. soypet2Dance soypet2Love soypet2Peace soypet2Loulou soypet2Max soypet2Thinking soypet2Pray soypet2Lol soypet2Heart soypet2Brokepedro soypet2SneakyDevil soypet2Profpedro soypet2ConfusedPedro soypet2HappyPedro."},
+		uuid.New())
 	if err != nil {
 		return "", err
 	}

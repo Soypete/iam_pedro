@@ -58,14 +58,15 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 	}
 	// TODO: replace nitbot commands with a classifier model that prompts the LLM
 	if strings.Contains(chat.Text, "Pedro") || strings.Contains(chat.Text, "pedro") || strings.Contains(chat.Text, "soy_llm_bot") {
-		resp, err := irc.llm.SingleMessageResponse(ctx, chat)
+		messageID, err := irc.db.InsertMessage(ctx, chat)
 		if err != nil {
-			log.Println("Failed to get response from LLM")
+			log.Printf("failed to insert message into database: %v\n", err)
+		}
+		resp, err := irc.llm.SingleMessageResponse(ctx, chat, messageID)
+		if err != nil {
+			log.Printf("failed to get response from LLM: %v\n", err)
 		}
 		irc.Client.Say("soypetetech", resp)
 		metrics.TwitchMessageSentCount.Add(1)
-	}
-	if err := irc.db.InsertMessage(ctx, chat); err != nil {
-		log.Println("Failed to insert message into database")
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/tmc/langchaingo/llms"
 )
 
@@ -51,7 +52,7 @@ func (m *mockLLM) Call(ctx context.Context, prompt string, opts ...llms.CallOpti
 
 type mockDB struct{}
 
-func (m *mockDB) InsertResponse(ctx context.Context, resp *llms.ContentResponse) error {
+func (m *mockDB) InsertResponse(ctx context.Context, resp *llms.ContentResponse, messageID uuid.UUID, modelName string) error {
 	return nil
 }
 
@@ -83,7 +84,7 @@ func TestClient_callLLM(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.c.callLLM(tt.args.ctx, tt.args.injection)
+			got, err := tt.c.callLLM(tt.args.ctx, tt.args.injection, uuid.New())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Client.createPrompt() error = %v, wantErr %v", err, tt.wantErr)
 				return
