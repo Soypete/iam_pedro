@@ -59,6 +59,14 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 	if strings.Contains(chat.Text, "Pedro") || strings.Contains(chat.Text, "pedro") || strings.Contains(chat.Text, "soy_llm_bot") {
 		return
 	}
+
+	embeddings, err := irc.llm.CreateEmbedding(ctx, []string{chat.Text})
+	if err != nil {
+		log.Printf("failed to create embedding: %v\n", err)
+	}
+
+	chat.Embedding = embeddings
+
 	messageID, err := irc.db.InsertMessage(ctx, chat)
 	if err != nil {
 		log.Printf("failed to insert message into database: %v\n", err)

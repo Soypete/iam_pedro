@@ -73,7 +73,3 @@ func (c Client) GenerateTimer(ctx context.Context) (string, error) {
 	}
 	return prompt, nil
 }
-
-func (c Client) CreateEmbedding(ctx context.Context, injection []string) ([][]float32, error) {
-	return c.llm.CreateEmbedding(ctx, injection)
-}
