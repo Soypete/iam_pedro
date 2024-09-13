@@ -50,6 +50,10 @@ func (m *mockLLM) Call(ctx context.Context, prompt string, opts ...llms.CallOpti
 	return "", nil
 }
 
+func (m *mockLLM) CreateEmbedding(ctx context.Context, message []string) ([][]float32, error) {
+	return [][]float32{{0}, {0}}, nil
+}
+
 type mockDB struct{}
 
 func (m *mockDB) InsertResponse(ctx context.Context, resp *llms.ContentResponse, messageID uuid.UUID, modelName string) error {

@@ -13,10 +13,16 @@ import (
 type Inferencer interface {
 	SingleMessageResponse(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error)
 	GenerateTimer(ctx context.Context) (string, error)
+	CreateEmbedding(ctx context.Context, injection []string) ([][]float32, error)
+}
+
+type Embedder interface {
+	llms.Model
+	CreateEmbedding(ctx context.Context, injection []string) ([][]float32, error)
 }
 
 type Client struct {
-	llm       llms.Model
+	llm       Embedder
 	db        database.ResponseWriter
 	modelName string
 }

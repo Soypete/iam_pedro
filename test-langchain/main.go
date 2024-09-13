@@ -24,4 +24,10 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Println(response)
+
+	embedings, err := llm.CreateEmbedding(ctx, []string{prompt})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(embedings)
 }

@@ -15,8 +15,7 @@ func cleanMessage(msg v2.PrivateMessage) database.TwitchMessage {
 	chat := database.TwitchMessage{
 		Username: msg.User.DisplayName,
 		Text:     msg.Message,
-		// TODO: add an embedding for the message
-		Time: time.Now(),
+		Time:     time.Now(),
 	}
 
 	if strings.HasPrefix(msg.Message, "!") {
@@ -58,14 +57,15 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 	}
 	// TODO: replace nitbot commands with a classifier model that prompts the LLM
 	if strings.Contains(chat.Text, "Pedro") || strings.Contains(chat.Text, "pedro") || strings.Contains(chat.Text, "soy_llm_bot") {
-		messageID, err := irc.db.InsertMessage(ctx, chat)
-		if err != nil {
-			log.Printf("failed to insert message into database: %v\n", err)
-		}
-		resp, err := irc.llm.SingleMessageResponse(ctx, chat, messageID)
-		if err != nil {
-			log.Printf("failed to get response from LLM: %v\n", err)
-		}
+		return
+	}
+	messageID, err := irc.db.InsertMessage(ctx, chat)
+	if err != nil {
+		log.Printf("failed to insert message into database: %v\n", err)
+	}
+	resp, err := irc.llm.SingleMessageResponse(ctx, chat, messageID)
+	if err != nil {
+		log.Printf("failed to get response from LLM: %v\n", err)
 		irc.Client.Say("soypetetech", resp)
 		metrics.TwitchMessageSentCount.Add(1)
 	}

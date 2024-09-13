@@ -26,6 +26,7 @@ func (c Client) callLLM(ctx context.Context, injection []string, messageID uuid.
 	if err != nil {
 		return "", fmt.Errorf("failed to get llm response: %w", err)
 	}
+
 	err = c.db.InsertResponse(ctx, resp, messageID, c.modelName)
 	if err != nil {
 		return cleanResponse(resp.Choices[0].Content), fmt.Errorf("failed to write to db: %w", (err))
@@ -71,4 +72,8 @@ func (c Client) GenerateTimer(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return prompt, nil
+}
+
+func (c Client) CreateEmbedding(ctx context.Context, injection []string) ([][]float32, error) {
+	return c.llm.CreateEmbedding(ctx, injection)
 }
