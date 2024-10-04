@@ -6,6 +6,8 @@ import (
 
 	"github.com/Soypete/twitch-llm-bot/database"
 	"github.com/google/uuid"
+	"github.com/pgvector/pgvector-go"
+	"github.com/tmc/langchaingo/embeddings"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
 )
@@ -13,16 +15,12 @@ import (
 type Inferencer interface {
 	SingleMessageResponse(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error)
 	GenerateTimer(ctx context.Context) (string, error)
-	CreateEmbedding(ctx context.Context, injection []string) ([][]float32, error)
-}
-
-type Embedder interface {
-	llms.Model
-	CreateEmbedding(ctx context.Context, injection []string) ([][]float32, error)
+	CreateEmbedding(ctx context.Context, injection []string) ([]pgvector.Vector, error)
 }
 
 type Client struct {
-	llm       Embedder
+	llm       llms.Model
+	embedder  embeddings.Embedder
 	db        database.ResponseWriter
 	modelName string
 }
@@ -35,8 +33,14 @@ func Setup(db database.Postgres, modelName string) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OpenAI LLM: %w", err)
 	}
+
+	emb, err := embeddings.NewEmbedder(llm)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create embedder in langchain lib: %w", err)
+	}
 	return &Client{
 		llm:       llm,
+		embedder:  emb,
 		db:        &db,
 		modelName: modelName,
 	}, nil
