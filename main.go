@@ -21,11 +21,13 @@ func main() {
 	flag.Parse()
 
 	// listen and serve for metrics server.
+	// TODO: change these configs to file
 	server := metrics.SetupServer()
 	go server.Run()
 
 	ctx := context.Background()
 	// setup postgres connection
+	// change these configs to file
 	db, err := database.NewPostgres()
 	if err != nil {
 		log.Fatalln(err)

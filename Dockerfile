@@ -1,5 +1,7 @@
 FROM golang:1.23-alpine
 
+ENV OPENAI_API_KEY="test"
+
 RUN apk add --no-cache git
 
 WORKDIR /app
