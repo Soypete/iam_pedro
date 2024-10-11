@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
+	"github.com/tmc/langchaingo/vectorstores"
 )
 
 type Inferencer interface {
@@ -16,9 +17,10 @@ type Inferencer interface {
 }
 
 type Client struct {
-	llm       llms.Model
-	db        database.ResponseWriter
-	modelName string
+	llm         llms.Model
+	db          database.ResponseWriter
+	modelName   string
+	vectorStore vectorstores.VectorStore
 }
 
 func Setup(db database.Postgres, modelName string) (*Client, error) {
@@ -29,9 +31,16 @@ func Setup(db database.Postgres, modelName string) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OpenAI LLM: %w", err)
 	}
-	return &Client{
+
+	c := &Client{
 		llm:       llm,
 		db:        &db,
 		modelName: modelName,
-	}, nil
+	}
+
+	err = c.MakeVectorStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create vector store: %w", err)
+	}
+	return c, nil
 }
