@@ -29,6 +29,12 @@ The bot should respond to questions, to its name, and to types of prompts that i
 
 So far the longest that the bot has taken to respond is 5 minutes, so we need to account for that in the tmeout the api call.
 
+## Run llama cpp
+
+```bash
+./llama-server --hf-repo lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF --hf-file Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf^C
+```
+
 ## TODO
 
 * change bot name

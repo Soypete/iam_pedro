@@ -38,9 +38,9 @@ func Setup(db database.Postgres, modelName string) (*Client, error) {
 		modelName: modelName,
 	}
 
-	err = c.MakeVectorStore()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create vector store: %w", err)
-	}
+	// err = c.MakeVectorStore()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to create vector store: %w", err)
+	// }
 	return c, nil
 }
