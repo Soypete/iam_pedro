@@ -1,27 +1,16 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"log"
 
-	"github.com/tmc/langchaingo/llms/openai"
+	"github.com/Soypete/twitch-llm-bot/langchain"
 )
 
 func main() {
-	ctx := context.Background()
-	// TODO: add options
-	opts := []openai.Option{
-		openai.WithBaseURL("http://127.0.0.1:8080"),
-	}
-	llm, err := openai.New(opts...)
+	llm := langchain.Client{}
+
+	err := llm.MakeVectorStore()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
-	prompt := "What color is the sky?"
-	response, err := llm.Call(ctx, prompt)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(response)
 }
