@@ -1,7 +1,7 @@
 -- +goose Up
 
 -- use pgvector to store embeddings of chat messages
-create extension vector;
+create extension if not exists vector;
 
 drop table if exists twitch_chat_prompts;
 
