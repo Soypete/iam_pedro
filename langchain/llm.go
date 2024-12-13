@@ -11,11 +11,20 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
-const pedroPrompt = "Your name is Pedro. You are a chat bot that helps out in SoyPeteTech's twitch chat. SoyPeteTech is a Software Streamer who's streams consist of live coding primarily in Golang or Data/AI meetups. SoyPete is a self taught developer based in Utah, USA and is employeed a Member of Technical Staff at a startup. If someone addresses you by name please respond by answering the question to the best of you ability. Do not use links, but you can use code, or emotes to express fun messages about software. If you are unable to respond to a message politely ask the chat user to try again. If the chat user is being rude or inappropriate please ignore them. Keep your responses fun and engaging. Do not exceed 500 characters. Do not use new lines. Do not talk about Java or Javascript! Have fun!"
+const pedroPrompt = "Your name is Pedro. You are a chat bot that helps out in SoyPeteTech's twitch chat. SoyPeteTech is a Software Streamer who's streams consist of live coding primarily in Golang or Data/AI meetups. SoyPete is a self taught developer based in Utah, USA and is employeed a Member of Technical Staff at a startup. If someone addresses you by name please respond by answering the question to the best of you ability. Do not use links, but you can use code, or emotes to express fun messages about software. If you are unable to respond to a message politely ask the chat user to try again. If the chat user is being rude or inappropriate please ignore them. Keep your responses fun and engaging. Here are some approved emotes soypet2Thinking soypet2Dance soypet2ConfusedPedro soypet2SneakyDevil soypet2Hug soypet2Winning soypet2Love soypet2Peace soypet2Brokepedro soypet2Profpedro soypet2HappyPedro soypet2Max soypet2Loulou soypet2Thinking soypet2Pray soypet2Lol. Do not exceed 500 characters. Do not use new lines. Do not talk about Java or Javascript! Have fun!"
 
-func (c Client) callLLM(ctx context.Context, injection []string, messageID uuid.UUID) (string, error) {
-	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, pedroPrompt),
-		llms.TextParts(llms.ChatMessageTypeHuman, strings.Join(injection, " "))}
+func (c *Client) manageChatHistory(ctx context.Context, injection []string) {
+
+	if len(c.chatHistory) >= 10 {
+		c.chatHistory = c.chatHistory[1:]
+	}
+	c.chatHistory = append(c.chatHistory, llms.TextParts(llms.ChatMessageTypeHuman, strings.Join(injection, " ")))
+}
+
+func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid.UUID) (string, error) {
+	c.manageChatHistory(ctx, injection)
+	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, pedroPrompt)}
+	messageHistory = append(messageHistory, c.chatHistory...)
 
 	resp, err := c.llm.GenerateContent(ctx, messageHistory,
 		llms.WithCandidateCount(1),
@@ -46,7 +55,7 @@ func cleanResponse(resp string) string {
 }
 
 // SingleMessageResponse is a response from the LLM model to a single message, but to work it needs to have context of chat history
-func (c Client) SingleMessageResponse(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error) {
+func (c *Client) SingleMessageResponse(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error) {
 	// TODO: i don't like passing the []string here. it should be cast in the callLLM function
 	prompt, err := c.callLLM(ctx, []string{fmt.Sprintf("%s: %s", msg.Username, msg.Text)}, messageID)
 	if err != nil {
@@ -63,7 +72,7 @@ func (c Client) SingleMessageResponse(ctx context.Context, msg database.TwitchMe
 }
 
 // GenerateTimer is a response from the LLM model from the list of helpful links and reminders
-func (c Client) GenerateTimer(ctx context.Context) (string, error) {
+func (c *Client) GenerateTimer(ctx context.Context) (string, error) {
 	prompt, err := c.callLLM(ctx,
 		[]string{"Chat has been silent for a while. Help spark the conversation. Using one of the following emotes, ask chat a question about software. soypet2Dance soypet2Love soypet2Peace soypet2Loulou soypet2Max soypet2Thinking soypet2Pray soypet2Lol soypet2Heart soypet2Brokepedro soypet2SneakyDevil soypet2Profpedro soypet2ConfusedPedro soypet2HappyPedro."},
 		uuid.New())

@@ -16,9 +16,10 @@ type Inferencer interface {
 }
 
 type Client struct {
-	llm       llms.Model
-	db        database.ResponseWriter
-	modelName string
+	llm         llms.Model
+	db          database.ResponseWriter
+	modelName   string
+	chatHistory []llms.MessageContent
 }
 
 func Setup(db database.Postgres, modelName string) (*Client, error) {
