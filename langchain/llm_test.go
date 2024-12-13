@@ -2,6 +2,7 @@ package langchain
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
@@ -91,6 +92,80 @@ func TestClient_callLLM(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("Client.createPrompt() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClient_manageChatHistory(t *testing.T) {
+	var ch []llms.MessageContent
+	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "Hello World"))
+	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "my name is Scott"))
+	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "I am a bot"))
+	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "This is chat history"))
+	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "I am writing a test"))
+	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "Please work"))
+	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "I am a bot"))
+	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "This is chat history"))
+	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "I am writing a test"))
+	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "Please work"))
+
+	chat3 := ch[:3]
+	type args struct {
+		ctx       context.Context
+		injection []string
+	}
+	tests := []struct {
+		name    string
+		client  *Client
+		args    args
+		wantLen int
+	}{
+		{
+			name: "no chat",
+			client: &Client{
+				llm: &mockLLM{},
+				db:  &mockDB{},
+			},
+			args: args{
+				ctx:       context.Background(),
+				injection: []string{"Hello", "World"},
+			},
+			wantLen: 1,
+		},
+		{
+			name: "some chat",
+			client: &Client{
+				llm:         &mockLLM{},
+				db:          &mockDB{},
+				chatHistory: chat3,
+			},
+			args: args{
+				ctx:       context.Background(),
+				injection: []string{"Hello", "World"},
+			},
+			wantLen: 4,
+		},
+		{
+			name: "full chat",
+			client: &Client{
+				llm:         &mockLLM{},
+				db:          &mockDB{},
+				chatHistory: ch,
+			},
+			args: args{
+				ctx:       context.Background(),
+				injection: []string{"Hello", "World"},
+			},
+			wantLen: 10,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.client.manageChatHistory(tt.args.ctx, tt.args.injection)
+			if len(tt.client.chatHistory) != tt.wantLen {
+				fmt.Println(tt.client.chatHistory)
+				t.Errorf("Client.manageChatHistory() = %v, want %v", len(tt.client.chatHistory), tt.wantLen)
 			}
 		})
 	}
