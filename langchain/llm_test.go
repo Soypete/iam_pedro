@@ -22,7 +22,7 @@ func Test_cleanResponse(t *testing.T) {
 		},
 		{
 			name: "Test 2",
-			resp: "<|im_start|>user \nTtocsNeb: hi",
+			resp: "<|im_start|> \nTtocsNeb: hi",
 			want: "TtocsNeb: hi",
 		},
 	}
