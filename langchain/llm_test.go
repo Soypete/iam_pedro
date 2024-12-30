@@ -101,11 +101,11 @@ func TestClient_manageChatHistory(t *testing.T) {
 	var ch []llms.MessageContent
 	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "Hello World"))
 	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "my name is Scott"))
-	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "I am a bot"))
+	ch = append(ch, llms.TextParts(llms.ChatMessageTypeAI, "I am a bot"))
 	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "This is chat history"))
 	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "I am writing a test"))
 	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "Please work"))
-	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "I am a bot"))
+	ch = append(ch, llms.TextParts(llms.ChatMessageTypeAI, "I am a bot"))
 	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "This is chat history"))
 	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "I am writing a test"))
 	ch = append(ch, llms.TextParts(llms.ChatMessageTypeHuman, "Please work"))
@@ -114,6 +114,7 @@ func TestClient_manageChatHistory(t *testing.T) {
 	type args struct {
 		ctx       context.Context
 		injection []string
+		chatType  llms.ChatMessageType
 	}
 	tests := []struct {
 		name    string
@@ -130,6 +131,7 @@ func TestClient_manageChatHistory(t *testing.T) {
 			args: args{
 				ctx:       context.Background(),
 				injection: []string{"Hello", "World"},
+				chatType:  llms.ChatMessageTypeHuman,
 			},
 			wantLen: 1,
 		},
@@ -143,6 +145,7 @@ func TestClient_manageChatHistory(t *testing.T) {
 			args: args{
 				ctx:       context.Background(),
 				injection: []string{"Hello", "World"},
+				chatType:  llms.ChatMessageTypeHuman,
 			},
 			wantLen: 4,
 		},
@@ -156,13 +159,14 @@ func TestClient_manageChatHistory(t *testing.T) {
 			args: args{
 				ctx:       context.Background(),
 				injection: []string{"Hello", "World"},
+				chatType:  llms.ChatMessageTypeHuman,
 			},
 			wantLen: 10,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.client.manageChatHistory(tt.args.ctx, tt.args.injection)
+			tt.client.manageChatHistory(tt.args.ctx, tt.args.injection, tt.args.chatType)
 			if len(tt.client.chatHistory) != tt.wantLen {
 				fmt.Println(tt.client.chatHistory)
 				t.Errorf("Client.manageChatHistory() = %v, want %v", len(tt.client.chatHistory), tt.wantLen)
