@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -33,7 +34,11 @@ func main() {
 		log.Fatalln(err)
 	}
 	// setup llm connection
-	llm, err := langchain.Setup(db, model)
+
+	//  we are not actually connecting to openai, but we are using their api spec to connect to our own model via llama.cpp
+	os.Setenv("OPENAI_API_KEY", "none")
+	llmPath := os.Getenv("LLAMA_CPP_PATH")
+	llm, err := langchain.Setup(db, model, llmPath)
 	if err != nil {
 		log.Fatalln(err)
 	}
