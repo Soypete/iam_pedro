@@ -46,11 +46,10 @@ func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid
 func cleanResponse(resp string) string {
 	// remove any newlines
 	resp = strings.ReplaceAll(resp, "\n", " ")
-	resp = strings.ReplaceAll(resp, "<|im_start|>", " ")
+	resp = strings.ReplaceAll(resp, "<|im_start|>", "")
 	resp = strings.ReplaceAll(resp, "<|im_end|>", "")
-	resp = strings.ReplaceAll(resp, "user", "")
-	resp = strings.ReplaceAll(resp, "!", "")
-	resp = strings.ReplaceAll(resp, "/", "")
+	resp = strings.TrimPrefix(resp, "!") // remove any leading ! so that we dont trigger commands
+	resp = strings.TrimPrefix(resp, "/") // remove any leading / so that we dont trigger commands
 	return strings.TrimSpace(resp)
 }
 
