@@ -22,9 +22,9 @@ type Client struct {
 	chatHistory []llms.MessageContent
 }
 
-func Setup(db database.Postgres, modelName string) (*Client, error) {
+func Setup(db database.Postgres, modelName string, llmPath string) (*Client, error) {
 	opts := []openai.Option{
-		openai.WithBaseURL("http://127.0.0.1:8080"),
+		openai.WithBaseURL(llmPath),
 	}
 	llm, err := openai.New(opts...)
 	if err != nil {
