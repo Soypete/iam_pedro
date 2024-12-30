@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"sync"
-	"time"
 
 	database "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/langchain"
@@ -58,32 +57,10 @@ func main() {
 		panic(err)
 	}
 
-	// TODO: break out of the main function
-	ticker := time.NewTicker(10 * time.Minute)
-	done := make(chan bool)
-	go func() {
-		log.Println("Starting prompt loop")
-		for {
-			select {
-			case <-done:
-				return
-			// generate prompts
-			case <-ticker.C:
-				resp, err := llm.GenerateTimer(ctx)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-				// send message to twitch
-				irc.Client.Say("soypetetech", resp)
-			}
-		}
-	}()
-
+	//TODO: make channel for when twitch chat is active
 	// TODO: why is this not in a goroutine?
 	err = irc.Client.Connect()
 	if err != nil {
-		done <- true
 		Shutdown(ctx, &wg)
 		panic(fmt.Errorf("failed to connect to twitch IRC: %w", err))
 	}
