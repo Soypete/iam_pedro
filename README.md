@@ -7,16 +7,19 @@ This is a twitch chat app build in go using [llama.cpp](https://github.com/ggerg
 
 ## To Use
 
-install [lama.cpp]() and run there server on `127.0.0.1` and port `8080`
+install [lama.cpp](https://github.com/ggerganov/llama.cpp) and run there server on `127.0.0.1` and port `8080`
+
+Them pull the docker container
 
 ```bash
-source .secrets
-go run main.go
+docker pull ghcr.io/soypete/iam_pedro:latest
 ```
 
-your secrets should contain
+Then run the container with the following environment variables
 
-`bash export OPENAI_API_KEY export TWITCH_CLIENT_ID export TWITCH_CLIENT_SECRET`
+```bash
+docker run -e LLAMA_CPP_PATH="" -e POSTGRES_URL="" -e TWITCH_ID="" -e TWITCH_SECRET="" -e POSTGRES_VECTOR_URL=""
+```
 
 ## Chat Experience
 
