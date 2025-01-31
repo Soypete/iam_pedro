@@ -12,7 +12,8 @@ import (
 
 type Inferencer interface {
 	SingleMessageResponse(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error)
-	GenerateTimer(ctx context.Context) (string, error)
+	Play20Questions(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error)
+	End20Questions()
 }
 
 type Client struct {
@@ -30,6 +31,7 @@ func Setup(db database.Postgres, modelName string, llmPath string) (*Client, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OpenAI LLM: %w", err)
 	}
+
 	return &Client{
 		llm:       llm,
 		db:        &db,

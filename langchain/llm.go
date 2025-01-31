@@ -11,7 +11,7 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
-const pedroPrompt = "Your name is Pedro. You are a chat bot that helps out in SoyPeteTech's twitch chat. SoyPeteTech is a Software Streamer who's streams consist of live coding primarily in Golang or Data/AI meetups. SoyPete is a self taught developer based in Utah, USA and is employeed a Member of Technical Staff at a startup. If someone addresses you by name please respond by answering the question to the best of you ability. Do not use links, but you can use code, or emotes to express fun messages about software. If you are unable to respond to a message politely ask the chat user to try again. If the chat user is being rude or inappropriate please ignore them. Keep your responses fun and engaging. Here are some approved emotes soypet2Thinking soypet2Dance soypet2ConfusedPedro soypet2SneakyDevil soypet2Hug soypet2Winning soypet2Love soypet2Peace soypet2Brokepedro soypet2Profpedro soypet2HappyPedro soypet2Max soypet2Loulou soypet2Thinking soypet2Pray soypet2Lol. Do not exceed 500 characters. Do not use new lines. Do not talk about Java or Javascript! Have fun!"
+const pedroPrompt = "Your name is Pedro. You are a chat bot that helps out in SoyPeteTech's twitch chat. SoyPeteTech is a Software Streamer (Aka Miriah Peterson) who's streams consist of live coding primarily in Golang or Data/AI meetups. She is a self taught developer based in Utah, USA and is employeed a Member of Technical Staff at a startup. If someone addresses you by name please respond by answering the question to the best of you ability. Do not use links, but you can use code, or emotes to express fun messages about software. If you are unable to respond to a message politely ask the chat user to try again. If the chat user is being rude or inappropriate please ignore them. Keep your responses fun and engaging. Here are some approved emotes soypet2Thinking soypet2Dance soypet2ConfusedPedro soypet2SneakyDevil soypet2Hug soypet2Winning soypet2Love soypet2Peace soypet2Brokepedro soypet2Profpedro soypet2HappyPedro soypet2Max soypet2Loulou soypet2Thinking soypet2Pray soypet2Lol. Do not exceed 500 characters. Do not use new lines. Do not talk about Java or Javascript! Have fun!"
 
 func (c *Client) manageChatHistory(ctx context.Context, injection []string, chatType llms.ChatMessageType) {
 
@@ -74,13 +74,55 @@ func (c *Client) SingleMessageResponse(ctx context.Context, msg database.TwitchM
 	return prompt, nil
 }
 
-// GenerateTimer is a response from the LLM model from the list of helpful links and reminders
-func (c *Client) GenerateTimer(ctx context.Context) (string, error) {
-	prompt, err := c.callLLM(ctx,
-		[]string{"Chat has been silent for a while. Help spark the conversation. Using one of the following emotes, ask chat a question about software. soypet2Dance soypet2Love soypet2Peace soypet2Loulou soypet2Max soypet2Thinking soypet2Pray soypet2Lol soypet2Heart soypet2Brokepedro soypet2SneakyDevil soypet2Profpedro soypet2ConfusedPedro soypet2HappyPedro."},
-		uuid.New())
-	if err != nil {
-		return "", err
+var GameChatHistory []llms.MessageContent
+var thing string
+
+func (c *Client) manageGame(message string, chatType llms.ChatMessageType) {
+	if len(GameChatHistory) == 0 {
+		GameChatHistory = []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, "you are a chat bot playing 20 questions. The goal of the game is to guess what thing that the use is thinking of. You can ask yes or no questions to the user to help you narrow down that the thing is. I can be from any context like movies, history, a location etc. Make sure that your questions exclude certain criteria. Only ask one question at a time.")}
+		message = "I am thinking of a thing. Ask me a yes or no question to help you guess what it is."
 	}
+
+	GameChatHistory = append(GameChatHistory, llms.TextParts(chatType, message))
+}
+
+// End20Questions is a response from the LLM model to end the game of 20 questions
+func (c *Client) End20Questions() {
+	GameChatHistory = nil
+	thing = ""
+}
+
+// Play20Questions is a response from the LLM model to a game of 20 questions
+func (c *Client) Play20Questions(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error) {
+	if thing == "" {
+		thing = msg.Text
+	}
+
+	c.manageGame(msg.Text, llms.ChatMessageTypeHuman)
+
+	//start the game
+	resp, err := c.llm.GenerateContent(ctx, GameChatHistory,
+		llms.WithCandidateCount(1),
+		llms.WithMaxLength(500),
+		llms.WithTemperature(0.7),
+		llms.WithPresencePenalty(1.0), // 2 is the largest penalty for using a work that has already been used
+		llms.WithStopWords([]string{"LUL, PogChamp, Kappa, KappaPride, KappaRoss, KappaWealth"}))
+	if err != nil {
+		return "", fmt.Errorf("failed to get llm response: %w", err)
+	}
+	prompt := cleanResponse(resp.Choices[0].Content)
+	if prompt == "" {
+		metrics.EmptyLLMResponse.Add(1)
+		// We are trying to tag the user to get them to try again with a better prompt.
+		return fmt.Sprintf("sorry, I cannot respont to @%s. Please try again", msg.Username), nil
+	}
+	// loop for checking if the message is the thing
+	if strings.Contains(prompt, thing) {
+		return fmt.Sprintf("I have guessed the thing you are thinking of. It is %s", thing), nil
+	}
+
+	c.manageGame(prompt, llms.ChatMessageTypeAI)
+
+	metrics.SuccessfulLLMGen.Add(1)
 	return prompt, nil
 }

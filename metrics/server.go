@@ -18,6 +18,8 @@ var (
 	TwitchConnectionCount      = expvar.NewInt("twitch_connection_count")
 	TwitchMessageRecievedCount = expvar.NewInt("twitch_message_recieved_count")
 	TwitchMessageSentCount     = expvar.NewInt("twitch_message_sent_count")
+	DiscordMessageRecieved     = expvar.NewInt("discord_message_recieved")
+	DiscordMessageSent         = expvar.NewInt("discord_message_sent")
 )
 
 type Server struct {
