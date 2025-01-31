@@ -27,7 +27,10 @@ func (p *Postgres) InsertMessage(ctx context.Context, msg TwitchMessage) (uuid.U
 	return ID, nil
 }
 
-// TODO: I need to move this
+// TODO: I need to move this to a different file
+// and it should have a more generic name
+// like message. and then I can use the same struct
+// for the discord messages
 type TwitchMessage struct {
 	Username  string    `db:"username"`
 	Text      string    `db:"message"`

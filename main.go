@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"sync"
 
 	database "github.com/Soypete/twitch-llm-bot/database"
+	"github.com/Soypete/twitch-llm-bot/discord"
 	"github.com/Soypete/twitch-llm-bot/langchain"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	twitchirc "github.com/Soypete/twitch-llm-bot/twitch"
@@ -20,20 +22,23 @@ func main() {
 	flag.StringVar(&model, "model", "Mistral_7B_v0.1.4", "The model to use for the LLM")
 	flag.Parse()
 
+	ctx := context.Background()
+	stop := make(chan os.Signal, 1)
+	wg := sync.WaitGroup{}
+
 	// listen and serve for metrics server.
 	// TODO: change these configs to file
 	server := metrics.SetupServer()
 	go server.Run()
 
-	ctx := context.Background()
 	// setup postgres connection
 	// change these configs to file
 	db, err := database.NewPostgres()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	// setup llm connection
 
+	// setup llm connection
 	//  we are not actually connecting to openai, but we are using their api spec to connect to our own model via llama.cpp
 	os.Setenv("OPENAI_API_KEY", "none")
 	llmPath := os.Getenv("LLAMA_CPP_PATH")
@@ -41,34 +46,48 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	// TODO: audit waitgroup
-	wg := sync.WaitGroup{}
+
+	session, err := discord.Setup(llm)
+	if err != nil {
+		fmt.Println(err)
+		stop <- os.Interrupt
+	}
+
+	go Shutdown(ctx, &wg, session, stop)
+	wg.Add(1)
+
 	// setup twitch IRC
 	irc, err := twitchirc.SetupTwitchIRC(wg, llm, db)
 	if err != nil {
-		Shutdown(ctx, &wg)
-		log.Fatalln(err)
+		fmt.Println(err)
+		stop <- os.Interrupt
 	}
 	log.Println("starting twitch IRC connection")
 	// long running function
 	err = irc.ConnectIRC(ctx)
 	if err != nil {
-		Shutdown(ctx, &wg)
-		panic(err)
+		fmt.Println(err)
+		stop <- os.Interrupt
 	}
+	go func() {
+		err = irc.Client.Connect()
+		if err != nil {
+			fmt.Println(err)
+			stop <- os.Interrupt
+		}
+	}()
 
-	//TODO: make channel for when twitch chat is active
-	// TODO: why is this not in a goroutine?
-	err = irc.Client.Connect()
-	if err != nil {
-		Shutdown(ctx, &wg)
-		panic(fmt.Errorf("failed to connect to twitch IRC: %w", err))
-	}
+	signal.Notify(stop, os.Interrupt)
+	log.Println("Press Ctrl+C to exit")
+	wg.Wait()
 }
 
 // Shutdown cancels the context and logs a message.
 // TODO: this needs to be handled with an os signal
-func Shutdown(ctx context.Context, wg *sync.WaitGroup) {
+func Shutdown(ctx context.Context, wg *sync.WaitGroup, session discord.Client, stop chan os.Signal) {
+	<-stop
 	ctx.Done()
+	session.Session.Close()
+	wg.Done()
 	log.Println("Shutting down")
 }

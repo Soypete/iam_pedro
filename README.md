@@ -32,6 +32,19 @@ The bot should respond to questions, to its name, and to types of prompts that i
 
 So far the longest that the bot has taken to respond is 5 minutes, so we need to account for that in the tmeout the api call.
 
+## Discord integration
+
+- two slash commands:
+    - /askPedro <question>
+    - /stumpPedro <thing for 20 questions>
+    - /helpPedro
+
+things to do:
+- [ ] connect to discord
+- [ ] add slash commands
+- [ ] leverage threads for 20 questions
+- [ ] instructions for how to use the bot
+
 ## TODO
 
 * change bot name
