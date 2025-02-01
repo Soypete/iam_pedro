@@ -1,10 +1,11 @@
-package langchain
+package twitchchat
 
 import (
 	"context"
 	"fmt"
 	"strings"
 
+	"github.com/Soypete/twitch-llm-bot/ai"
 	database "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/google/uuid"
@@ -37,24 +38,13 @@ func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid
 	}
 
 	// add pedro's prompt to the chat history
-	c.manageChatHistory(ctx, []string{cleanResponse(resp.Choices[0].Content)}, llms.ChatMessageTypeAI)
+	c.manageChatHistory(ctx, []string{ai.CleanResponse(resp.Choices[0].Content)}, llms.ChatMessageTypeAI)
 
 	err = c.db.InsertResponse(ctx, resp, messageID, c.modelName)
 	if err != nil {
-		return cleanResponse(resp.Choices[0].Content), fmt.Errorf("failed to write to db: %w", (err))
+		return ai.CleanResponse(resp.Choices[0].Content), fmt.Errorf("failed to write to db: %w", (err))
 	}
-	return cleanResponse(resp.Choices[0].Content), nil
-}
-
-// cleanResponse removes any newlines from the response
-func cleanResponse(resp string) string {
-	// remove any newlines
-	resp = strings.ReplaceAll(resp, "\n", " ")
-	resp = strings.ReplaceAll(resp, "<|im_start|>", "")
-	resp = strings.ReplaceAll(resp, "<|im_end|>", "")
-	resp = strings.TrimPrefix(resp, "!") // remove any leading ! so that we dont trigger commands
-	resp = strings.TrimPrefix(resp, "/") // remove any leading / so that we dont trigger commands
-	return strings.TrimSpace(resp)
+	return ai.CleanResponse(resp.Choices[0].Content), nil
 }
 
 // SingleMessageResponse is a response from the LLM model to a single message, but to work it needs to have context of chat history
@@ -74,55 +64,11 @@ func (c *Client) SingleMessageResponse(ctx context.Context, msg database.TwitchM
 	return prompt, nil
 }
 
-var GameChatHistory []llms.MessageContent
-var thing string
-
-func (c *Client) manageGame(message string, chatType llms.ChatMessageType) {
-	if len(GameChatHistory) == 0 {
-		GameChatHistory = []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, "you are a chat bot playing 20 questions. The goal of the game is to guess what thing that the use is thinking of. You can ask yes or no questions to the user to help you narrow down that the thing is. I can be from any context like movies, history, a location etc. Make sure that your questions exclude certain criteria. Only ask one question at a time.")}
-		message = "I am thinking of a thing. Ask me a yes or no question to help you guess what it is."
-	}
-
-	GameChatHistory = append(GameChatHistory, llms.TextParts(chatType, message))
-}
-
 // End20Questions is a response from the LLM model to end the game of 20 questions
 func (c *Client) End20Questions() {
-	GameChatHistory = nil
-	thing = ""
 }
 
 // Play20Questions is a response from the LLM model to a game of 20 questions
 func (c *Client) Play20Questions(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error) {
-	if thing == "" {
-		thing = msg.Text
-	}
-
-	c.manageGame(msg.Text, llms.ChatMessageTypeHuman)
-
-	//start the game
-	resp, err := c.llm.GenerateContent(ctx, GameChatHistory,
-		llms.WithCandidateCount(1),
-		llms.WithMaxLength(500),
-		llms.WithTemperature(0.7),
-		llms.WithPresencePenalty(1.0), // 2 is the largest penalty for using a work that has already been used
-		llms.WithStopWords([]string{"LUL, PogChamp, Kappa, KappaPride, KappaRoss, KappaWealth"}))
-	if err != nil {
-		return "", fmt.Errorf("failed to get llm response: %w", err)
-	}
-	prompt := cleanResponse(resp.Choices[0].Content)
-	if prompt == "" {
-		metrics.EmptyLLMResponse.Add(1)
-		// We are trying to tag the user to get them to try again with a better prompt.
-		return fmt.Sprintf("sorry, I cannot respont to @%s. Please try again", msg.Username), nil
-	}
-	// loop for checking if the message is the thing
-	if strings.Contains(prompt, thing) {
-		return fmt.Sprintf("I have guessed the thing you are thinking of. It is %s", thing), nil
-	}
-
-	c.manageGame(prompt, llms.ChatMessageTypeAI)
-
-	metrics.SuccessfulLLMGen.Add(1)
-	return prompt, nil
+	return "", nil
 }

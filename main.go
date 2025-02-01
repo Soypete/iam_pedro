@@ -9,9 +9,10 @@ import (
 	"os/signal"
 	"sync"
 
+	"github.com/Soypete/twitch-llm-bot/ai/discordchat"
+	"github.com/Soypete/twitch-llm-bot/ai/twitchchat"
 	database "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/discord"
-	"github.com/Soypete/twitch-llm-bot/langchain"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	twitchirc "github.com/Soypete/twitch-llm-bot/twitch"
 )
@@ -24,7 +25,7 @@ func main() {
 
 	ctx := context.Background()
 	stop := make(chan os.Signal, 1)
-	wg := sync.WaitGroup{}
+	wg := &sync.WaitGroup{}
 
 	// listen and serve for metrics server.
 	// TODO: change these configs to file
@@ -42,22 +43,26 @@ func main() {
 	//  we are not actually connecting to openai, but we are using their api spec to connect to our own model via llama.cpp
 	os.Setenv("OPENAI_API_KEY", "none")
 	llmPath := os.Getenv("LLAMA_CPP_PATH")
-	llm, err := langchain.Setup(db, model, llmPath)
+	twitchllm, err := twitchchat.Setup(db, model, llmPath)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	discordllm, err := discordchat.Setup(db, model, llmPath)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	session, err := discord.Setup(llm)
+	session, err := discord.Setup(discordllm)
 	if err != nil {
 		fmt.Println(err)
 		stop <- os.Interrupt
 	}
 
-	go Shutdown(ctx, &wg, session, stop)
+	go Shutdown(ctx, wg, session, stop)
 	wg.Add(1)
 
 	// setup twitch IRC
-	irc, err := twitchirc.SetupTwitchIRC(wg, llm, db)
+	irc, err := twitchirc.SetupTwitchIRC(wg, twitchllm, db)
 	if err != nil {
 		fmt.Println(err)
 		stop <- os.Interrupt

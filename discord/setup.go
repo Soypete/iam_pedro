@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Soypete/twitch-llm-bot/langchain"
+	"github.com/Soypete/twitch-llm-bot/ai"
 	"github.com/bwmarrin/discordgo"
 )
 
 type Client struct {
 	Session *discordgo.Session
-	llm     langchain.Inferencer // should this be a pointer? // we want a pointer to be able to update a leverage chat history, but we probably want a different history than the twitch chat history
+	llm     ai.Chatter // should this be a pointer? // we want a pointer to be able to update a leverage chat history, but we probably want a different history than the twitch chat history
 }
 
 // Setup function is responsible for setting up the discord bot and connecting it to pedroGPT.
-func Setup(llm langchain.Inferencer) (Client, error) {
+func Setup(llm ai.Chatter) (Client, error) {
 	authToken := os.Getenv("DISCORD_SECRET")
 	session, err := discordgo.New("Bot " + authToken)
 	if err != nil {
