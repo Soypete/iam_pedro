@@ -1,21 +1,15 @@
-package langchain
+// package twitchchat is the implemtation of the chatter interface for twitch chat.
+package twitchchat
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/Soypete/twitch-llm-bot/database"
-	"github.com/google/uuid"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
 )
 
-type Inferencer interface {
-	SingleMessageResponse(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error)
-	Play20Questions(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error)
-	End20Questions()
-}
-
+// Client is a client for interacting with the OpenAI LLM and the database.
 type Client struct {
 	llm         llms.Model
 	db          database.ResponseWriter
@@ -23,6 +17,7 @@ type Client struct {
 	chatHistory []llms.MessageContent
 }
 
+// Setup creates a new twitch chat bot.
 func Setup(db database.Postgres, modelName string, llmPath string) (*Client, error) {
 	opts := []openai.Option{
 		openai.WithBaseURL(llmPath),

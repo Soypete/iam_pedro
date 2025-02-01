@@ -1,4 +1,4 @@
-package langchain
+package twitchchat
 
 import (
 	"context"
@@ -8,32 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/tmc/langchaingo/llms"
 )
-
-func Test_cleanResponse(t *testing.T) {
-	tests := []struct {
-		name string
-		resp string
-		want string
-	}{
-		{
-			name: "Test 1",
-			resp: "Hello\nWorld",
-			want: "Hello World",
-		},
-		{
-			name: "Test 2",
-			resp: "<|im_start|> \nTtocsNeb: hi",
-			want: "TtocsNeb: hi",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := cleanResponse(tt.resp); got != tt.want {
-				t.Errorf("cleanResponse() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
 
 type mockLLM struct{}
 
