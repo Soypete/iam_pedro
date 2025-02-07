@@ -34,25 +34,22 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 		RedirectURL:  "http://localhost:3000/oauth/redirect",
 		Endpoint:     twitch.Endpoint,
 	}
-	irc.wg.Add(1)
-
 	// Redirect user to consent page to ask for permission
 	// for the scopes specified above.
-	go func() {
-		defer irc.wg.Done()
-		url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
-		fmt.Printf("Visit the URL for the auth dialog: %v\n", url)
+	url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	fmt.Printf("Visit the URL for the auth dialog: %v\n", url)
+	for irc.authCode == "" {
 		// wait for auth code
-		for irc.authCode == "" {
-			time.Sleep(1 * time.Second)
-		}
-		var err error
-		irc.tok, err = conf.Exchange(ctx, irc.authCode)
-		if err != nil {
-			// print until we have ctx.done
-			fmt.Println(fmt.Errorf("failed to get token with auth code: %w", err))
-		}
-	}()
-	irc.wg.Wait()
+		time.Sleep(1 * time.Second)
+	}
+
+	fmt.Println("auth code received")
+	var err error
+	irc.tok, err = conf.Exchange(ctx, irc.authCode)
+	if err != nil {
+		// print until we have ctx.done
+		fmt.Println(fmt.Errorf("failed to get token with auth code: %w", err))
+	}
+	fmt.Println("token received")
 	return nil
 }
