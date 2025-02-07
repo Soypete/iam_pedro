@@ -59,7 +59,6 @@ func main() {
 	}
 
 	go Shutdown(ctx, wg, session, stop)
-	wg.Add(1)
 
 	// setup twitch IRC
 	irc, err := twitchirc.SetupTwitchIRC(wg, twitchllm, db)
@@ -69,22 +68,19 @@ func main() {
 	}
 	log.Println("starting twitch IRC connection")
 	// long running function
-	err = irc.ConnectIRC(ctx)
+	err = irc.ConnectIRC(ctx, wg)
 	if err != nil {
 		fmt.Println(err)
 		stop <- os.Interrupt
 	}
-	go func() {
-		err = irc.Client.Connect()
-		if err != nil {
-			fmt.Println(err)
-			stop <- os.Interrupt
-		}
-	}()
-
 	signal.Notify(stop, os.Interrupt)
 	log.Println("Press Ctrl+C to exit")
-	wg.Wait()
+
+	err = irc.Client.Connect()
+	if err != nil {
+		fmt.Println(err)
+		stop <- os.Interrupt
+	}
 }
 
 // Shutdown cancels the context and logs a message.
