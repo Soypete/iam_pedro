@@ -2,6 +2,7 @@ package twitchirc
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 
@@ -39,15 +40,16 @@ func SetupTwitchIRC(wg *sync.WaitGroup, llm ai.Chatter, db database.Postgres) (*
 		return nil, errors.Wrap(err, "failed to authenticate with twitch")
 	}
 
+	fmt.Println("Connecting to twitch IRC")
+
 	return irc, nil
 }
 
 // connectIRC gets the auth and connects to the twitch IRC server for channel.
-func (irc *IRC) ConnectIRC(ctx context.Context) error {
+func (irc *IRC) ConnectIRC(ctx context.Context, wg *sync.WaitGroup) error {
 	log.Println("Connecting to twitch IRC")
 	c := v2.NewClient(peteTwitchChannel, "oauth:"+irc.tok.AccessToken)
 	c.Join(peteTwitchChannel)
-	// TODO: This is reconnecting repeatedly and causing a flood of messages to the channel
 	c.OnConnect(func() {
 		metrics.TwitchConnectionCount.Add(1)
 		log.Println("connection to twitch IRC established")
@@ -58,6 +60,7 @@ func (irc *IRC) ConnectIRC(ctx context.Context) error {
 	})
 
 	c.Say(peteTwitchChannel, "Hello, my name is Pedro_el_asistente I am here to help you.")
+
 	irc.Client = c
 	return nil
 }
