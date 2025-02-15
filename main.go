@@ -20,7 +20,11 @@ import (
 func main() {
 
 	var model string
+	var startDiscord bool
+	var startTwitch bool
 	flag.StringVar(&model, "model", "Mistral_7B_v0.1.4", "The model to use for the LLM")
+	flag.BoolVar(&startDiscord, "discordMode", false, "Start the discord bot")
+	flag.BoolVar(&startTwitch, "twitchMode", true, "Start the twitch bot")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -47,48 +51,66 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	discordllm, err := discordchat.Setup(db, model, llmPath)
-	if err != nil {
-		log.Fatalln(err)
+
+	var session discord.Client
+	if startDiscord {
+		discordllm, err := discordchat.Setup(db, model, llmPath)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		session, err = discord.Setup(discordllm)
+		if err != nil {
+			fmt.Println(err)
+			stop <- os.Interrupt
+		}
+
 	}
 
-	session, err := discord.Setup(discordllm)
-	if err != nil {
-		fmt.Println(err)
-		stop <- os.Interrupt
-	}
+	var irc *twitchirc.IRC
+	if startTwitch {
+		// setup twitch IRC
+		irc, err = twitchirc.SetupTwitchIRC(wg, twitchllm, db)
+		if err != nil {
+			fmt.Println(err)
+			stop <- os.Interrupt
+		}
+		log.Println("starting twitch IRC connection")
+		// long running function
+		err = irc.ConnectIRC(ctx, wg)
+		if err != nil {
+			fmt.Println(err)
+			stop <- os.Interrupt
+		}
 
-	go Shutdown(ctx, wg, session, stop)
-
-	// setup twitch IRC
-	irc, err := twitchirc.SetupTwitchIRC(wg, twitchllm, db)
-	if err != nil {
-		fmt.Println(err)
-		stop <- os.Interrupt
-	}
-	log.Println("starting twitch IRC connection")
-	// long running function
-	err = irc.ConnectIRC(ctx, wg)
-	if err != nil {
-		fmt.Println(err)
-		stop <- os.Interrupt
+		go func() {
+			err = irc.Client.Connect()
+			if err != nil {
+				fmt.Println(err)
+				stop <- os.Interrupt
+			}
+		}()
 	}
 	signal.Notify(stop, os.Interrupt)
 	log.Println("Press Ctrl+C to exit")
-
-	err = irc.Client.Connect()
-	if err != nil {
-		fmt.Println(err)
-		stop <- os.Interrupt
-	}
+	Shutdown(ctx, wg, irc, session, stop)
 }
 
 // Shutdown cancels the context and logs a message.
 // TODO: this needs to be handled with an os signal
-func Shutdown(ctx context.Context, wg *sync.WaitGroup, session discord.Client, stop chan os.Signal) {
+func Shutdown(ctx context.Context, wg *sync.WaitGroup,
+	irc *twitchirc.IRC, session discord.Client, stop chan os.Signal) {
 	<-stop
 	ctx.Done()
-	session.Session.Close()
-	wg.Done()
+
+	if session.Session != nil {
+		log.Println(session.Session.Close()) // print error if any
+	}
+
+	if irc != nil {
+		log.Println(irc.Client.Disconnect()) // print error if any
+	}
+	// wg.Done()
 	log.Println("Shutting down")
+	os.Exit(0)
 }
