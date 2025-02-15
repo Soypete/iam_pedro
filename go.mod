@@ -4,7 +4,6 @@ go 1.23.4
 
 require (
 	github.com/bwmarrin/discordgo v0.28.1
-	github.com/davecgh/go-spew v1.1.1
 	github.com/gempir/go-twitch-irc/v2 v2.8.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9
