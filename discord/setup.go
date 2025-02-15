@@ -48,7 +48,5 @@ func Setup(llm ai.Chatter) (Client, error) {
 		}
 	})
 
-	fmt.Printf("%p\n", llm)
-
 	return c, nil
 }
