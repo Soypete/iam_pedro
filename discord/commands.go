@@ -3,6 +3,7 @@ package discord
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Soypete/twitch-llm-bot/database"
@@ -166,7 +167,6 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 			fmt.Println(fmt.Errorf("error getting thread messages: %w", err))
 			return
 		}
-		fmt.Println(len(messageList))
 
 		if len(messageList) == 0 {
 			_, err = d.Session.ChannelMessageSend(thread.ID, "Game over. You did not respond in time. Pedro wins!")
@@ -193,16 +193,6 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 			return
 		}
 
-		// compare the response to the message
-		if resp == fmt.Sprintf("I have guessed the thing you are thinking of. It is %s", message.Text) {
-			_, err = d.Session.ChannelMessageSend(thread.ID, resp)
-			if err != nil {
-				fmt.Println(fmt.Errorf("error sending success message to thread: %w", err))
-				return
-			}
-			break
-		}
-
 		// send the response to the user
 		m, err = d.Session.ChannelMessageSend(thread.ID, resp)
 		if err != nil {
@@ -210,6 +200,32 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 			return
 		}
 		metrics.DiscordMessageSent.Add(1)
+
+		if strings.Contains(resp, "I have guessed the thing you are thinking of") {
+			_, err = d.Session.ChannelMessageSend(thread.ID, resp)
+			d.llm.End20Questions()
+			if err != nil {
+				fmt.Println(fmt.Errorf("error sending message to thread: %w", err))
+				return
+			}
+			_, err = d.Session.ChannelMessageSend(thread.ID, "Game over. Pedro wins!")
+			d.llm.End20Questions()
+			if err != nil {
+				fmt.Println(fmt.Errorf("error sending message to thread: %w", err))
+				return
+			}
+			metrics.DiscordMessageSent.Add(1)
+		}
+
+		if questionNumber == 20 {
+			_, err = d.Session.ChannelMessageSend(thread.ID, "Pedro use all the questions. Game over. You win!")
+			d.llm.End20Questions()
+			if err != nil {
+				fmt.Println(fmt.Errorf("error sending message to thread: %w", err))
+				return
+			}
+			metrics.DiscordMessageSent.Add(1)
+		}
 
 	}
 }

@@ -17,11 +17,12 @@ var thing string
 
 func (c *Bot) manageGame(message string, chatType llms.ChatMessageType) {
 	if len(GameChatHistory) == 0 {
-		GameChatHistory = []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, "you are a chat bot playing 20 questions. The goal of the game is to guess what thing that the use is thinking of. You can ask yes or no questions to the user to help you narrow down that the thing is. I can be from any context like movies, history, a location etc. Make sure that your questions exclude certain criteria. If you get a positive response then the thing is inclide that criteria and you should dig in. Once you think you know what it is, make sure you take a guess. Only ask one question at a time.")}
+		GameChatHistory = []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, "you are a chat bot playing 20 questions. The goal of the game is to guess what thing that the user is thinking of by excluding different categories. You can ask yes or no questions to the user to help you narrow down that the thing is. I can be from any context like movies, history, a location etc. You can only ask one question at a time. If you get a positive response then the thing is inclide that criteria and you should dig in. Once you think you know what it is, ask the user if the thing is a certain thing. If you are wrong, the game is over. If you are right, the game is over.")}
 		message = "I am thinking of a thing. Ask me a yes or no question to help you guess what it is."
 	}
 
 	GameChatHistory = append(GameChatHistory, llms.TextParts(chatType, message))
+	fmt.Println(len(GameChatHistory))
 }
 
 // End20Questions is a response from the LLM model to end the game of 20 questions
