@@ -13,14 +13,15 @@ import (
 
 // SingleMessageResponse is a response from the LLM model to a single message
 func (b *Bot) SingleMessageResponse(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error) {
+
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, ai.PedroPrompt)}
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, msg.Text))
-	resp, err := b.llm.GenerateContent(ctx, messageHistory,
+	resp, err := b.llm.GenerateContent(context.Background(), messageHistory,
 		llms.WithCandidateCount(1),
 		llms.WithMaxLength(500),
 		llms.WithTemperature(0.7),
 		llms.WithPresencePenalty(1.0), // 2 is the largest penalty for using a work that has already been used
-		llms.WithStopWords([]string{"LUL, PogChamp, Kappa, KappaPride, KappaRoss, KappaWealth"}))
+		llms.WithStopWords([]string{"@pedro", "@Pedro", "@PedroAI", "@PedroAI_"}))
 	if err != nil {
 		return "", fmt.Errorf("failed to get llm response: %w", err)
 	}
@@ -30,5 +31,10 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg database.TwitchMess
 		// We are trying to tag the user to get them to try again with a better prompt.
 		return fmt.Sprintf("sorry, I cannot respont to @%s. Please try again", msg.Username), nil
 	}
-	return "", nil
+
+	// Insert the response into the database
+	if err = b.db.InsertResponse(ctx, resp, messageID, b.modelName); err != nil {
+		return "", fmt.Errorf("failed to insert response into database: %w", err)
+	}
+	return prompt, nil
 }

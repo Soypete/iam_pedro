@@ -18,7 +18,7 @@ type Client struct {
 }
 
 // Setup creates a new twitch chat bot.
-func Setup(db database.Postgres, modelName string, llmPath string) (*Client, error) {
+func Setup(db database.ResponseWriter, modelName string, llmPath string) (*Client, error) {
 	opts := []openai.Option{
 		openai.WithBaseURL(llmPath),
 	}
@@ -29,7 +29,7 @@ func Setup(db database.Postgres, modelName string, llmPath string) (*Client, err
 
 	return &Client{
 		llm:       llm,
-		db:        &db,
+		db:        db,
 		modelName: modelName,
 	}, nil
 }
