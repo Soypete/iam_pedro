@@ -5,16 +5,18 @@ import (
 	"os"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
+	"github.com/Soypete/twitch-llm-bot/database"
 	"github.com/bwmarrin/discordgo"
 )
 
 type Client struct {
 	Session *discordgo.Session
-	llm     ai.Chatter // should this be a pointer? // we want a pointer to be able to update a leverage chat history, but we probably want a different history than the twitch chat history
+	llm     ai.Chatter
+	db      database.MessageWriter
 }
 
 // Setup function is responsible for setting up the discord bot and connecting it to pedroGPT.
-func Setup(llm ai.Chatter) (Client, error) {
+func Setup(llm ai.Chatter, db database.MessageWriter) (Client, error) {
 	authToken := os.Getenv("DISCORD_SECRET")
 	session, err := discordgo.New("Bot " + authToken)
 	if err != nil {
@@ -23,16 +25,13 @@ func Setup(llm ai.Chatter) (Client, error) {
 	c := Client{
 		Session: session,
 		llm:     llm,
+		db:      db,
 	}
 	// opens websocket connection
 	err = session.Open()
 	if err != nil {
 		return Client{}, fmt.Errorf("error opening connection to discord: %w", err)
 	}
-	// TODO: this needs to be handled properly
-	// since it is not running in the context of this function we need
-	// to handle the error in the main function
-
 	for _, v := range AddCommands() {
 		_, err := session.ApplicationCommandCreate(session.State.User.ID, "", v)
 		if err != nil {

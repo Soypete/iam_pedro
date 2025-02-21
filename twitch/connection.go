@@ -27,9 +27,9 @@ type IRC struct {
 }
 
 // SetupTwitchIRC sets up the IRC, configures oauth, and inits connection functions.
-func SetupTwitchIRC(wg *sync.WaitGroup, llm ai.Chatter, db database.Postgres) (*IRC, error) {
+func SetupTwitchIRC(wg *sync.WaitGroup, llm ai.Chatter, db database.MessageWriter) (*IRC, error) {
 	irc := &IRC{
-		db:  &db,
+		db:  db,
 		wg:  wg,
 		llm: llm,
 	}

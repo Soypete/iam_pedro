@@ -59,7 +59,7 @@ func main() {
 			log.Fatalln(err)
 		}
 
-		session, err = discord.Setup(discordllm)
+		session, err = discord.Setup(discordllm, db)
 		if err != nil {
 			fmt.Println(err)
 			stop <- os.Interrupt

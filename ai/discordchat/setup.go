@@ -17,7 +17,7 @@ type Bot struct {
 }
 
 // Setup creates a new discord chat bot.
-func Setup(db database.Postgres, modelName string, llmPath string) (*Bot, error) {
+func Setup(db database.ResponseWriter, modelName string, llmPath string) (*Bot, error) {
 	opts := []openai.Option{
 		openai.WithBaseURL(llmPath),
 	}
@@ -28,7 +28,7 @@ func Setup(db database.Postgres, modelName string, llmPath string) (*Bot, error)
 
 	return &Bot{
 		llm:       llm,
-		db:        &db,
+		db:        db,
 		modelName: modelName,
 	}, nil
 }

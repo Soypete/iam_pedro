@@ -60,7 +60,7 @@ func help(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: "help command is not implemented yet.",
+			Content: "To ask Pedro a question, use the /ask_pedro command. To stump Pedro with a game of 20 questions, use the /stump_pedro command.",
 		},
 	})
 	if err != nil {
@@ -71,7 +71,6 @@ func help(s *discordgo.Session, i *discordgo.InteractionCreate) {
 }
 
 func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	fmt.Println("askPedro command")
 	valid, err := messageValidatior(s, i)
 	if !valid {
 		fmt.Println(fmt.Errorf("error responding to askPedro command, no data: %w", err))
@@ -89,10 +88,23 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		Username: i.Interaction.Member.User.Username,
 		Text:     text,
 	}
+	//Insert the message into the database
+	messageID, err := d.db.InsertMessage(context.Background(), message)
+	if err != nil {
+		fmt.Println(fmt.Errorf("error inserting message into database: %w", err))
+		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Failed to ask Pedro. Please try again later",
+			},
+		})
+		return
+	}
+
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: "Let me check real quick...",
+			Content: "Processing your question...",
 		},
 	})
 	if err != nil {
@@ -100,7 +112,7 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 	metrics.DiscordMessageSent.Add(1)
-	resp, err := d.llm.SingleMessageResponse(context.Background(), message, uuid.New())
+	resp, err := d.llm.SingleMessageResponse(context.Background(), message, messageID)
 	if err != nil {
 		fmt.Println(fmt.Errorf("error calling llm | single message response: %w", err))
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -112,15 +124,21 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	// TODO: get user number for the message
+	if resp == "" {
+		resp = "Sorry, I cannot respond to that. Please try again."
+	}
 
-	// TODO: why is resp blank? is it because the message is too long?
-	msgText := fmt.Sprintf("%s: %s", message.Username, resp)
+	userNumber := i.Interaction.Member.User.ID
+	// TODO: break this in to a function we can test
+	msgText := fmt.Sprintf("<@%s>:\nQuestion: %s\nResponse: %s", userNumber, text, resp)
 	_, err = d.Session.ChannelMessageSend(i.Interaction.ChannelID, msgText)
 	if err != nil {
 		fmt.Println(fmt.Errorf("error sending message to channel: %w", err))
 		return
 	}
+	metrics.DiscordMessageSent.Add(1)
+
+	// TODO: listen for the user to respond to the message with a follow up question to Pedro in a thread
 }
 
 func messageValidatior(s *discordgo.Session, i *discordgo.InteractionCreate) (bool, error) {
@@ -168,7 +186,6 @@ func (d Client) stumpPedro(s *discordgo.Session, i *discordgo.InteractionCreate)
 	metrics.DiscordMessageSent.Add(1)
 }
 
-// TODO: we should duration tracking for the game
 func (d Client) play20Questions(channelID string, message database.TwitchMessage) {
 	thing := message.Text
 	ctx := context.Background()
