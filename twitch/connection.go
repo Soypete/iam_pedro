@@ -2,12 +2,11 @@ package twitchirc
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"sync"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
 	"github.com/Soypete/twitch-llm-bot/database"
+	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	v2 "github.com/gempir/go-twitch-irc/v2"
 	"github.com/pkg/errors"
@@ -24,38 +23,47 @@ type IRC struct {
 	tok      *oauth2.Token
 	llm      ai.Chatter
 	authCode string
+	logger   *logging.Logger
 }
 
 // SetupTwitchIRC sets up the IRC, configures oauth, and inits connection functions.
-func SetupTwitchIRC(wg *sync.WaitGroup, llm ai.Chatter, db database.MessageWriter) (*IRC, error) {
-	irc := &IRC{
-		db:  db,
-		wg:  wg,
-		llm: llm,
+func SetupTwitchIRC(wg *sync.WaitGroup, llm ai.Chatter, db database.MessageWriter, logger *logging.Logger) (*IRC, error) {
+	if logger == nil {
+		logger = logging.Default()
 	}
+	
+	irc := &IRC{
+		db:     db,
+		wg:     wg,
+		llm:    llm,
+		logger: logger,
+	}
+	
 	// using a separate context here because it needs human interaction
 	ctx := context.Background()
 	err := irc.AuthTwitch(ctx)
 	if err != nil {
+		logger.Error("failed to authenticate with twitch", "error", err.Error())
 		return nil, errors.Wrap(err, "failed to authenticate with twitch")
 	}
 
-	fmt.Println("Connecting to twitch IRC")
+	logger.Info("authenticating with twitch IRC")
 
 	return irc, nil
 }
 
 // connectIRC gets the auth and connects to the twitch IRC server for channel.
 func (irc *IRC) ConnectIRC(ctx context.Context, wg *sync.WaitGroup) error {
-	log.Println("Connecting to twitch IRC")
+	irc.logger.Info("connecting to twitch IRC")
 	c := v2.NewClient(peteTwitchChannel, "oauth:"+irc.tok.AccessToken)
 	c.Join(peteTwitchChannel)
 	c.OnConnect(func() {
 		metrics.TwitchConnectionCount.Add(1)
-		log.Println("connection to twitch IRC established")
+		irc.logger.Info("connection to twitch IRC established")
 	})
 	c.OnPrivateMessage(func(msg v2.PrivateMessage) {
 		metrics.TwitchMessageRecievedCount.Add(1)
+		irc.logger.Debug("received message", "user", msg.User.Name, "message", msg.Message)
 		irc.HandleChat(ctx, msg)
 	})
 
