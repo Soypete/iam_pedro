@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"sync"
@@ -13,19 +11,25 @@ import (
 	"github.com/Soypete/twitch-llm-bot/ai/twitchchat"
 	database "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/discord"
+	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	twitchirc "github.com/Soypete/twitch-llm-bot/twitch"
 )
 
 func main() {
-
 	var model string
 	var startDiscord bool
 	var startTwitch bool
+	var logLevel string
+	
 	flag.StringVar(&model, "model", "Mistral_7B_v0.1.4", "The model to use for the LLM")
 	flag.BoolVar(&startDiscord, "discordMode", false, "Start the discord bot")
 	flag.BoolVar(&startTwitch, "twitchMode", true, "Start the twitch bot")
+	flag.StringVar(&logLevel, "logLevel", "info", "Log level (debug, info, warn, error)")
 	flag.Parse()
+
+	// Initialize logger
+	logger := logging.NewLogger(logging.LogLevel(logLevel), os.Stdout)
 
 	ctx := context.Background()
 	stop := make(chan os.Signal, 1)
@@ -40,7 +44,8 @@ func main() {
 	// change these configs to file
 	db, err := database.NewPostgres()
 	if err != nil {
-		log.Fatalln(err)
+		logger.Error("failed to connect to postgres", "error", err.Error())
+		os.Exit(1)
 	}
 
 	// setup llm connection
@@ -49,68 +54,75 @@ func main() {
 	llmPath := os.Getenv("LLAMA_CPP_PATH")
 	twitchllm, err := twitchchat.Setup(db, model, llmPath)
 	if err != nil {
-		log.Fatalln(err)
+		logger.Error("failed to setup twitch LLM", "error", err.Error())
+		os.Exit(1)
 	}
 
 	var session discord.Client
 	if startDiscord {
 		discordllm, err := discordchat.Setup(db, model, llmPath)
 		if err != nil {
-			log.Fatalln(err)
+			logger.Error("failed to setup discord LLM", "error", err.Error())
+			os.Exit(1)
 		}
 
-		session, err = discord.Setup(discordllm, db)
+		session, err = discord.Setup(discordllm, db, logger)
 		if err != nil {
-			fmt.Println(err)
+			logger.Error("failed to setup discord session", "error", err.Error())
 			stop <- os.Interrupt
 		}
-
 	}
 
 	var irc *twitchirc.IRC
 	if startTwitch {
 		// setup twitch IRC
-		irc, err = twitchirc.SetupTwitchIRC(wg, twitchllm, db)
+		irc, err = twitchirc.SetupTwitchIRC(wg, twitchllm, db, logger)
 		if err != nil {
-			fmt.Println(err)
+			logger.Error("failed to setup twitch IRC", "error", err.Error())
 			stop <- os.Interrupt
 		}
-		log.Println("starting twitch IRC connection")
+		logger.Info("starting twitch IRC connection")
 		// long running function
 		err = irc.ConnectIRC(ctx, wg)
 		if err != nil {
-			fmt.Println(err)
+			logger.Error("failed to connect to twitch IRC", "error", err.Error())
 			stop <- os.Interrupt
 		}
 
 		go func() {
 			err = irc.Client.Connect()
 			if err != nil {
-				fmt.Println(err)
+				logger.Error("twitch client connection failed", "error", err.Error())
 				stop <- os.Interrupt
 			}
 		}()
 	}
 	signal.Notify(stop, os.Interrupt)
-	log.Println("Press Ctrl+C to exit")
-	Shutdown(ctx, wg, irc, session, stop)
+	logger.Info("Press Ctrl+C to exit")
+	Shutdown(ctx, wg, irc, session, stop, logger)
 }
 
 // Shutdown cancels the context and logs a message.
 // TODO: this needs to be handled with an os signal
 func Shutdown(ctx context.Context, wg *sync.WaitGroup,
-	irc *twitchirc.IRC, session discord.Client, stop chan os.Signal) {
+	irc *twitchirc.IRC, session discord.Client, stop chan os.Signal, logger *logging.Logger) {
 	<-stop
 	ctx.Done()
 
 	if session.Session != nil {
-		log.Println(session.Session.Close()) // print error if any
+		err := session.Session.Close()
+		if err != nil {
+			logger.Error("error closing discord session", "error", err.Error())
+		}
 	}
 
 	if irc != nil {
-		log.Println(irc.Client.Disconnect()) // print error if any
+		err := irc.Client.Disconnect()
+		if err != nil {
+			logger.Error("error disconnecting twitch client", "error", err.Error())
+		}
 	}
 	// wg.Done()
-	log.Println("Shutting down")
+	logger.Info("Shutting down")
 	os.Exit(0)
 }
