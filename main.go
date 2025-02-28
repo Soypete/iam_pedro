@@ -21,11 +21,11 @@ func main() {
 	var startDiscord bool
 	var startTwitch bool
 	var logLevel string
-	
+
 	flag.StringVar(&model, "model", "Mistral_7B_v0.1.4", "The model to use for the LLM")
 	flag.BoolVar(&startDiscord, "discordMode", false, "Start the discord bot")
 	flag.BoolVar(&startTwitch, "twitchMode", true, "Start the twitch bot")
-	flag.StringVar(&logLevel, "logLevel", "info", "Log level (debug, info, warn, error)")
+	flag.StringVar(&logLevel, "errorLevel", "info", "Log level (debug, info, warn, error)")
 	flag.Parse()
 
 	// Initialize logger
@@ -42,7 +42,7 @@ func main() {
 
 	// setup postgres connection
 	// change these configs to file
-	db, err := database.NewPostgres()
+	db, err := database.NewPostgres(logger)
 	if err != nil {
 		logger.Error("failed to connect to postgres", "error", err.Error())
 		os.Exit(1)
@@ -52,7 +52,7 @@ func main() {
 	//  we are not actually connecting to openai, but we are using their api spec to connect to our own model via llama.cpp
 	os.Setenv("OPENAI_API_KEY", "none")
 	llmPath := os.Getenv("LLAMA_CPP_PATH")
-	twitchllm, err := twitchchat.Setup(db, model, llmPath)
+	twitchllm, err := twitchchat.Setup(db, model, llmPath, logger)
 	if err != nil {
 		logger.Error("failed to setup twitch LLM", "error", err.Error())
 		os.Exit(1)
@@ -60,7 +60,7 @@ func main() {
 
 	var session discord.Client
 	if startDiscord {
-		discordllm, err := discordchat.Setup(db, model, llmPath)
+		discordllm, err := discordchat.Setup(db, model, llmPath, logger)
 		if err != nil {
 			logger.Error("failed to setup discord LLM", "error", err.Error())
 			os.Exit(1)

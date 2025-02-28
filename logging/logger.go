@@ -47,7 +47,7 @@ func NewLogger(level LogLevel, output io.Writer) *Logger {
 		logLevel = slog.LevelInfo
 	}
 
-	handler := slog.NewTextHandler(output, &slog.HandlerOptions{
+	handler := slog.NewJSONHandler(output, &slog.HandlerOptions{
 		Level: logLevel,
 	})
 
