@@ -6,7 +6,6 @@ import (
 	"time"
 
 	database "github.com/Soypete/twitch-llm-bot/database"
-	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	v2 "github.com/gempir/go-twitch-irc/v2"
 )
@@ -52,31 +51,32 @@ func needsResponseChat(msg database.TwitchMessage) bool {
 
 func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 	chat := cleanMessage(msg)
-	
+
 	// do not persist messages from the Nightbot
 	if msg.User.DisplayName == "Nightbot" {
 		irc.logger.Debug("ignoring Nightbot message")
 		return
 	}
-	
+
 	// TODO: replace nitbot commands with a classifier model that prompts the LLM
 	if strings.Contains(chat.Text, "Pedro") || strings.Contains(chat.Text, "pedro") || strings.Contains(chat.Text, "soy_llm_bot") {
-		irc.logger.Info("processing message that mentions bot", "user", chat.Username, "message", chat.Text)
-		
+		irc.logger.Debug("processing message that mentions bot")
+
 		messageID, err := irc.db.InsertMessage(ctx, chat)
 		if err != nil {
-			irc.logger.Error("failed to insert message into database", "error", err.Error(), "user", chat.Username)
+			irc.logger.Error("failed to insert message into database", "error", err.Error())
 			return
 		}
-		
+
 		irc.logger.Debug("message inserted into database", "messageID", messageID)
 		resp, err := irc.llm.SingleMessageResponse(ctx, chat, messageID)
 		if err != nil {
 			irc.logger.Error("failed to get response from LLM", "error", err.Error(), "messageID", messageID)
 			return
 		}
-		
-		irc.logger.Info("sending response to Twitch", "response", resp, "user", chat.Username)
+
+		// Don't log the actual response content to protect privacy
+		irc.logger.Debug("sending response to Twitch", "messageID", messageID, "responseLength", len(resp))
 		irc.Client.Say("soypetetech", resp)
 		metrics.TwitchMessageSentCount.Add(1)
 	}

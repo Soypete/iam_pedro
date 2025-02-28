@@ -14,7 +14,7 @@ type MessageWriter interface {
 
 // InsertMessage inserts a message into the database and returns the message ID if successful.
 func (p *Postgres) InsertMessage(ctx context.Context, msg TwitchMessage) (uuid.UUID, error) {
-	p.logger.Debug("generating UUID for message", "user", msg.Username)
+	p.logger.Debug("generating UUID for message")
 	ID, err := uuid.NewUUID()
 	if err != nil {
 		p.logger.Error("error generating UUID", "error", err.Error())
@@ -23,7 +23,7 @@ func (p *Postgres) InsertMessage(ctx context.Context, msg TwitchMessage) (uuid.U
 	msg.UUID = ID
 	
 	query := "INSERT INTO twitch_chat (username, message, isCommand, created_at, uuid) VALUES (:username, :message, :isCommand, :created_at, :uuid)"
-	p.logger.Debug("inserting message into database", "messageID", ID, "user", msg.Username)
+	p.logger.Debug("inserting message into database", "messageID", ID)
 	
 	_, err = p.connections.NamedExecContext(ctx, query, msg)
 	if err != nil {

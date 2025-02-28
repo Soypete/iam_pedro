@@ -13,12 +13,12 @@ import (
 
 // SingleMessageResponse is a response from the LLM model to a single message
 func (b *Bot) SingleMessageResponse(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error) {
-	b.logger.Info("processing discord single message response", "user", msg.Username, "messageID", messageID)
+	b.logger.Debug("processing discord single message response", "messageID", messageID)
 
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, ai.PedroPrompt)}
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, msg.Text))
 	
-	b.logger.Debug("calling LLM for discord message", "text", msg.Text)
+	b.logger.Debug("calling LLM for discord message", "messageID", messageID)
 	resp, err := b.llm.GenerateContent(context.Background(), messageHistory,
 		llms.WithCandidateCount(1),
 		llms.WithMaxLength(500),
@@ -26,16 +26,16 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg database.TwitchMess
 		llms.WithPresencePenalty(1.0), // 2 is the largest penalty for using a work that has already been used
 		llms.WithStopWords([]string{"@pedro", "@Pedro", "@PedroAI", "@PedroAI_"}))
 	if err != nil {
-		b.logger.Error("failed to get discord LLM response", "error", err.Error())
+		b.logger.Error("failed to get discord LLM response", "error", err.Error(), "messageID", messageID)
 		metrics.FailedLLMGen.Add(1)
 		return "", fmt.Errorf("failed to get llm response: %w", err)
 	}
 	
 	prompt := ai.CleanResponse(resp.Choices[0].Content)
-	b.logger.Debug("received discord LLM response", "response", prompt)
+	b.logger.Debug("received discord LLM response", "messageID", messageID, "responseLength", len(prompt))
 	
 	if prompt == "" {
-		b.logger.Warn("empty response from discord LLM", "user", msg.Username)
+		b.logger.Warn("empty response from discord LLM", "messageID", messageID)
 		metrics.EmptyLLMResponse.Add(1)
 		// We are trying to tag the user to get them to try again with a better prompt.
 		return fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", msg.Username), nil
@@ -47,7 +47,7 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg database.TwitchMess
 		return prompt, fmt.Errorf("failed to insert response into database: %w", err)
 	}
 	
-	b.logger.Info("successful discord response generation", "user", msg.Username, "messageLength", len(prompt))
+	b.logger.Debug("successful discord response generation", "messageID", messageID, "messageLength", len(prompt))
 	metrics.SuccessfulLLMGen.Add(1)
 	return prompt, nil
 }
