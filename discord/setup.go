@@ -2,10 +2,10 @@ package discord
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
 	"github.com/Soypete/twitch-llm-bot/database"
+	"github.com/Soypete/twitch-llm-bot/secrets"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -17,7 +17,7 @@ type Client struct {
 
 // Setup function is responsible for setting up the discord bot and connecting it to pedroGPT.
 func Setup(llm ai.Chatter, db database.MessageWriter) (Client, error) {
-	authToken := os.Getenv("DISCORD_SECRET")
+	authToken := secrets.DiscordSecret
 	session, err := discordgo.New("Bot " + authToken)
 	if err != nil {
 		return Client{}, fmt.Errorf("error creating discord session: %w", err)

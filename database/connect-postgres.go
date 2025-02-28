@@ -3,8 +3,8 @@ package database
 import (
 	"embed"
 	"fmt"
-	"os"
 
+	"github.com/Soypete/twitch-llm-bot/secrets"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
@@ -18,7 +18,7 @@ type Postgres struct {
 var embedMigrations embed.FS
 
 func NewPostgres() (*Postgres, error) {
-	dbx, err := sqlx.Connect("postgres", os.Getenv("POSTGRES_URL"))
+	dbx, err := sqlx.Connect("postgres", secrets.PostgresUrl)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to postgres: %w", err)
 	}

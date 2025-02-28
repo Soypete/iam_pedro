@@ -14,6 +14,7 @@ import (
 	database "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/discord"
 	"github.com/Soypete/twitch-llm-bot/metrics"
+	"github.com/Soypete/twitch-llm-bot/secrets"
 	twitchirc "github.com/Soypete/twitch-llm-bot/twitch"
 )
 
@@ -28,8 +29,12 @@ func main() {
 	flag.Parse()
 
 	ctx := context.Background()
+
 	stop := make(chan os.Signal, 1)
 	wg := &sync.WaitGroup{}
+
+	// setup secrets from 1password
+	secrets.Init()
 
 	// listen and serve for metrics server.
 	// TODO: change these configs to file

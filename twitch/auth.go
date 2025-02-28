@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
+	"github.com/Soypete/twitch-llm-bot/secrets"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/twitch"
 )
@@ -28,8 +28,8 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 
 	conf := &oauth2.Config{
 		// TODO: use const for the following.
-		ClientID:     os.Getenv("TWITCH_ID"),
-		ClientSecret: os.Getenv("TWITCH_SECRET"),
+		ClientID:     secrets.TwitchID,
+		ClientSecret: secrets.TwitchSecret,
 		Scopes:       []string{"chat:read", "chat:edit", "channel:moderate"},
 		RedirectURL:  "http://localhost:3000/oauth/redirect",
 		Endpoint:     twitch.Endpoint,
