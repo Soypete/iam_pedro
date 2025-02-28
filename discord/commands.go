@@ -67,7 +67,7 @@ func (d Client) help(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		d.logger.Error("error responding to help command", "error", err.Error())
 		return
 	}
-	d.logger.Debug("help command handled successfully", "user", i.Member.User.Username)
+	d.logger.Debug("help command handled successfully")
 	metrics.DiscordMessageSent.Add(1)
 }
 
@@ -87,7 +87,6 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	data := i.Interaction.Data.(discordgo.ApplicationCommandInteractionData) // assert the data type
 	text := data.Options[0].StringValue()
 	username := i.Interaction.Member.User.Username
-	d.logger.Info("processing ask_pedro command", "user", username, "question", text)
 
 	message := database.TwitchMessage{
 		Username: username,
@@ -97,7 +96,7 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	//Insert the message into the database
 	messageID, err := d.db.InsertMessage(context.Background(), message)
 	if err != nil {
-		d.logger.Error("error inserting message into database", "error", err.Error())
+		d.logger.Error("failed to insert message into database", "error", err.Error())
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -106,6 +105,7 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		})
 		return
 	}
+
 	d.logger.Debug("message inserted into database", "messageID", messageID)
 
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -123,7 +123,7 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	d.logger.Debug("calling LLM for response", "messageID", messageID)
 	resp, err := d.llm.SingleMessageResponse(context.Background(), message, messageID)
 	if err != nil {
-		d.logger.Error("error calling llm | single message response", "error", err.Error())
+		d.logger.Error("error calling llm | single message response", "error", err.Error(), "messageID", messageID)
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -134,7 +134,7 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	if resp == "" {
-		d.logger.Warn("empty response from LLM", "user", username)
+		d.logger.Warn("empty response from LLM", "messageID", messageID)
 		resp = "Sorry, I cannot respond to that. Please try again."
 	}
 
@@ -146,7 +146,6 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		d.logger.Error("error sending message to channel", "error", err.Error(), "channelID", i.Interaction.ChannelID)
 		return
 	}
-	d.logger.Info("successfully processed ask_pedro command", "user", username)
 	metrics.DiscordMessageSent.Add(1)
 
 	// TODO: listen for the user to respond to the message with a follow up question to Pedro in a thread
@@ -180,8 +179,6 @@ func (d Client) stumpPedro(s *discordgo.Session, i *discordgo.InteractionCreate)
 	text := data.Options[0].StringValue()
 	username := i.Interaction.Member.User.Username
 
-	d.logger.Info("processing stump_pedro command", "user", username, "guess", text)
-
 	message := database.TwitchMessage{
 		Username: username,
 		Text:     text,
@@ -198,7 +195,7 @@ func (d Client) stumpPedro(s *discordgo.Session, i *discordgo.InteractionCreate)
 		return
 	}
 
-	d.logger.Debug("starting 20 questions game", "user", username, "channelID", i.Interaction.ChannelID)
+	d.logger.Debug("starting 20 questions game", "channelID", i.Interaction.ChannelID)
 	go d.play20Questions(i.Interaction.ChannelID, message)
 
 	metrics.DiscordMessageSent.Add(1)
@@ -209,12 +206,12 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 	username := message.Username
 	ctx := context.Background()
 
-	d.logger.Debug("starting play20Questions", "user", username, "channelID", channelID)
+	d.logger.Debug("starting play20Questions", "channelID", channelID)
 
 	gameID := uuid.New()
 	resp, err := d.llm.Play20Questions(ctx, message, gameID)
 	if err != nil {
-		d.logger.Error("error playing 20 questions", "error", err.Error(), "user", username)
+		d.logger.Error("error playing 20 questions", "error", err.Error())
 		return
 	}
 
@@ -231,7 +228,7 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 		d.logger.Error("error starting thread", "error", err.Error(), "channelID", m.ChannelID)
 		return
 	}
-	d.logger.Debug("started thread for 20 questions", "threadID", thread.ID, "user", username)
+	d.logger.Debug("started thread for 20 questions", "threadID", thread.ID)
 
 	m, err = d.Session.ChannelMessageSend(thread.ID, resp)
 	if err != nil {
@@ -253,7 +250,6 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 		}
 
 		if len(messageList) == 0 {
-			d.logger.Info("user did not respond in time", "user", username, "threadID", thread.ID)
 			_, err = d.Session.ChannelMessageSend(thread.ID, "Game over. You did not respond in time. Pedro wins!")
 			d.llm.End20Questions()
 			if err != nil {
@@ -269,7 +265,7 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 			Username: m.Author.Username,
 			Text:     m.Content,
 		}
-		d.logger.Debug("received user response", "user", message.Username, "response", message.Text)
+		d.logger.Debug("received response", "response_length", len(message.Text))
 
 		// call the LLM model
 		resp, err := d.llm.Play20Questions(ctx, message, gameID)
@@ -280,7 +276,6 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 
 		// compare the response to the message
 		if resp == fmt.Sprintf("I have guessed the thing you are thinking of. It is %s", thing) {
-			d.logger.Info("LLM correctly guessed the thing", "thing", thing, "questionNumber", questionNumber)
 			_, err = d.Session.ChannelMessageSend(thread.ID, resp)
 			if err != nil {
 				d.logger.Error("error sending success message to thread", "error", err.Error(), "threadID", thread.ID)
@@ -298,7 +293,6 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 		metrics.DiscordMessageSent.Add(1)
 
 		if strings.Contains(resp, "I have guessed the thing you are thinking of") {
-			d.logger.Info("LLM made a guess", "response", resp, "questionNumber", questionNumber)
 			_, err = d.Session.ChannelMessageSend(thread.ID, resp)
 			d.llm.End20Questions()
 			if err != nil {
@@ -316,7 +310,6 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 		}
 
 		if questionNumber == 20 {
-			d.logger.Info("reached maximum questions", "user", username)
 			_, err = d.Session.ChannelMessageSend(thread.ID, "Pedro used all the questions. Game over. You win!")
 			d.llm.End20Questions()
 			if err != nil {
@@ -330,6 +323,5 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 		lastMessageID = m.ID
 	}
 
-	d.logger.Info("game completed successfully", "user", username)
 	_, _ = d.Session.ChannelMessageSend(thread.ID, "Game over. You win this round!")
 }

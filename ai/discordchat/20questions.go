@@ -17,7 +17,7 @@ var thing string
 
 func (c *Bot) manageGame(message string, chatType llms.ChatMessageType) {
 	if len(GameChatHistory) == 0 {
-		c.logger.Info("initializing new 20 questions game")
+		c.logger.Debug("initializing new 20 questions game")
 		GameChatHistory = []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, "you are a chat bot playing 20 questions. The goal of the game is to guess what thing that the user is thinking of by excluding different categories. You can ask yes or no questions to the user to help you narrow down that the thing is. I can be from any context like movies, history, a location etc. You can only ask one question at a time. If you get a positive response then the thing is inclide that criteria and you should dig in. Once you think you know what it is, ask the user if the thing is a certain thing. If you are wrong, the game is over. If you are right, the game is over.")}
 		message = "I am thinking of a thing. Ask me a yes or no question to help you guess what it is."
 	}
@@ -36,10 +36,10 @@ func (c *Bot) End20Questions() {
 
 // Play20Questions is a response from the LLM model to a game of 20 questions
 func (c *Bot) Play20Questions(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error) {
-	c.logger.Info("processing 20 questions turn", "user", msg.Username, "messageID", messageID)
+	c.logger.Debug("processing 20 questions turn", "messageID", messageID)
 	
 	if thing == "" {
-		c.logger.Info("setting thing for 20 questions game", "thing", msg.Text)
+		c.logger.Debug("setting thing for 20 questions game")
 		thing = msg.Text
 	}
 
@@ -54,16 +54,16 @@ func (c *Bot) Play20Questions(ctx context.Context, msg database.TwitchMessage, m
 		llms.WithPresencePenalty(1.0), // 2 is the largest penalty for using a work that has already been used
 		llms.WithStopWords([]string{"LUL, PogChamp, Kappa, KappaPride, KappaRoss, KappaWealth"}))
 	if err != nil {
-		c.logger.Error("failed to get 20 questions LLM response", "error", err.Error())
+		c.logger.Error("failed to get 20 questions LLM response", "error", err.Error(), "messageID", messageID)
 		metrics.FailedLLMGen.Add(1)
 		return "", fmt.Errorf("failed to get llm response: %w", err)
 	}
 	
 	prompt := ai.CleanResponse(resp.Choices[0].Content)
-	c.logger.Debug("received 20 questions LLM response", "response", prompt)
+	c.logger.Debug("received 20 questions LLM response", "responseLength", len(prompt))
 	
 	if prompt == "" {
-		c.logger.Warn("empty response from 20 questions LLM", "user", msg.Username)
+		c.logger.Warn("empty response from 20 questions LLM", "messageID", messageID)
 		metrics.EmptyLLMResponse.Add(1)
 		// We are trying to tag the user to get them to try again with a better prompt.
 		return fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", msg.Username), nil
@@ -71,7 +71,7 @@ func (c *Bot) Play20Questions(ctx context.Context, msg database.TwitchMessage, m
 	
 	// loop for checking if the message is the thing
 	if strings.Contains(prompt, thing) {
-		c.logger.Info("LLM guessed the thing correctly", "thing", thing)
+		c.logger.Info("LLM guessed the thing correctly")
 		return fmt.Sprintf("I have guessed the thing you are thinking of. It is %s", thing), nil
 	}
 
