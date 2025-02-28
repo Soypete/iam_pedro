@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/Soypete/twitch-llm-bot/database"
+	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/google/uuid"
 )
 
