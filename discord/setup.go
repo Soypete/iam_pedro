@@ -13,16 +13,12 @@ import (
 type Client struct {
 	Session *discordgo.Session
 	llm     ai.Chatter
-	db      database.MessageWriter
+	db      database.DiscordWriter
 	logger  *logging.Logger
 }
 
 // Setup function is responsible for setting up the discord bot and connecting it to pedroGPT.
-func Setup(llm ai.Chatter, db database.MessageWriter, logger *logging.Logger) (Client, error) {
-	if logger == nil {
-		logger = logging.Default()
-	}
-
+func Setup(llm ai.Chatter, db database.DiscordWriter, logger *logging.Logger) (Client, error) {
 	authToken := os.Getenv("DISCORD_SECRET")
 	session, err := discordgo.New("Bot " + authToken)
 	if err != nil {

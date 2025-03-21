@@ -8,6 +8,7 @@ import (
 
 	"github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/metrics"
+	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/bwmarrin/discordgo"
 	"github.com/google/uuid"
 )
@@ -86,15 +87,15 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	data := i.Interaction.Data.(discordgo.ApplicationCommandInteractionData) // assert the data type
 	text := data.Options[0].StringValue()
-	username := i.Interaction.Member.User.Username
-
-	message := database.TwitchMessage{
-		Username: username,
-		Text:     text,
+	message := types.DiscordAskMessage{
+		Username:    i.Interaction.Member.User.Username,
+		Message:     text,
+		IsFromPedro: false,
 	}
 
 	//Insert the message into the database
-	messageID, err := d.db.InsertMessage(context.Background(), message)
+	d.db.InsertDiscordAskPedro(context.Background(), message)
+
 	if err != nil {
 		d.logger.Error("failed to insert message into database", "error", err.Error())
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -105,6 +106,7 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		})
 		return
 	}
+	messageID := uuid.New()
 
 	d.logger.Debug("message inserted into database", "messageID", messageID)
 
@@ -148,6 +150,13 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 	metrics.DiscordMessageSent.Add(1)
 
+	message = types.DiscordAskMessage{
+		Username:    i.Interaction.Member.User.Username,
+		Message:     resp,
+		IsFromPedro: true,
+	}
+
+	err = d.db.InsertDiscordAskPedro(context.Background(), message)
 	// TODO: listen for the user to respond to the message with a follow up question to Pedro in a thread
 }
 
@@ -242,7 +251,7 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 		d.logger.Debug("processing question", "number", questionNumber, "threadID", thread.ID)
 
 		// get the user response
-		time.Sleep(10 * time.Second)
+		time.Sleep(30 * time.Second)
 		messageList, err := d.Session.ChannelMessages(thread.ID, 100, "", lastMessageID, "")
 		if err != nil {
 			d.logger.Error("error getting thread messages", "error", err.Error(), "threadID", thread.ID)
