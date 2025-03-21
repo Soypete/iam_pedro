@@ -47,6 +47,7 @@ func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid
 	c.logger.Debug("received LLM response", "response", cleanedResponse)
 	c.manageChatHistory(ctx, []string{cleanedResponse}, llms.ChatMessageTypeAI)
 
+	// TODO: this should go in the twitch client
 	err = c.db.InsertResponse(ctx, resp, messageID, c.modelName)
 	if err != nil {
 		c.logger.Error("failed to write response to database", "error", err.Error(), "messageID", messageID)

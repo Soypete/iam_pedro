@@ -186,11 +186,10 @@ func (d Client) stumpPedro(s *discordgo.Session, i *discordgo.InteractionCreate)
 
 	data := i.Interaction.Data.(discordgo.ApplicationCommandInteractionData) // assert the data type
 	text := data.Options[0].StringValue()
-	username := i.Interaction.Member.User.Username
-
-	message := database.TwitchMessage{
-		Username: username,
-		Text:     text,
+	message := types.Discord20QuestionsGame{
+		Username: i.Interaction.Member.User.Username,
+		Answer:   text,
+		GameID:   uuid.New().String(),
 	}
 
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -210,7 +209,7 @@ func (d Client) stumpPedro(s *discordgo.Session, i *discordgo.InteractionCreate)
 	metrics.DiscordMessageSent.Add(1)
 }
 
-func (d Client) play20Questions(channelID string, message database.TwitchMessage) {
+func (d Client) play20Questions(channelID string, message types.Discord20QuestionsGame) {
 	thing := message.Text
 	username := message.Username
 	ctx := context.Background()
