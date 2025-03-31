@@ -26,11 +26,21 @@ func Init() error {
 	if err != nil {
 		return fmt.Errorf("error getting secrets: %v", err)
 	}
+	println("Secrets loaded")
+	println("TwitchID: ", TwitchID)
+	println("TwitchSecret: ", TwitchSecret)
+	println("PostgresUrl: ", PostgresUrl)
+	println("PostgresVectorUrl: ", PostgresVectorUrl)
+	println("DiscordSecret: ", DiscordSecret)
+	println("DiscordClientID: ", DiscordClientID)
+	println("DiscordPublicKey: ", DiscordPublicKey)
+	println("DiscordPermissions: ", DiscordPermissions)
 	return nil
 }
 
 func getSecrets() error {
 	token := os.Getenv("OP_SA")
+	fmt.Println("Token: ", token)
 
 	client, err := onepassword.NewClient(
 		context.TODO(),
@@ -40,6 +50,7 @@ func getSecrets() error {
 	if err != nil {
 		return fmt.Errorf("error creating 1password client: %v", err)
 	}
+	fmt.Println("Client: ", client)
 	TwitchID, err = client.Secrets().Resolve(context.TODO(), "op://pedro/TWITCH_ID/credential")
 	if err != nil {
 		return fmt.Errorf("error resolving secret: %v", err)

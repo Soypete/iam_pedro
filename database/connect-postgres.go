@@ -18,6 +18,7 @@ type Postgres struct {
 var embedMigrations embed.FS
 
 func NewPostgres() (*Postgres, error) {
+	fmt.Println(secrets.PostgresUrl)
 	dbx, err := sqlx.Connect("postgres", secrets.PostgresUrl)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to postgres: %w", err)

@@ -34,6 +34,7 @@ func main() {
 	wg := &sync.WaitGroup{}
 
 	// setup secrets from 1password
+	println("Loading secrets")
 	secrets.Init()
 
 	// listen and serve for metrics server.
