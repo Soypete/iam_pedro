@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/google/uuid"
 	"github.com/tmc/langchaingo/llms"
 )
@@ -46,8 +47,9 @@ func TestClient_callLLM(t *testing.T) {
 		{
 			name: "make prompt",
 			c: Client{
-				llm: &mockLLM{},
-				db:  &mockDB{},
+				llm:    &mockLLM{},
+				db:     &mockDB{},
+				logger: logging.Default(),
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -99,8 +101,9 @@ func TestClient_manageChatHistory(t *testing.T) {
 		{
 			name: "no chat",
 			client: &Client{
-				llm: &mockLLM{},
-				db:  &mockDB{},
+				llm:    &mockLLM{},
+				db:     &mockDB{},
+				logger: logging.Default(),
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -115,6 +118,7 @@ func TestClient_manageChatHistory(t *testing.T) {
 				llm:         &mockLLM{},
 				db:          &mockDB{},
 				chatHistory: chat3,
+				logger:      logging.Default(),
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -129,6 +133,7 @@ func TestClient_manageChatHistory(t *testing.T) {
 				llm:         &mockLLM{},
 				db:          &mockDB{},
 				chatHistory: ch,
+				logger:      logging.Default(),
 			},
 			args: args{
 				ctx:       context.Background(),

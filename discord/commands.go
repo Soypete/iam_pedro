@@ -50,13 +50,13 @@ func AddCommands() []*discordgo.ApplicationCommand {
 // MakeCommandHandlers returns a map of command names to their respective functions
 func (d Client) MakeCommandHandlers() map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	return map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-		"help":        help,
+		"help":        d.help,
 		"ask_pedro":   d.askPedro,
 		"stump_pedro": d.stumpPedro,
 	}
 }
 
-func help(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (d Client) help(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -64,16 +64,17 @@ func help(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		},
 	})
 	if err != nil {
-		fmt.Println(fmt.Errorf("error responding to help command: %w", err))
+		d.logger.Error("error responding to help command", "error", err.Error())
 		return
 	}
+	d.logger.Debug("help command handled successfully")
 	metrics.DiscordMessageSent.Add(1)
 }
 
 func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	valid, err := messageValidatior(s, i)
 	if !valid {
-		fmt.Println(fmt.Errorf("error responding to askPedro command, no data: %w", err))
+		d.logger.Error("error responding to askPedro command, no data", "error", err.Error())
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -82,16 +83,20 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		})
 		return
 	}
+
 	data := i.Interaction.Data.(discordgo.ApplicationCommandInteractionData) // assert the data type
 	text := data.Options[0].StringValue()
+	username := i.Interaction.Member.User.Username
+
 	message := database.TwitchMessage{
-		Username: i.Interaction.Member.User.Username,
+		Username: username,
 		Text:     text,
 	}
+
 	//Insert the message into the database
 	messageID, err := d.db.InsertMessage(context.Background(), message)
 	if err != nil {
-		fmt.Println(fmt.Errorf("error inserting message into database: %w", err))
+		d.logger.Error("failed to insert message into database", "error", err.Error())
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -100,6 +105,8 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		})
 		return
 	}
+
+	d.logger.Debug("message inserted into database", "messageID", messageID)
 
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -108,13 +115,15 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		},
 	})
 	if err != nil {
-		fmt.Println(fmt.Errorf("error responding to askPedro command: %w", err))
+		d.logger.Error("error responding to askPedro command", "error", err.Error())
 		return
 	}
 	metrics.DiscordMessageSent.Add(1)
+
+	d.logger.Debug("calling LLM for response", "messageID", messageID)
 	resp, err := d.llm.SingleMessageResponse(context.Background(), message, messageID)
 	if err != nil {
-		fmt.Println(fmt.Errorf("error calling llm | single message response: %w", err))
+		d.logger.Error("error calling llm | single message response", "error", err.Error(), "messageID", messageID)
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -125,6 +134,7 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	if resp == "" {
+		d.logger.Warn("empty response from LLM", "messageID", messageID)
 		resp = "Sorry, I cannot respond to that. Please try again."
 	}
 
@@ -133,7 +143,7 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	msgText := fmt.Sprintf("<@%s>:\nQuestion: %s\nResponse: %s", userNumber, text, resp)
 	_, err = d.Session.ChannelMessageSend(i.Interaction.ChannelID, msgText)
 	if err != nil {
-		fmt.Println(fmt.Errorf("error sending message to channel: %w", err))
+		d.logger.Error("error sending message to channel", "error", err.Error(), "channelID", i.Interaction.ChannelID)
 		return
 	}
 	metrics.DiscordMessageSent.Add(1)
@@ -155,7 +165,7 @@ func (d Client) stumpPedro(s *discordgo.Session, i *discordgo.InteractionCreate)
 	response := "Failed to play 20 questions. Please try again later"
 	valid, err := messageValidatior(s, i)
 	if !valid {
-		fmt.Println(fmt.Errorf("error responding to stumpPedro command, no data: %w", err))
+		d.logger.Error("error responding to stumpPedro command, no data", "error", err.Error())
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -164,12 +174,16 @@ func (d Client) stumpPedro(s *discordgo.Session, i *discordgo.InteractionCreate)
 		})
 		return
 	}
+
 	data := i.Interaction.Data.(discordgo.ApplicationCommandInteractionData) // assert the data type
 	text := data.Options[0].StringValue()
+	username := i.Interaction.Member.User.Username
+
 	message := database.TwitchMessage{
-		Username: i.Interaction.Member.User.Username,
+		Username: username,
 		Text:     text,
 	}
+
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -177,10 +191,11 @@ func (d Client) stumpPedro(s *discordgo.Session, i *discordgo.InteractionCreate)
 		},
 	})
 	if err != nil {
-		fmt.Println(fmt.Errorf("error starting to stumpPedro command: %w", err))
+		d.logger.Error("error starting stumpPedro command", "error", err.Error())
 		return
 	}
 
+	d.logger.Debug("starting 20 questions game", "channelID", i.Interaction.ChannelID)
 	go d.play20Questions(i.Interaction.ChannelID, message)
 
 	metrics.DiscordMessageSent.Add(1)
@@ -188,38 +203,49 @@ func (d Client) stumpPedro(s *discordgo.Session, i *discordgo.InteractionCreate)
 
 func (d Client) play20Questions(channelID string, message database.TwitchMessage) {
 	thing := message.Text
+	username := message.Username
 	ctx := context.Background()
-	resp, err := d.llm.Play20Questions(ctx, message, uuid.New())
+
+	d.logger.Debug("starting play20Questions", "channelID", channelID)
+
+	gameID := uuid.New()
+	resp, err := d.llm.Play20Questions(ctx, message, gameID)
 	if err != nil {
-		fmt.Println(fmt.Errorf("error playing 20 questions: %w", err))
-		return
-	}
-	m, err := d.Session.ChannelMessageSend(channelID, "Playing 20 questions with Pedro. Pedro will ask yes or no questions to guess what you are thinking. Please respond with yes or no in the thread to continue the game. You have 10 seconds to respond to each question or Pedro wins!")
-	if err != nil {
-		fmt.Println(fmt.Errorf("error sending message to channel: %w", err))
-		return
-	}
-	metrics.DiscordMessageSent.Add(1)
-	thread, err := d.Session.MessageThreadStart(m.ChannelID, m.ID, "20 Questions with Pedro: "+message.Username, 1440)
-	if err != nil {
-		fmt.Println(fmt.Errorf("error starting thread: %w", err))
+		d.logger.Error("error playing 20 questions", "error", err.Error())
 		return
 	}
 
+	m, err := d.Session.ChannelMessageSend(channelID, "Playing 20 questions with Pedro. Pedro will ask yes or no questions to guess what you are thinking. Please respond with yes or no in the thread to continue the game. You have 10 seconds to respond to each question or Pedro wins!")
+	if err != nil {
+		d.logger.Error("error sending message to channel", "error", err.Error(), "channelID", channelID)
+		return
+	}
+	metrics.DiscordMessageSent.Add(1)
+
+	threadTitle := "20 Questions with Pedro: " + username
+	thread, err := d.Session.MessageThreadStart(m.ChannelID, m.ID, threadTitle, 1440)
+	if err != nil {
+		d.logger.Error("error starting thread", "error", err.Error(), "channelID", m.ChannelID)
+		return
+	}
+	d.logger.Debug("started thread for 20 questions", "threadID", thread.ID)
+
 	m, err = d.Session.ChannelMessageSend(thread.ID, resp)
 	if err != nil {
-		fmt.Println(fmt.Errorf("error sending message to thread: %w", err))
+		d.logger.Error("error sending message to thread", "error", err.Error(), "threadID", thread.ID)
 		return
 	}
 	metrics.DiscordMessageSent.Add(1)
 
 	lastMessageID := m.ID
 	for questionNumber := 1; questionNumber <= 20; questionNumber++ {
+		d.logger.Debug("processing question", "number", questionNumber, "threadID", thread.ID)
+
 		// get the user response
 		time.Sleep(10 * time.Second)
 		messageList, err := d.Session.ChannelMessages(thread.ID, 100, "", lastMessageID, "")
 		if err != nil {
-			fmt.Println(fmt.Errorf("error getting thread messages: %w", err))
+			d.logger.Error("error getting thread messages", "error", err.Error(), "threadID", thread.ID)
 			return
 		}
 
@@ -227,21 +253,24 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 			_, err = d.Session.ChannelMessageSend(thread.ID, "Game over. You did not respond in time. Pedro wins!")
 			d.llm.End20Questions()
 			if err != nil {
-				fmt.Println(fmt.Errorf("error sending message to thread: %w", err))
+				d.logger.Error("error sending timeout message to thread", "error", err.Error(), "threadID", thread.ID)
 				return
 			}
 			metrics.DiscordMessageSent.Add(1)
+			return
 		}
+
 		m = messageList[0]
 		message := database.TwitchMessage{
 			Username: m.Author.Username,
 			Text:     m.Content,
 		}
+		d.logger.Debug("received response", "response_length", len(message.Text))
 
 		// call the LLM model
-		resp, err := d.llm.Play20Questions(ctx, message, uuid.New())
+		resp, err := d.llm.Play20Questions(ctx, message, gameID)
 		if err != nil {
-			fmt.Println(fmt.Errorf("error calling llm | playing 20 questions: %w", err))
+			d.logger.Error("error calling llm | playing 20 questions", "error", err.Error(), "questionNumber", questionNumber)
 			return
 		}
 
@@ -249,7 +278,7 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 		if resp == fmt.Sprintf("I have guessed the thing you are thinking of. It is %s", thing) {
 			_, err = d.Session.ChannelMessageSend(thread.ID, resp)
 			if err != nil {
-				fmt.Println(fmt.Errorf("error sending success message to thread: %w", err))
+				d.logger.Error("error sending success message to thread", "error", err.Error(), "threadID", thread.ID)
 				return
 			}
 			break
@@ -258,7 +287,7 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 		// send the response to the user
 		m, err = d.Session.ChannelMessageSend(thread.ID, resp)
 		if err != nil {
-			fmt.Println(fmt.Errorf("error sending message to thread: %w", err))
+			d.logger.Error("error sending message to thread", "error", err.Error(), "threadID", thread.ID)
 			return
 		}
 		metrics.DiscordMessageSent.Add(1)
@@ -267,29 +296,32 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 			_, err = d.Session.ChannelMessageSend(thread.ID, resp)
 			d.llm.End20Questions()
 			if err != nil {
-				fmt.Println(fmt.Errorf("error sending message to thread: %w", err))
+				d.logger.Error("error sending guess message to thread", "error", err.Error(), "threadID", thread.ID)
 				return
 			}
 			_, err = d.Session.ChannelMessageSend(thread.ID, "Game over. Pedro wins!")
 			d.llm.End20Questions()
 			if err != nil {
-				fmt.Println(fmt.Errorf("error sending message to thread: %w", err))
+				d.logger.Error("error sending game over message to thread", "error", err.Error(), "threadID", thread.ID)
 				return
 			}
 			metrics.DiscordMessageSent.Add(1)
+			return
 		}
 
 		if questionNumber == 20 {
-			_, err = d.Session.ChannelMessageSend(thread.ID, "Pedro use all the questions. Game over. You win!")
+			_, err = d.Session.ChannelMessageSend(thread.ID, "Pedro used all the questions. Game over. You win!")
 			d.llm.End20Questions()
 			if err != nil {
-				fmt.Println(fmt.Errorf("error sending message to thread: %w", err))
+				d.logger.Error("error sending max questions message to thread", "error", err.Error(), "threadID", thread.ID)
 				return
 			}
 			metrics.DiscordMessageSent.Add(1)
+			return
 		}
 
 		lastMessageID = m.ID
 	}
+
 	_, _ = d.Session.ChannelMessageSend(thread.ID, "Game over. You win this round!")
 }
