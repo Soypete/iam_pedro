@@ -4,7 +4,6 @@ package twitchchat
 import (
 	"fmt"
 
-	"github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
@@ -13,20 +12,18 @@ import (
 // Client is a client for interacting with the OpenAI LLM and the database.
 type Client struct {
 	llm         llms.Model
-	db          database.ResponseWriter
-	modelName   string
 	chatHistory []llms.MessageContent
 	logger      *logging.Logger
 }
 
 // Setup creates a new twitch chat bot.
-func Setup(db database.ResponseWriter, modelName string, llmPath string, logger *logging.Logger) (*Client, error) {
+func Setup(llmPath string, logger *logging.Logger) (*Client, error) {
 	if logger == nil {
 		logger = logging.Default()
 	}
-	
-	logger.Info("setting up twitch chat LLM client", "model", modelName, "path", llmPath)
-	
+
+	logger.Info("setting up twitch chat LLM client", "path", llmPath)
+
 	opts := []openai.Option{
 		openai.WithBaseURL(llmPath),
 	}
@@ -37,9 +34,7 @@ func Setup(db database.ResponseWriter, modelName string, llmPath string, logger 
 	}
 
 	return &Client{
-		llm:       llm,
-		db:        db,
-		modelName: modelName,
-		logger:    logger,
+		llm:    llm,
+		logger: logger,
 	}, nil
 }
