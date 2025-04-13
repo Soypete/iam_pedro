@@ -71,13 +71,14 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 		irc.logger.Debug("message inserted into database", "messageID", messageID)
 		resp, err := irc.llm.SingleMessageResponse(ctx, chat, messageID)
 		if err != nil {
-			irc.logger.Error("failed to get response from LLM", "error", err.Error(), "messageID", messageID)
+			irc.logger.Error("failed to get response from LLM", "error", err.Error(), "messageID", resp.UUID)
 			return
 		}
 
+		err = irc.db.InsertResponse(ctx, resp, irc.modelName)
 		// Don't log the actual response content to protect privacy
-		irc.logger.Debug("sending response to Twitch", "messageID", messageID, "responseLength", len(resp))
-		irc.Client.Say("soypetetech", resp)
+		irc.logger.Debug("sending response to Twitch", "messageID", resp.UUID, "responseLength", len(resp.Text))
+		irc.Client.Say("soypetetech", resp.Text)
 		metrics.TwitchMessageSentCount.Add(1)
 	}
 }

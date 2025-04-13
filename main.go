@@ -22,7 +22,7 @@ func main() {
 	var startTwitch bool
 	var logLevel string
 
-	flag.StringVar(&model, "model", "Mistral_7B_v0.1.4", "The model to use for the LLM")
+	flag.StringVar(&model, "model", "", "The model to use for the LLM")
 	flag.BoolVar(&startDiscord, "discordMode", false, "Start the discord bot")
 	flag.BoolVar(&startTwitch, "twitchMode", true, "Start the twitch bot")
 	flag.StringVar(&logLevel, "errorLevel", "info", "Log level (debug, info, warn, error)")
@@ -52,7 +52,7 @@ func main() {
 	//  we are not actually connecting to openai, but we are using their api spec to connect to our own model via llama.cpp
 	os.Setenv("OPENAI_API_KEY", "none")
 	llmPath := os.Getenv("LLAMA_CPP_PATH")
-	twitchllm, err := twitchchat.Setup(db, model, llmPath, logger)
+	twitchllm, err := twitchchat.Setup(llmPath, logger)
 	if err != nil {
 		logger.Error("failed to setup twitch LLM", "error", err.Error())
 		os.Exit(1)
@@ -76,7 +76,7 @@ func main() {
 	var irc *twitchirc.IRC
 	if startTwitch {
 		// setup twitch IRC
-		irc, err = twitchirc.SetupTwitchIRC(wg, twitchllm, db, logger)
+		irc, err = twitchirc.SetupTwitchIRC(wg, twitchllm, model, db, logger)
 		if err != nil {
 			logger.Error("failed to setup twitch IRC", "error", err.Error())
 			stop <- os.Interrupt
@@ -105,7 +105,8 @@ func main() {
 // Shutdown cancels the context and logs a message.
 // TODO: this needs to be handled with an os signal
 func Shutdown(ctx context.Context, wg *sync.WaitGroup,
-	irc *twitchirc.IRC, session discord.Client, stop chan os.Signal, logger *logging.Logger) {
+	irc *twitchirc.IRC, session discord.Client, stop chan os.Signal, logger *logging.Logger,
+) {
 	<-stop
 	ctx.Done()
 
