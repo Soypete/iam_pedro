@@ -17,28 +17,30 @@ const peteTwitchChannel = "soypetetech"
 
 // IRC Connection to the twitch IRC server.
 type IRC struct {
-	db       database.MessageWriter
-	wg       *sync.WaitGroup
-	Client   *v2.Client
-	tok      *oauth2.Token
-	llm      ai.Chatter
-	authCode string
-	logger   *logging.Logger
+	db        database.ChatResponseWriter
+	modelName string
+	wg        *sync.WaitGroup
+	Client    *v2.Client
+	tok       *oauth2.Token
+	llm       ai.Chatter
+	authCode  string
+	logger    *logging.Logger
 }
 
 // SetupTwitchIRC sets up the IRC, configures oauth, and inits connection functions.
-func SetupTwitchIRC(wg *sync.WaitGroup, llm ai.Chatter, db database.MessageWriter, logger *logging.Logger) (*IRC, error) {
+func SetupTwitchIRC(wg *sync.WaitGroup, llm ai.Chatter, modelName string, db database.ChatResponseWriter, logger *logging.Logger) (*IRC, error) {
 	if logger == nil {
 		logger = logging.Default()
 	}
-	
+
 	irc := &IRC{
-		db:     db,
-		wg:     wg,
-		llm:    llm,
-		logger: logger,
+		db:        db,
+		wg:        wg,
+		llm:       llm,
+		modelName: modelName,
+		logger:    logger,
 	}
-	
+
 	// using a separate context here because it needs human interaction
 	ctx := context.Background()
 	err := irc.AuthTwitch(ctx)

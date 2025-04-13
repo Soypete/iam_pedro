@@ -93,7 +93,7 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		Text:     text,
 	}
 
-	//Insert the message into the database
+	// Insert the message into the database
 	messageID, err := d.db.InsertMessage(context.Background(), message)
 	if err != nil {
 		d.logger.Error("failed to insert message into database", "error", err.Error())
@@ -133,14 +133,14 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	if resp == "" {
+	if resp.Text == "" {
 		d.logger.Warn("empty response from LLM", "messageID", messageID)
-		resp = "Sorry, I cannot respond to that. Please try again."
+		resp.Text = "Sorry, I cannot respond to that. Please try again."
 	}
 
 	userNumber := i.Interaction.Member.User.ID
 	// TODO: break this in to a function we can test
-	msgText := fmt.Sprintf("<@%s>:\nQuestion: %s\nResponse: %s", userNumber, text, resp)
+	msgText := fmt.Sprintf("<@%s>:\nQuestion: %s\nResponse: %s", userNumber, text, resp.Text)
 	_, err = d.Session.ChannelMessageSend(i.Interaction.ChannelID, msgText)
 	if err != nil {
 		d.logger.Error("error sending message to channel", "error", err.Error(), "channelID", i.Interaction.ChannelID)

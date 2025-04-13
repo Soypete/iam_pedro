@@ -7,6 +7,7 @@ import (
 
 	"github.com/Soypete/twitch-llm-bot/ai"
 	database "github.com/Soypete/twitch-llm-bot/database"
+	db "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/google/uuid"
 	"github.com/tmc/langchaingo/llms"
@@ -14,7 +15,7 @@ import (
 
 func (c *Client) manageChatHistory(ctx context.Context, injection []string, chatType llms.ChatMessageType) {
 	c.logger.Debug("managing chat history", "type", chatType, "message", strings.Join(injection, " "))
-	
+
 	if len(c.chatHistory) >= 10 {
 		c.logger.Debug("pruning chat history", "old_size", len(c.chatHistory))
 		c.chatHistory = c.chatHistory[1:]
@@ -25,7 +26,7 @@ func (c *Client) manageChatHistory(ctx context.Context, injection []string, chat
 
 func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid.UUID) (string, error) {
 	c.logger.Debug("calling LLM", "message", strings.Join(injection, " "), "messageID", messageID)
-	
+
 	c.manageChatHistory(ctx, injection, llms.ChatMessageTypeHuman)
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, ai.PedroPrompt)}
 	messageHistory = append(messageHistory, c.chatHistory...)
@@ -47,38 +48,38 @@ func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid
 	c.logger.Debug("received LLM response", "response", cleanedResponse)
 	c.manageChatHistory(ctx, []string{cleanedResponse}, llms.ChatMessageTypeAI)
 
-	err = c.db.InsertResponse(ctx, resp, messageID, c.modelName)
-	if err != nil {
-		c.logger.Error("failed to write response to database", "error", err.Error(), "messageID", messageID)
-		return cleanedResponse, fmt.Errorf("failed to write to db: %w", (err))
-	}
-	
 	c.logger.Debug("successfully generated and stored response", "messageID", messageID)
 	return cleanedResponse, nil
 }
 
 // SingleMessageResponse is a response from the LLM model to a single message, but to work it needs to have context of chat history
-func (c *Client) SingleMessageResponse(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error) {
+func (c *Client) SingleMessageResponse(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (db.TwitchMessage, error) {
 	c.logger.Debug("processing single message response", "messageID", messageID)
-	
+
 	// TODO: i don't like passing the []string here. it should be cast in the callLLM function
 	prompt, err := c.callLLM(ctx, []string{fmt.Sprintf("%s: %s", msg.Username, msg.Text)}, messageID)
 	if err != nil {
 		c.logger.Error("failed to generate response", "error", err.Error(), "messageID", messageID)
 		metrics.FailedLLMGen.Add(1)
-		return "", err
+		return db.TwitchMessage{}, err
 	}
-	
+
 	if prompt == "" {
 		c.logger.Warn("empty response from LLM", "messageID", messageID)
 		metrics.EmptyLLMResponse.Add(1)
 		// We are trying to tag the user to get them to try again with a better prompt.
-		return fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", msg.Username), nil
+		return db.TwitchMessage{
+			Text: fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", msg.Username),
+			UUID: messageID,
+		}, nil
 	}
-	
+
 	c.logger.Debug("successful response generation", "messageID", messageID, "messageLength", len(prompt))
 	metrics.SuccessfulLLMGen.Add(1)
-	return prompt, nil
+	return db.TwitchMessage{
+		Text: prompt,
+		UUID: messageID,
+	}, nil
 }
 
 // End20Questions is a response from the LLM model to end the game of 20 questions
