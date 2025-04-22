@@ -23,10 +23,10 @@ func NewPostgres(logger *logging.Logger) (*Postgres, error) {
 	if logger == nil {
 		logger = logging.Default()
 	}
-	
+
 	logger.Info("connecting to postgres database")
 	dbURL := os.Getenv("POSTGRES_URL")
-	
+
 	dbx, err := sqlx.Connect("postgres", dbURL)
 	if err != nil {
 		logger.Error("error connecting to postgres", "error", err.Error())
@@ -39,6 +39,11 @@ func NewPostgres(logger *logging.Logger) (*Postgres, error) {
 	if err := goose.SetDialect("postgres"); err != nil {
 		logger.Error("error setting dialect", "error", err.Error())
 		return nil, fmt.Errorf("error setting dialect: %w", err)
+	}
+
+	// TODO: do not commit
+	if err := goose.DownTo(dbx.DB, "migrations", 4); err != nil  {
+		return nil, fmt.Errorf("error running down migrations: %w", err)
 	}
 
 	logger.Info("running database migrations")

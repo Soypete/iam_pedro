@@ -3,21 +3,13 @@ CREATE TABLE IF NOT EXISTS discord_ask_pedro (
 		id serial PRIMARY KEY,
 		username text,
 		message text,
-		thread_id text unique, 
+		thread_id text, 
 		thread_timeout int, -- time in seconds before the thread times out
-		is_form_pedro BOOLEAN,
+		is_from_pedro BOOLEAN,
 		created_at timestamptz DEFAULT NOW()
 		);
 
-CREATE TABLE IF NOT EXISTS discord_twenty_questions (
-		id serial PRIMARY KEY,
-		game_id uuid references discord_twenty_questions_games(game_id),
-		question text,
-		response text,
-		created_at timestamptz DEFAULT NOW()
-		);
-
-CREATE TYPE IF NOT EXISTS game_status AS ENUM ('started', 'in_progress', 'ended', 'abandoned');
+CREATE TYPE  game_status AS ENUM ('started', 'ended', 'abandoned');
 
 CREATE TABLE IF NOT EXISTS discord_twenty_questions_games (
 		game_id uuid PRIMARY KEY,
@@ -27,6 +19,14 @@ CREATE TABLE IF NOT EXISTS discord_twenty_questions_games (
 		thread_id text,
 		thread_timesout int, -- time in seconds before the thread times out
 		username text,
+		created_at timestamptz DEFAULT NOW()
+		);
+
+CREATE TABLE IF NOT EXISTS discord_twenty_questions (
+		id serial PRIMARY KEY,
+		game_id uuid references discord_twenty_questions_games(game_id),
+		question text,
+		response text,
 		created_at timestamptz DEFAULT NOW()
 		);
 
