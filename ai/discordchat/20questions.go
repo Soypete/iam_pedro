@@ -6,14 +6,16 @@ import (
 	"strings"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
-	"github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/metrics"
+	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/google/uuid"
 	"github.com/tmc/langchaingo/llms"
 )
 
-var GameChatHistory []llms.MessageContent
-var thing string
+var (
+	GameChatHistory []llms.MessageContent
+	thing           string
+)
 
 func (c *Bot) manageGame(message string, chatType llms.ChatMessageType) {
 	if len(GameChatHistory) == 0 {
@@ -35,9 +37,9 @@ func (c *Bot) End20Questions() {
 }
 
 // Play20Questions is a response from the LLM model to a game of 20 questions
-func (c *Bot) Play20Questions(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error) {
+func (c *Bot) Play20Questions(ctx context.Context, msg types.TwitchMessage, messageID uuid.UUID) (string, error) {
 	c.logger.Debug("processing 20 questions turn", "messageID", messageID)
-	
+
 	if thing == "" {
 		c.logger.Debug("setting thing for 20 questions game")
 		thing = msg.Text
@@ -45,7 +47,7 @@ func (c *Bot) Play20Questions(ctx context.Context, msg database.TwitchMessage, m
 
 	c.manageGame(msg.Text, llms.ChatMessageTypeHuman)
 
-	//start the game
+	// start the game
 	c.logger.Debug("calling LLM for 20 questions", "historyLength", len(GameChatHistory))
 	resp, err := c.llm.GenerateContent(ctx, GameChatHistory,
 		llms.WithCandidateCount(1),
@@ -58,17 +60,17 @@ func (c *Bot) Play20Questions(ctx context.Context, msg database.TwitchMessage, m
 		metrics.FailedLLMGen.Add(1)
 		return "", fmt.Errorf("failed to get llm response: %w", err)
 	}
-	
+
 	prompt := ai.CleanResponse(resp.Choices[0].Content)
 	c.logger.Debug("received 20 questions LLM response", "responseLength", len(prompt))
-	
+
 	if prompt == "" {
 		c.logger.Warn("empty response from 20 questions LLM", "messageID", messageID)
 		metrics.EmptyLLMResponse.Add(1)
 		// We are trying to tag the user to get them to try again with a better prompt.
 		return fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", msg.Username), nil
 	}
-	
+
 	// loop for checking if the message is the thing
 	if strings.Contains(prompt, thing) {
 		c.logger.Info("LLM guessed the thing correctly")

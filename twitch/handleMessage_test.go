@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	database "github.com/Soypete/twitch-llm-bot/database"
+	types "github.com/Soypete/twitch-llm-bot/types"
 	v2 "github.com/gempir/go-twitch-irc/v2"
 )
 
@@ -12,7 +12,7 @@ func Test_cleanMessage(t *testing.T) {
 	tests := []struct {
 		name string
 		msg  v2.PrivateMessage
-		want database.TwitchMessage
+		want types.TwitchMessage
 	}{
 		{
 			name: "Restream+Youtube",
@@ -22,7 +22,7 @@ func Test_cleanMessage(t *testing.T) {
 				},
 				Message: "[YouTube: IMJONEZZ] Yeah, conversation history, is that what you're wondering about?",
 			},
-			want: database.TwitchMessage{
+			want: types.TwitchMessage{
 				Username: "IMJONEZZ",
 				Text:     "Yeah, conversation history, is that what you're wondering about?",
 			},
@@ -35,7 +35,7 @@ func Test_cleanMessage(t *testing.T) {
 				},
 				Message: "[YouTube: MD Habib] Also i have to make a chatbot",
 			},
-			want: database.TwitchMessage{
+			want: types.TwitchMessage{
 				Username: "MD Habib",
 				Text:     "Also i have to make a chatbot",
 			},
@@ -53,33 +53,33 @@ func Test_cleanMessage(t *testing.T) {
 func Test_needsResponseChat(t *testing.T) {
 	tests := []struct {
 		name string
-		msg  database.TwitchMessage
+		msg  types.TwitchMessage
 		want bool
 	}{
 		{
 			name: "Pedro",
-			msg: database.TwitchMessage{
+			msg: types.TwitchMessage{
 				Text: "hey, Pedro tell me a joke",
 			},
 			want: true,
 		},
 		{
 			name: "llm",
-			msg: database.TwitchMessage{
+			msg: types.TwitchMessage{
 				Text: "hey, llm tell me a joke",
 			},
 			want: true,
 		},
 		{
 			name: "bot",
-			msg: database.TwitchMessage{
+			msg: types.TwitchMessage{
 				Text: "hey, bot tell me a joke",
 			},
 			want: true,
 		},
 		{
 			name: "no response",
-			msg: database.TwitchMessage{
+			msg: types.TwitchMessage{
 				Text: "hey, tell me a joke",
 			},
 			want: false,

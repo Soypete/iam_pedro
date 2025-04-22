@@ -5,14 +5,14 @@ import (
 	"fmt"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
-	"github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/metrics"
+	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/google/uuid"
 	"github.com/tmc/langchaingo/llms"
 )
 
 // SingleMessageResponse is a response from the LLM model to a single message
-func (b *Bot) SingleMessageResponse(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (database.TwitchMessage, error) {
+func (b *Bot) SingleMessageResponse(ctx context.Context, msg types.TwitchMessage, messageID uuid.UUID) (types.TwitchMessage, error) {
 	b.logger.Debug("processing discord single message response", "messageID", messageID)
 
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, ai.PedroPrompt)}
@@ -28,7 +28,7 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg database.TwitchMess
 	if err != nil {
 		b.logger.Error("failed to get discord LLM response", "error", err.Error(), "messageID", messageID)
 		metrics.FailedLLMGen.Add(1)
-		return database.TwitchMessage{}, fmt.Errorf("failed to get llm response: %w", err)
+		return types.TwitchMessage{}, fmt.Errorf("failed to get llm response: %w", err)
 	}
 
 	prompt := ai.CleanResponse(resp.Choices[0].Content)
@@ -38,7 +38,7 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg database.TwitchMess
 		b.logger.Warn("empty response from discord LLM", "messageID", messageID)
 		metrics.EmptyLLMResponse.Add(1)
 		// We are trying to tag the user to get them to try again with a better prompt.
-		return database.TwitchMessage{
+		return types.TwitchMessage{
 			Text: fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", msg.Username),
 			UUID: messageID,
 		}, nil
@@ -46,7 +46,7 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg database.TwitchMess
 
 	b.logger.Debug("successful discord response generation", "messageID", messageID, "messageLength", len(prompt))
 	metrics.SuccessfulLLMGen.Add(1)
-	return database.TwitchMessage{
+	return types.TwitchMessage{
 		Text: prompt,
 		UUID: messageID,
 	}, nil

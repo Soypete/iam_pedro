@@ -5,13 +5,13 @@ import (
 	"strings"
 	"time"
 
-	database "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/metrics"
+	types "github.com/Soypete/twitch-llm-bot/types"
 	v2 "github.com/gempir/go-twitch-irc/v2"
 )
 
-func cleanMessage(msg v2.PrivateMessage) database.TwitchMessage {
-	chat := database.TwitchMessage{
+func cleanMessage(msg v2.PrivateMessage) types.TwitchMessage {
+	chat := types.TwitchMessage{
 		Username: msg.User.DisplayName,
 		Text:     msg.Message,
 		// TODO: add an embedding for the message
@@ -32,7 +32,7 @@ func cleanMessage(msg v2.PrivateMessage) database.TwitchMessage {
 	return chat
 }
 
-func needsResponseChat(msg database.TwitchMessage) bool {
+func needsResponseChat(msg types.TwitchMessage) bool {
 	switch {
 	case strings.Contains(msg.Text, "pedro"):
 		return true
@@ -64,11 +64,11 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 
 		messageID, err := irc.db.InsertMessage(ctx, chat)
 		if err != nil {
-			irc.logger.Error("failed to insert message into database", "error", err.Error())
+			irc.logger.Error("failed to insert message into types", "error", err.Error())
 			return
 		}
 
-		irc.logger.Debug("message inserted into database", "messageID", messageID)
+		irc.logger.Debug("message inserted into types", "messageID", messageID)
 		resp, err := irc.llm.SingleMessageResponse(ctx, chat, messageID)
 		if err != nil {
 			irc.logger.Error("failed to get response from LLM", "error", err.Error(), "messageID", messageID)
@@ -76,8 +76,8 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 
 		err = irc.db.InsertResponse(ctx, resp, irc.modelName)
 		if err != nil {
-			irc.logger.Error("failed to insert response into database", "error", err.Error(), "messageID", resp.UUID)
-			// continue to send the response even if it fails to insert into the database
+			irc.logger.Error("failed to insert response into types", "error", err.Error(), "messageID", resp.UUID)
+			// continue to send the response even if it fails to insert into the types
 		}
 		// Don't log the actual response content to protect privacy
 		irc.logger.Debug("sending response to Twitch", "messageID", resp.UUID, "responseLength", len(resp.Text))

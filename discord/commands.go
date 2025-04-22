@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/metrics"
+	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/bwmarrin/discordgo"
 	"github.com/google/uuid"
 )
@@ -88,15 +88,15 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	text := data.Options[0].StringValue()
 	username := i.Interaction.Member.User.Username
 
-	message := database.TwitchMessage{
+	message := types.TwitchMessage{
 		Username: username,
 		Text:     text,
 	}
 
-	// Insert the message into the database
+	// Insert the message into the types
 	messageID, err := d.db.InsertMessage(context.Background(), message)
 	if err != nil {
-		d.logger.Error("failed to insert message into database", "error", err.Error())
+		d.logger.Error("failed to insert message into types", "error", err.Error())
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -106,7 +106,7 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	d.logger.Debug("message inserted into database", "messageID", messageID)
+	d.logger.Debug("message inserted into types", "messageID", messageID)
 
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -179,7 +179,7 @@ func (d Client) stumpPedro(s *discordgo.Session, i *discordgo.InteractionCreate)
 	text := data.Options[0].StringValue()
 	username := i.Interaction.Member.User.Username
 
-	message := database.TwitchMessage{
+	message := types.TwitchMessage{
 		Username: username,
 		Text:     text,
 	}
@@ -201,7 +201,7 @@ func (d Client) stumpPedro(s *discordgo.Session, i *discordgo.InteractionCreate)
 	metrics.DiscordMessageSent.Add(1)
 }
 
-func (d Client) play20Questions(channelID string, message database.TwitchMessage) {
+func (d Client) play20Questions(channelID string, message types.TwitchMessage) {
 	thing := message.Text
 	username := message.Username
 	ctx := context.Background()
@@ -261,7 +261,7 @@ func (d Client) play20Questions(channelID string, message database.TwitchMessage
 		}
 
 		m = messageList[0]
-		message := database.TwitchMessage{
+		message := types.TwitchMessage{
 			Username: m.Author.Username,
 			Text:     m.Content,
 		}
