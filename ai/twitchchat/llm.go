@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
-	database "github.com/Soypete/twitch-llm-bot/database"
 	db "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/google/uuid"
@@ -53,7 +52,7 @@ func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid
 }
 
 // SingleMessageResponse is a response from the LLM model to a single message, but to work it needs to have context of chat history
-func (c *Client) SingleMessageResponse(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (db.TwitchMessage, error) {
+func (c *Client) SingleMessageResponse(ctx context.Context, msg db.TwitchMessage, messageID uuid.UUID) (db.TwitchMessage, error) {
 	c.logger.Debug("processing single message response", "messageID", messageID)
 
 	// TODO: i don't like passing the []string here. it should be cast in the callLLM function
@@ -88,7 +87,7 @@ func (c *Client) End20Questions() {
 }
 
 // Play20Questions is a response from the LLM model to a game of 20 questions
-func (c *Client) Play20Questions(ctx context.Context, msg database.TwitchMessage, messageID uuid.UUID) (string, error) {
+func (c *Client) Play20Questions(ctx context.Context, msg db.TwitchMessage, messageID uuid.UUID) (string, error) {
 	c.logger.Debug("play 20 questions called but not implemented for twitch", "messageID", messageID)
 	return "", nil
 }
