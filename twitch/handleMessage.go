@@ -76,6 +76,10 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 		}
 
 		err = irc.db.InsertResponse(ctx, resp, irc.modelName)
+		if err != nil {
+			irc.logger.Error("failed to insert response into database", "error", err.Error(), "messageID", resp.UUID)
+			// continue to send the response even if it fails to insert into the database
+		}
 		// Don't log the actual response content to protect privacy
 		irc.logger.Debug("sending response to Twitch", "messageID", resp.UUID, "responseLength", len(resp.Text))
 		irc.Client.Say("soypetetech", resp.Text)
