@@ -71,8 +71,7 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 		irc.logger.Debug("message inserted into database", "messageID", messageID)
 		resp, err := irc.llm.SingleMessageResponse(ctx, chat, messageID)
 		if err != nil {
-			irc.logger.Error("failed to get response from LLM", "error", err.Error(), "messageID", resp.UUID)
-			return
+			irc.logger.Error("failed to get response from LLM", "error", err.Error(), "messageID", messageID)
 		}
 
 		err = irc.db.InsertResponse(ctx, resp, irc.modelName)
