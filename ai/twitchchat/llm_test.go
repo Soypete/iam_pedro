@@ -26,12 +26,6 @@ func (m *mockLLM) Call(ctx context.Context, prompt string, opts ...llms.CallOpti
 	return "", nil
 }
 
-type mockDB struct{}
-
-func (m *mockDB) InsertResponse(ctx context.Context, resp *llms.ContentResponse, messageID uuid.UUID, modelName string) error {
-	return nil
-}
-
 func TestClient_callLLM(t *testing.T) {
 	type args struct {
 		ctx       context.Context
@@ -48,7 +42,6 @@ func TestClient_callLLM(t *testing.T) {
 			name: "make prompt",
 			c: Client{
 				llm:    &mockLLM{},
-				db:     &mockDB{},
 				logger: logging.Default(),
 			},
 			args: args{
@@ -102,7 +95,6 @@ func TestClient_manageChatHistory(t *testing.T) {
 			name: "no chat",
 			client: &Client{
 				llm:    &mockLLM{},
-				db:     &mockDB{},
 				logger: logging.Default(),
 			},
 			args: args{
@@ -116,7 +108,6 @@ func TestClient_manageChatHistory(t *testing.T) {
 			name: "some chat",
 			client: &Client{
 				llm:         &mockLLM{},
-				db:          &mockDB{},
 				chatHistory: chat3,
 				logger:      logging.Default(),
 			},
@@ -131,7 +122,6 @@ func TestClient_manageChatHistory(t *testing.T) {
 			name: "full chat",
 			client: &Client{
 				llm:         &mockLLM{},
-				db:          &mockDB{},
 				chatHistory: ch,
 				logger:      logging.Default(),
 			},
