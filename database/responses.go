@@ -3,13 +3,15 @@ package database
 import (
 	"context"
 	"fmt"
+
+	"github.com/Soypete/twitch-llm-bot/types"
 )
 
 type ResponseWriter interface {
-	InsertResponse(ctx context.Context, resp TwitchMessage, modelName string) error
+	InsertResponse(ctx context.Context, resp types.TwitchMessage, modelName string) error
 }
 
-func (p *Postgres) InsertResponse(ctx context.Context, resp TwitchMessage, modelName string) error {
+func (p *Postgres) InsertResponse(ctx context.Context, resp types.TwitchMessage, modelName string) error {
 	p.logger.Debug("inserting LLM response into database", "messageID", resp.UUID, "model", modelName)
 
 	query := "INSERT INTO bot_response (model_name, response, stop_reason, was_successful, chat_id) VALUES ($1, $2, $3, $4, $5)"

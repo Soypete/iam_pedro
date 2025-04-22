@@ -3,8 +3,8 @@ package database
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/google/uuid"
 )
 
@@ -17,11 +17,11 @@ type ChatResponseWriter interface {
 
 // MessageWriter is an interface for inserting twitch chat messages into the database.
 type MessageWriter interface {
-	InsertMessage(ctx context.Context, msg TwitchMessage) (uuid.UUID, error)
+	InsertMessage(ctx context.Context, msg types.TwitchMessage) (uuid.UUID, error)
 }
 
 // InsertMessage inserts a message into the database and returns the message ID if successful.
-func (p *Postgres) InsertMessage(ctx context.Context, msg TwitchMessage) (uuid.UUID, error) {
+func (p *Postgres) InsertMessage(ctx context.Context, msg types.TwitchMessage) (uuid.UUID, error) {
 	p.logger.Debug("generating UUID for message")
 	ID, err := uuid.NewUUID()
 	if err != nil {
@@ -41,13 +41,4 @@ func (p *Postgres) InsertMessage(ctx context.Context, msg TwitchMessage) (uuid.U
 
 	p.logger.Debug("message inserted successfully", "messageID", ID)
 	return ID, nil
-}
-
-type TwitchMessage struct {
-	Username   string    `db:"username"`
-	Text       string    `db:"message"`
-	IsCommand  bool      `db:"isCommand"`
-	StopReason string    `db:"stop_reason"`
-	Time       time.Time `db:"created_at"`
-	UUID       uuid.UUID `db:"uuid"`
 }

@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
-	db "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/metrics"
+	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/google/uuid"
 	"github.com/tmc/langchaingo/llms"
 )
@@ -52,7 +52,7 @@ func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid
 }
 
 // SingleMessageResponse is a response from the LLM model to a single message, but to work it needs to have context of chat history
-func (c *Client) SingleMessageResponse(ctx context.Context, msg db.TwitchMessage, messageID uuid.UUID) (db.TwitchMessage, error) {
+func (c *Client) SingleMessageResponse(ctx context.Context, msg types.TwitchMessage, messageID uuid.UUID) (types.TwitchMessage, error) {
 	c.logger.Debug("processing single message response", "messageID", messageID)
 
 	// TODO: i don't like passing the []string here. it should be cast in the callLLM function
@@ -60,14 +60,14 @@ func (c *Client) SingleMessageResponse(ctx context.Context, msg db.TwitchMessage
 	if err != nil {
 		c.logger.Error("failed to generate response", "error", err.Error(), "messageID", messageID)
 		metrics.FailedLLMGen.Add(1)
-		return db.TwitchMessage{}, err
+		return types.TwitchMessage{}, err
 	}
 
 	if prompt == "" {
 		c.logger.Warn("empty response from LLM", "messageID", messageID)
 		metrics.EmptyLLMResponse.Add(1)
 		// We are trying to tag the user to get them to try again with a better prompt.
-		return db.TwitchMessage{
+		return types.TwitchMessage{
 			Text: fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", msg.Username),
 			UUID: messageID,
 		}, nil
@@ -75,7 +75,7 @@ func (c *Client) SingleMessageResponse(ctx context.Context, msg db.TwitchMessage
 
 	c.logger.Debug("successful response generation", "messageID", messageID, "messageLength", len(prompt))
 	metrics.SuccessfulLLMGen.Add(1)
-	return db.TwitchMessage{
+	return types.TwitchMessage{
 		Text: prompt,
 		UUID: messageID,
 	}, nil
@@ -87,7 +87,7 @@ func (c *Client) End20Questions() {
 }
 
 // Play20Questions is a response from the LLM model to a game of 20 questions
-func (c *Client) Play20Questions(ctx context.Context, msg db.TwitchMessage, messageID uuid.UUID) (string, error) {
+func (c *Client) Play20Questions(ctx context.Context, msg types.TwitchMessage, messageID uuid.UUID) (string, error) {
 	c.logger.Debug("play 20 questions called but not implemented for twitch", "messageID", messageID)
 	return "", nil
 }
