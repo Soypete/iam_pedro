@@ -3,60 +3,61 @@ package discordchat
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/Soypete/twitch-llm-bot/types"
-	"github.com/google/uuid"
 	"github.com/tmc/langchaingo/llms"
 )
 
-var (
-	GameChatHistory []llms.MessageContent
-	thing           string
+const (
+	QuestionSystemPrompt = `You are Pedro, the discord chat bot playing 20 questions in the SoyPeteTech discord community. 
+The goal of the game is to guess what thing that the user is thinking of by excluding different categories. 
+You can ask yes or no questions to the user to help you narrow down that the thing is. It can be from any context 
+like movies, history, a location etc. You can only ask one question at a time. The User will respond to you question with a positive 
+	negative sentiment or yes or no. If you get a positive response then the 
+answer is included that criteria and you should dig in. Once you think you know what it is, ask the user if the you 
+have guessed correctly by specifying what your guess is directly. Continue guessing and narrowing down the cirteria until
+	you are out of questions. If you guess correctly before you have asked all 20 qustions and you are corret, the game is over and 
+	you win. If you cannot guess the thing with	20 questions, the user wins.`
+	IntroMessage = "%s: I am thinking of a thing. Ask me a yes or no question to help you guess what it is."
 )
 
-func (c *Bot) manageGame(message string, chatType llms.ChatMessageType) {
-	if len(GameChatHistory) == 0 {
-		c.logger.Debug("initializing new 20 questions game")
-		GameChatHistory = []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, "you are a chat bot playing 20 questions. The goal of the game is to guess what thing that the user is thinking of by excluding different categories. You can ask yes or no questions to the user to help you narrow down that the thing is. I can be from any context like movies, history, a location etc. You can only ask one question at a time. If you get a positive response then the thing is inclide that criteria and you should dig in. Once you think you know what it is, ask the user if the thing is a certain thing. If you are wrong, the game is over. If you are right, the game is over.")}
-		message = "I am thinking of a thing. Ask me a yes or no question to help you guess what it is."
+func (c *Bot) formatPrompt(user string) []llms.MessageContent {
+	c.logger.Debug("initializing new 20 questions game")
+	return []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeSystem, QuestionSystemPrompt),
+		llms.TextParts(llms.ChatMessageTypeHuman, fmt.Sprintf(IntroMessage, user)),
 	}
-
-	c.logger.Debug("adding message to game history", "message", message, "type", chatType)
-	GameChatHistory = append(GameChatHistory, llms.TextParts(chatType, message))
-	c.logger.Debug("game history updated", "historyLength", len(GameChatHistory))
 }
 
-// End20Questions is a response from the LLM model to end the game of 20 questions
-func (c *Bot) End20Questions() {
-	c.logger.Info("ending 20 questions game")
-	GameChatHistory = nil
-	thing = ""
+// Start20Questions is a response from the LLM model to start a game of 20 questions.
+// It returns the first question.
+func (c *Bot) Start20Questions(ctx context.Context, msg types.Discord20QuestionsGame) (string, error) {
+	c.logger.Debug("starting 20 questions game")
+	chat := c.formatPrompt(msg.Username)
+	resp, err := c.llm.GenerateContent(ctx, chat,
+		llms.WithCandidateCount(1),
+		llms.WithTemperature(0.7),
+		llms.WithPresencePenalty(1.0)) // 2 is the largest penalty for using a work that has already been used
+	if err != nil {
+		c.logger.Error("failed to get 20 questions LLM response", "error", err.Error(), "messageID", msg.GameID)
+		metrics.FailedLLMGen.Add(1)
+		return "", fmt.Errorf("failed to get llm response: %w", err)
+	}
+	return resp.Choices[0].Content, nil
 }
 
 // Play20Questions is a response from the LLM model to a game of 20 questions
-func (c *Bot) Play20Questions(ctx context.Context, msg types.TwitchMessage, messageID uuid.UUID) (string, error) {
-	c.logger.Debug("processing 20 questions turn", "messageID", messageID)
-
-	if thing == "" {
-		c.logger.Debug("setting thing for 20 questions game")
-		thing = msg.Text
-	}
-
-	c.manageGame(msg.Text, llms.ChatMessageTypeHuman)
-
-	// start the game
-	c.logger.Debug("calling LLM for 20 questions", "historyLength", len(GameChatHistory))
-	resp, err := c.llm.GenerateContent(ctx, GameChatHistory,
+func (c *Bot) Play20Questions(ctx context.Context, user string, gameChat []llms.MessageContent) (string, error) {
+	chat := append(c.formatPrompt(user), gameChat...)
+	c.logger.Debug("calling LLM for 20 questions", "historyLength", len(chat))
+	resp, err := c.llm.GenerateContent(ctx, chat,
 		llms.WithCandidateCount(1),
-		llms.WithMaxLength(500),
 		llms.WithTemperature(0.7),
-		llms.WithPresencePenalty(1.0), // 2 is the largest penalty for using a work that has already been used
-		llms.WithStopWords([]string{"LUL, PogChamp, Kappa, KappaPride, KappaRoss, KappaWealth"}))
+		llms.WithPresencePenalty(1.0)) // 2 is the largest penalty for using a work that has already been used
 	if err != nil {
-		c.logger.Error("failed to get 20 questions LLM response", "error", err.Error(), "messageID", messageID)
+		c.logger.Error("failed to get 20 questions LLM response", "error", err.Error())
 		metrics.FailedLLMGen.Add(1)
 		return "", fmt.Errorf("failed to get llm response: %w", err)
 	}
@@ -65,21 +66,12 @@ func (c *Bot) Play20Questions(ctx context.Context, msg types.TwitchMessage, mess
 	c.logger.Debug("received 20 questions LLM response", "responseLength", len(prompt))
 
 	if prompt == "" {
-		c.logger.Warn("empty response from 20 questions LLM", "messageID", messageID)
+		c.logger.Warn("empty response from 20 questions LLM")
 		metrics.EmptyLLMResponse.Add(1)
 		// We are trying to tag the user to get them to try again with a better prompt.
-		return fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", msg.Username), nil
+		return fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", user), nil
 	}
 
-	// loop for checking if the message is the thing
-	if strings.Contains(prompt, thing) {
-		c.logger.Info("LLM guessed the thing correctly")
-		return fmt.Sprintf("I have guessed the thing you are thinking of. It is %s", thing), nil
-	}
-
-	c.manageGame(prompt, llms.ChatMessageTypeAI)
-
-	c.logger.Info("successful 20 questions response", "questionCount", (len(GameChatHistory)-1)/2)
 	metrics.SuccessfulLLMGen.Add(1)
 	return prompt, nil
 }

@@ -1,10 +1,12 @@
+// package discord is the api for connecting to discord and handling commands. It includes
+// piping the interactions to the LLM as well as storing the messages in the database.
 package discord
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/Soypete/twitch-llm-bot/ai"
+	"github.com/Soypete/twitch-llm-bot/ai/discordchat"
 	"github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/bwmarrin/discordgo"
@@ -12,17 +14,13 @@ import (
 
 type Client struct {
 	Session *discordgo.Session
-	llm     ai.Chatter
-	db      database.MessageWriter
+	llm     discordchat.LLM
+	db      database.DiscordWriter
 	logger  *logging.Logger
 }
 
 // Setup function is responsible for setting up the discord bot and connecting it to pedroGPT.
-func Setup(llm ai.Chatter, db database.MessageWriter, logger *logging.Logger) (Client, error) {
-	if logger == nil {
-		logger = logging.Default()
-	}
-
+func Setup(llm discordchat.LLM, db database.DiscordWriter, logger *logging.Logger) (Client, error) {
 	authToken := os.Getenv("DISCORD_SECRET")
 	session, err := discordgo.New("Bot " + authToken)
 	if err != nil {

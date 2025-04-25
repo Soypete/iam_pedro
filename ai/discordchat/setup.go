@@ -2,10 +2,12 @@
 package discordchat
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/logging"
+	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
 )
@@ -18,14 +20,22 @@ type Bot struct {
 	logger    *logging.Logger
 }
 
+// LLM is an interface that defines the methods for interacting with the LLM from discord.
+type LLM interface {
+	// ai.Chatter
+	Start20Questions(context.Context, types.Discord20QuestionsGame) (string, error)
+	Play20Questions(context.Context, string, []llms.MessageContent) (string, error)
+	SingleMessageResponse(context.Context, types.DiscordAskMessage) (string, error)
+}
+
 // Setup creates a new discord chat bot.
 func Setup(db database.ResponseWriter, modelName string, llmPath string, logger *logging.Logger) (*Bot, error) {
 	if logger == nil {
 		logger = logging.Default()
 	}
-	
+
 	logger.Info("setting up discord chat LLM bot", "model", modelName, "path", llmPath)
-	
+
 	opts := []openai.Option{
 		openai.WithBaseURL(llmPath),
 	}
