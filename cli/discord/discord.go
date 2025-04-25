@@ -1,5 +1,3 @@
-//go:build docker
-
 package main
 
 import (
@@ -10,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/Soypete/twitch-llm-bot/ai/discordchat"
-	"github.com/Soypete/twitch-llm-bot/ai/twitchchat"
 	database "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/discord"
 	"github.com/Soypete/twitch-llm-bot/logging"
@@ -19,7 +16,6 @@ import (
 
 func main() {
 	var model string
-	var startDiscord bool
 	var logLevel string
 
 	flag.StringVar(&model, "model", "", "The model to use for the LLM")
@@ -50,12 +46,6 @@ func main() {
 	//  we are not actually connecting to openai, but we are using their api spec to connect to our own model via llama.cpp
 	os.Setenv("OPENAI_API_KEY", "test")
 	llmPath := os.Getenv("LLAMA_CPP_PATH")
-	twitchllm, err := twitchchat.Setup(llmPath, logger)
-	if err != nil {
-		logger.Error("failed to setup twitch LLM", "error", err.Error())
-		os.Exit(1)
-	}
-
 	var session discord.Client
 	discordllm, err := discordchat.Setup(db, model, llmPath, logger)
 	if err != nil {

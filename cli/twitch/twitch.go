@@ -1,5 +1,3 @@
-//go:build twitch
-
 package main
 
 import (

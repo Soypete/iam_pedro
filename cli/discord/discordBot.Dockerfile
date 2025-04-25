@@ -15,6 +15,6 @@ EXPOSE 6060
 
 # pull in all modules from the repo
 COPY . ./
-RUN go build -v -o main ./cli/twitch
+RUN go build -v -o main ./cli/discord
 
 CMD ["op", "run", "--", "--env-file", "prod.env", "/app/main", "-model", "meta-llama3.1", "-discordMode", "-twitchMode"]
