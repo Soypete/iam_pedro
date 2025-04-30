@@ -21,10 +21,18 @@ jobs:
       -
         name: Checkout
         uses: actions/checkout@v4
-      -
-        name: Build and Push
-        uses: docker/build-push-action@v5
         with:
-          context: .
-          file: cli/twitch/twitchBot.Dockerfile
-          push: ${{ github.event_name != 'pull_request' }} ## only push on the merge event
+          platforms: linux/amd64,linux/arm64
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+            platforms: linux/amd64, linux/arm64
+            context: .
+            file: cli/twitch/twitchBot.Dockerfile
+            push: ${{ github.event_name != 'pull_request' }} ## only push on the merge event
+            tags: ${{ github.event.release.tag_name }}
+      - name: COPY CONTAINER IMAGE NAME
+        run: echo "CONTAINER IMAGE:" ${{ github.ref_name }}-${{ github.event.release.tag_name }}
