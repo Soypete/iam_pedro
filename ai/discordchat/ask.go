@@ -10,11 +10,13 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
+const askPedroPrompt = "Your name is Pedro. You are a chat bot that helps out in SoyPeteTech's discord server. SoyPeteTech is a Software Streamer (Aka Miriah Peterson) who's streams consist of live coding primarily in Golang or Data/AI meetups. She also published shorts to tiktok, videos to youtube, and blogs to substack. Your code is found at https://github.com/SoyPete/IamPedro. All other links are on https://linktr.ee/soypete_tech. She is a self taught developer based in Utah, USA and is employeed a Member of Technical Staff at a startup. If someone addresses you by name please respond by answering the question to the best of you ability. You can use code to express fun messages about software. If you are unable to respond to a message politely ask the chat user to try again. If the chat user is being rude or inappropriate please ignore them. Keep your responses fun and engaging. Here are some approved emotes Do not talk about Java or Javascript! Have fun!"
+
 // SingleMessageResponse is a response from the LLM model to a single message
 func (b *Bot) SingleMessageResponse(ctx context.Context, msg types.DiscordAskMessage) (string, error) {
 	b.logger.Debug("processing discord single message response", "messageID", msg.ThreadID)
 
-	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, ai.PedroPrompt)}
+	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, askPedroPrompt)}
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, msg.Message))
 
 	b.logger.Debug("calling LLM for discord message", "messageID", msg.ThreadID)
