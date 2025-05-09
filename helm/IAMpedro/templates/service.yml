@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pedro.fullname" . }}
+  labels:
+    {{- include "pedro.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: 6060
+      targetPort: pedrometrics
+      protocol: TCP
+      name: pedrometrics
+  selector:
+    {{- include "pedro.selectorLabels" . | nindent 4 }}
