@@ -8,7 +8,8 @@ COPY --from=1password/op:2 /usr/local/bin/op /usr/local/bin/op
 
 WORKDIR /app
 # This comes from the root directory
-COPY go.* ./
+COPY go.mod ./
+COPY go.sum ./
 RUN go mod download
 
 EXPOSE 6060
