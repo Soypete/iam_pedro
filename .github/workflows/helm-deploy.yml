@@ -1,0 +1,36 @@
+name: Helm Deploy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  helm-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: '3.12.0'
+    
+    - name: Add Helm chart to local repo
+      run: |
+        helm package charts/pedro-discord
+        helm repo index . --url https://github.com/${{ github.repository }}/releases/download/
+    
+    - name: Lint Helm chart
+      run: |
+        helm lint charts/pedro-discord
+    
+    - name: Validate Helm templates
+      run: |
+        helm template pedro-discord charts/pedro-discord --debug --dry-run
+    
+    - name: Install Helm chart (dry-run)
+      run: |
+        helm install pedro-discord charts/pedro-discord --dry-run --debug

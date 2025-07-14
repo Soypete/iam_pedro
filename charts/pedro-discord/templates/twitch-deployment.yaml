@@ -1,0 +1,48 @@
+{{- if .Values.twitchBot.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pedro-discord.fullname" . }}-twitch
+  labels:
+    {{- include "pedro-discord.labels" . | nindent 4 }}
+    app.kubernetes.io/component: twitch
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "pedro-discord.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: twitch
+  template:
+    metadata:
+      labels:
+        {{- include "pedro-discord.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: twitch
+    spec:
+      containers:
+        - name: twitch-bot
+          image: "{{ .Values.twitchBot.image.repository }}:{{ .Values.twitchBot.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 6060
+              protocol: TCP
+          env:
+            {{- range .Values.twitchBot.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

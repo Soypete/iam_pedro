@@ -1,0 +1,50 @@
+replicaCount: 1
+
+image:
+  repository: iamPedro
+  pullPolicy: IfNotPresent
+  tag: latest
+
+discordBot:
+  enabled: true
+  image:
+    repository: iamPedro/discord
+    tag: latest
+  env:
+    - name: DISCORD_MODE
+      value: "true"
+    - name: TWITCH_MODE
+      value: "false"
+    - name: MODEL
+      value: "meta-llama3.1"
+
+twitchBot:
+  enabled: true
+  image:
+    repository: iamPedro/twitch
+    tag: latest
+  env:
+    - name: DISCORD_MODE
+      value: "false"
+    - name: TWITCH_MODE
+      value: "true"
+    - name: MODEL
+      value: "meta-llama3.1"
+
+service:
+  type: ClusterIP
+  port: 6060
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
