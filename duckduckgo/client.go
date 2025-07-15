@@ -3,6 +3,7 @@ package duckduckgo
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -14,55 +15,58 @@ type Client struct {
 }
 
 type Response struct {
-	Abstract        string          `json:"Abstract"`
-	AbstractSource  string          `json:"AbstractSource"`
-	AbstractURL     string          `json:"AbstractURL"`
-	Entity          string          `json:"Entity"`
-	Heading         string          `json:"Heading"`
-	Image           string          `json:"Image"`
-	ImageHeight     int             `json:"ImageHeight"`
-	ImageIsLogo     int             `json:"ImageIsLogo"`
-	ImageWidth      int             `json:"ImageWidth"`
-	Infobox         Infobox         `json:"Infobox"`
-	RelatedTopics   []RelatedTopic  `json:"RelatedTopics"`
-	Results         []Result        `json:"Results"`
-	Type            string          `json:"Type"`
-	Meta            json.RawMessage `json:"meta"`
+	Abstract       string          `json:"Abstract,omitempty"`
+	AbstractSource string          `json:"AbstractSource,omitempty"`
+	AbstractURL    string          `json:"AbstractURL,omitempty"`
+	Entity         string          `json:"Entity,omitempty"`
+	Heading        string          `json:"Heading,omitempty"`
+	Image          string          `json:"Image,omitempty"`
+	ImageHeight    any             `json:"ImageHeight,omitempty"` // types seem to vary
+	ImageIsLogo    any             `json:"ImageIsLogo,omitempty"` // types seem to vary
+	ImageWidth     any             `json:"ImageWidth,omitempty"`  // types seem to vary
+	Infobox        any                 `json:"Infobox,omitempty"`     // this is a string or an object, we are not going to use it in search
+	RelatedTopics  []RelatedTopic  `json:"RelatedTopics,omitempty"`
+	Results        []Result        `json:"Results,omitempty"`
+	Type           string          `json:"Type,omitempty"`
+	Meta           json.RawMessage `json:"meta,omitempty"`
 }
 
 type Infobox struct {
-	Content []InfoboxContent `json:"content"`
-	Meta    []InfoboxMeta    `json:"meta"`
+	Content []InfoboxContent `json:"content,omitempty"`
+	Meta    []InfoboxMeta    `json:"meta,omitempty"`
 }
 
 type InfoboxContent struct {
-	Label string `json:"label"`
-	Value string `json:"value"`
+	DataType  string `json:"data_type,omitempty"`
+	Label     string `json:"label,omitempty"`
+	Value     any    `json:"value,omitempty"`      // can be string or an object
+	WikiOrder any    `json:"wiki_order,omitempty"` // I can see value of 1,2, or "101","102"
 }
 
 type InfoboxMeta struct {
-	Label string `json:"label"`
-	Value string `json:"value"`
+	DataType string `json:"data_type,omitempty"`
+	Label    string `json:"label,omitempty"`
+	Value    string `json:"value,omitempty"`
 }
 
 type RelatedTopic struct {
-	FirstURL string `json:"FirstURL"`
-	Icon     Icon   `json:"Icon"`
-	Result   string `json:"Result"`
-	Text     string `json:"Text"`
+	FirstURL string `json:"FirstURL,omitempty"`
+	Icon     Icon   `json:"Icon,omitempty"`
+	Result   string `json:"Result,omitempty"`
+	Text     string `json:"Text,omitempty"`
 }
 
 type Icon struct {
-	Height string `json:"Height"`
-	URL    string `json:"URL"`
-	Width  string `json:"Width"`
+	Height string `json:"Height,omitempty"`
+	URL    string `json:"URL,omitempty"`
+	Width  string `json:"Width,omitempty"`
 }
 
 type Result struct {
-	FirstURL string `json:"FirstURL"`
-	Icon     Icon   `json:"Icon"`
-	Result   string `json:"Result"`
-	Text     string `json:"Text"`
+	FirstURL string `json:"FirstURL,omitempty"`
+	Icon     Icon   `json:"Icon,omitempty"`
+	Result   string `json:"Result,omitempty"`
+	Text     string `json:"Text,omitempty"`
 }
 
 func NewClient() *Client {
@@ -74,7 +78,8 @@ func NewClient() *Client {
 	}
 }
 
-func (c *Client) Search(query string) (*Response, error) {
+// Search calls duckduckgo api and return the json as a an unmasharlled []byte.
+func (c *Client) Search(query string) ([]byte, error) {
 	if query == "" {
 		return nil, fmt.Errorf("query cannot be empty")
 	}
@@ -107,16 +112,14 @@ func (c *Client) Search(query string) (*Response, error) {
 		_ = resp.Body.Close()
 	}()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode >=300 {
 		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
 	}
-
-	var ddgResponse Response
-	if err := json.NewDecoder(resp.Body).Decode(&ddgResponse); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse body")
 	}
-
-	return &ddgResponse, nil
+	return body, nil
 }
 
 func (c *Client) SearchWithOptions(query string, options SearchOptions) (*Response, error) {
@@ -166,18 +169,24 @@ func (c *Client) SearchWithOptions(query string, options SearchOptions) (*Respon
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
 	}
-
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse body| %w", err)
+	}
 	var ddgResponse Response
-	if err := json.NewDecoder(resp.Body).Decode(&ddgResponse); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+
+	fmt.Println(string(body))
+	err = json.Unmarshal(body, &ddgResponse)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarsharl payload | %w", err)
 	}
 
 	return &ddgResponse, nil
 }
 
 type SearchOptions struct {
-	NoHTML        bool
-	SkipDisambig  bool
-	NoRedirect    bool
-	SafeSearch    string // "strict", "moderate", "off"
+	NoHTML       bool
+	SkipDisambig bool
+	NoRedirect   bool
+	SafeSearch   string // "strict", "moderate", "off"
 }

@@ -48,9 +48,14 @@ func TestSearch(t *testing.T) {
 		HTTPClient: &http.Client{},
 	}
 
-	response, err := client.Search("golang")
+	responseBytes, err := client.Search("golang")
 	if err != nil {
 		t.Fatalf("Search() returned error: %v", err)
+	}
+
+	var response Response
+	if err := json.Unmarshal(responseBytes, &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
 	if response.Abstract != mockResponse.Abstract {
@@ -141,7 +146,32 @@ func TestSearchInvalidJSON(t *testing.T) {
 		HTTPClient: &http.Client{},
 	}
 
-	_, err := client.Search("test")
+	// Search returns raw bytes, so invalid JSON is not an error for this method
+	response, err := client.Search("test")
+	if err != nil {
+		t.Errorf("Search() should not error on invalid JSON, got: %v", err)
+	}
+	if string(response) != "invalid json" {
+		t.Errorf("Expected response 'invalid json', got '%s'", string(response))
+	}
+}
+
+func TestSearchWithOptionsInvalidJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte("invalid json")); err != nil {
+			t.Fatalf("Failed to write response: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	client := &Client{
+		BaseURL:    server.URL,
+		HTTPClient: &http.Client{},
+	}
+
+	// SearchWithOptions parses JSON, so invalid JSON should cause an error
+	_, err := client.SearchWithOptions("test", SearchOptions{})
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}

@@ -20,6 +20,8 @@ var (
 	TwitchMessageSentCount     = expvar.NewInt("twitch_message_sent_count")
 	DiscordMessageRecieved     = expvar.NewInt("discord_message_recieved")
 	DiscordMessageSent         = expvar.NewInt("discord_message_sent")
+	WebSearchSuccessCount      = expvar.NewInt("web_search_success_count")
+	WebSearchFailCount         = expvar.NewInt("web_search_fail_count")
 )
 
 type Server struct {
@@ -42,6 +44,8 @@ func SetupServer() *Server {
 	TwitchConnectionCount.Set(0)
 	TwitchMessageRecievedCount.Set(0)
 	TwitchMessageSentCount.Set(0)
+	WebSearchSuccessCount.Set(0)
+	WebSearchFailCount.Set(0)
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(collectors.NewBuildInfoCollector(),
@@ -55,6 +59,8 @@ func SetupServer() *Server {
 				"empty_llm_response":            prometheus.NewDesc("empty_llm_response", "number of times llm responded with and empty string ", nil, nil),
 				"successfull_llm_gen":           prometheus.NewDesc("successfull_llm_gen", "number of times llm generated a valid response", nil, nil),
 				"failed_llm_gen":                prometheus.NewDesc("failed_llm_gen", "number of times errors occured in llm generation", nil, nil),
+				"web_search_success_count":      prometheus.NewDesc("web_search_success_count", "number of successful web searches", nil, nil),
+				"web_search_fail_count":         prometheus.NewDesc("web_search_fail_count", "number of failed web searches", nil, nil),
 			},
 		))
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
 	"github.com/Soypete/twitch-llm-bot/metrics"
@@ -26,8 +27,9 @@ func (c *Client) manageChatHistory(ctx context.Context, injection []string, chat
 func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid.UUID) (string, error) {
 	c.logger.Debug("calling LLM", "message", strings.Join(injection, " "), "messageID", messageID)
 
+	now := time.Now().Format(time.DateOnly)
 	c.manageChatHistory(ctx, injection, llms.ChatMessageTypeHuman)
-	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, ai.PedroPrompt)}
+	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, fmt.Sprintf(ai.PedroPrompt, now))}
 	messageHistory = append(messageHistory, c.chatHistory...)
 
 	c.logger.Debug("generating content", "historyLength", len(messageHistory))
@@ -76,22 +78,22 @@ func (c *Client) SingleMessageResponse(ctx context.Context, msg types.TwitchMess
 	// Check if the response indicates a web search is needed
 	if strings.Contains(prompt, "execute web search") {
 		c.logger.Debug("web search requested", "messageID", messageID)
-		
+
 		// Extract search query from the prompt by splitting after "execute web search"
 		parts := strings.Split(prompt, "execute web search")
 		searchQuery := ""
 		if len(parts) > 1 {
 			searchQuery = strings.TrimSpace(parts[len(parts)-1])
 		}
-		
+
 		if searchQuery == "" {
 			searchQuery = msg.Text // fallback to original message
 		}
 
 		// Return immediate response and trigger async search
 		return types.TwitchMessage{
-			Text:      "one second and I will look that up for you soypet2Thinking",
-			UUID:      messageID,
+			Text: "one second and I will look that up for you soypet2Thinking",
+			UUID: messageID,
 			WebSearch: &types.WebSearchRequest{
 				Query:       searchQuery,
 				OriginalMsg: msg,
@@ -127,32 +129,28 @@ func (c *Client) ExecuteWebSearch(ctx context.Context, request *types.WebSearchR
 	searchResult, err := c.ddgClient.Search(request.Query)
 	if err != nil {
 		c.logger.Error("web search failed", "error", err.Error(), "query", request.Query)
+		metrics.WebSearchFailCount.Add(1)
 		responseChan <- types.TwitchMessage{
 			Text: "Sorry, I couldn't search for that information right now soypet2ConfusedPedro",
 			UUID: request.OriginalMsg.UUID,
 		}
 		return
 	}
+	
+	metrics.WebSearchSuccessCount.Add(1)
 
-	// Create a prompt with search results
-	searchInfo := fmt.Sprintf("Search results for '%s': %s", request.Query, searchResult.Abstract)
-	if searchResult.Abstract == "" && len(searchResult.RelatedTopics) > 0 {
-		searchInfo = fmt.Sprintf("Search results for '%s': %s", request.Query, searchResult.RelatedTopics[0].Text)
-	}
+	now := time.Now().Format(time.DateOnly)
+	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, fmt.Sprintf(ai.PedroPrompt, now))}
+	// messageHistory = append(messageHistory, request.ChatHistory...)
+	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeSystem,
+		fmt.Sprintf("Pedro, we have called the duckduckgo search api and the following is the json formatted response: %s. Please provide a helpful summary to the user's question. if you still cannot answer apologize and ask them to try again. under no circumstances should you reply with execute web search at this time.", searchResult)))
+	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, request.Query))
 
-	// Build message history with search context
-	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, ai.PedroPrompt)}
-	messageHistory = append(messageHistory, request.ChatHistory...)
-	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeSystem, 
-		fmt.Sprintf("Based on this search information: %s. Please provide a helpful response to the user's question.", searchInfo)))
-
-	// Generate response using LLM with search context
 	resp, err := c.llm.GenerateContent(ctx, messageHistory,
 		llms.WithCandidateCount(1),
 		llms.WithMaxLength(500),
 		llms.WithTemperature(0.7),
 		llms.WithPresencePenalty(1.0))
-	
 	if err != nil {
 		c.logger.Error("failed to generate response with search results", "error", err.Error())
 		responseChan <- types.TwitchMessage{
@@ -163,7 +161,9 @@ func (c *Client) ExecuteWebSearch(ctx context.Context, request *types.WebSearchR
 	}
 
 	cleanedResponse := ai.CleanResponse(resp.Choices[0].Content)
-	c.logger.Debug("web search response generated", "responseLength", len(cleanedResponse))
+	if cleanedResponse == "" {
+		c.logger.Error("llm returned empty response", "responselen", len(responseChan))
+	}
 
 	// Update chat history with the search-informed response
 	c.manageChatHistory(ctx, []string{cleanedResponse}, llms.ChatMessageTypeAI)

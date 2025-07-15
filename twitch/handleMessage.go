@@ -79,15 +79,15 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 		// Check if this is a web search request
 		if resp.WebSearch != nil {
 			irc.logger.Debug("web search requested", "query", resp.WebSearch.Query, "messageID", messageID)
-			
+
 			// Send immediate response
 			err = irc.db.InsertResponse(ctx, resp, irc.modelName)
 			if err != nil {
 				irc.logger.Error("failed to insert immediate response into database", "error", err.Error(), "messageID", resp.UUID)
 			}
-			irc.Client.Say("soypetetech", resp.Text)
+			irc.Client.Say(peteTwitchChannel, resp.Text)
 			metrics.TwitchMessageSentCount.Add(1)
-			
+
 			// Start async web search
 			if twitchLLM, ok := irc.llm.(*twitchchat.Client); ok {
 				go twitchLLM.ExecuteWebSearch(ctx, resp.WebSearch, irc.asyncResponseCh)
@@ -104,7 +104,7 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 		}
 		// Don't log the actual response content to protect privacy
 		irc.logger.Debug("sending response to Twitch", "messageID", resp.UUID, "responseLength", len(resp.Text))
-		irc.Client.Say("soypetetech", resp.Text)
+		irc.Client.Say(peteTwitchChannel, resp.Text)
 		metrics.TwitchMessageSentCount.Add(1)
 	}
 }

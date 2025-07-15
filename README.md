@@ -38,6 +38,12 @@ So far the longest that the bot has taken to respond is 5 minutes, so we need to
     - /askPedro <question>
     - /stumpPedro <thing for 20 questions>
     - /helpPedro
+
+## Agents Flow
+
+![Agents Architecture](docs/images/janky%20agents.png)
+
+Building agents without MCP (Model Context Protocol) is challenging and often results in janky, fragile implementations. Our approach leverages web search capabilities to provide Pedro with real-time information access, enabling more reliable and informed responses. This allows Pedro to move beyond static knowledge and engage with current events, technical documentation, and evolving information landscapes.
 # 🤖 Pedro Orchestrator: Step-Based Agent Planning
 
 An experimental scaffold for bringing workflow-awareness and lightweight agentic planning to Pedro, the LLM-powered bot for Discord and Twitch.
