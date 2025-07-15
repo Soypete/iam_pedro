@@ -73,6 +73,33 @@ func (c *Client) SingleMessageResponse(ctx context.Context, msg types.TwitchMess
 		}, nil
 	}
 
+	// Check if the response indicates a web search is needed
+	if strings.Contains(prompt, "execute web search") {
+		c.logger.Debug("web search requested", "messageID", messageID)
+		
+		// Extract search query from the prompt by splitting after "execute web search"
+		parts := strings.Split(prompt, "execute web search")
+		searchQuery := ""
+		if len(parts) > 1 {
+			searchQuery = strings.TrimSpace(parts[len(parts)-1])
+		}
+		
+		if searchQuery == "" {
+			searchQuery = msg.Text // fallback to original message
+		}
+
+		// Return immediate response and trigger async search
+		return types.TwitchMessage{
+			Text:      "one second and I will look that up for you soypet2Thinking",
+			UUID:      messageID,
+			WebSearch: &types.WebSearchRequest{
+				Query:       searchQuery,
+				OriginalMsg: msg,
+				ChatHistory: c.chatHistory,
+			},
+		}, nil
+	}
+
 	c.logger.Debug("successful response generation", "messageID", messageID, "messageLength", len(prompt))
 	metrics.SuccessfulLLMGen.Add(1)
 	return types.TwitchMessage{
@@ -90,4 +117,59 @@ func (c *Client) End20Questions() {
 func (c *Client) Play20Questions(ctx context.Context, msg types.TwitchMessage, messageID uuid.UUID) (string, error) {
 	c.logger.Debug("play 20 questions called but not implemented for twitch", "messageID", messageID)
 	return "", nil
+}
+
+// ExecuteWebSearch performs a web search and generates a response based on the results
+func (c *Client) ExecuteWebSearch(ctx context.Context, request *types.WebSearchRequest, responseChan chan<- types.TwitchMessage) {
+	c.logger.Debug("executing web search", "query", request.Query)
+
+	// Perform the search
+	searchResult, err := c.ddgClient.Search(request.Query)
+	if err != nil {
+		c.logger.Error("web search failed", "error", err.Error(), "query", request.Query)
+		responseChan <- types.TwitchMessage{
+			Text: "Sorry, I couldn't search for that information right now soypet2ConfusedPedro",
+			UUID: request.OriginalMsg.UUID,
+		}
+		return
+	}
+
+	// Create a prompt with search results
+	searchInfo := fmt.Sprintf("Search results for '%s': %s", request.Query, searchResult.Abstract)
+	if searchResult.Abstract == "" && len(searchResult.RelatedTopics) > 0 {
+		searchInfo = fmt.Sprintf("Search results for '%s': %s", request.Query, searchResult.RelatedTopics[0].Text)
+	}
+
+	// Build message history with search context
+	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, ai.PedroPrompt)}
+	messageHistory = append(messageHistory, request.ChatHistory...)
+	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeSystem, 
+		fmt.Sprintf("Based on this search information: %s. Please provide a helpful response to the user's question.", searchInfo)))
+
+	// Generate response using LLM with search context
+	resp, err := c.llm.GenerateContent(ctx, messageHistory,
+		llms.WithCandidateCount(1),
+		llms.WithMaxLength(500),
+		llms.WithTemperature(0.7),
+		llms.WithPresencePenalty(1.0))
+	
+	if err != nil {
+		c.logger.Error("failed to generate response with search results", "error", err.Error())
+		responseChan <- types.TwitchMessage{
+			Text: "Sorry, I found the information but couldn't process it soypet2ConfusedPedro",
+			UUID: request.OriginalMsg.UUID,
+		}
+		return
+	}
+
+	cleanedResponse := ai.CleanResponse(resp.Choices[0].Content)
+	c.logger.Debug("web search response generated", "responseLength", len(cleanedResponse))
+
+	// Update chat history with the search-informed response
+	c.manageChatHistory(ctx, []string{cleanedResponse}, llms.ChatMessageTypeAI)
+
+	responseChan <- types.TwitchMessage{
+		Text: cleanedResponse,
+		UUID: request.OriginalMsg.UUID,
+	}
 }
