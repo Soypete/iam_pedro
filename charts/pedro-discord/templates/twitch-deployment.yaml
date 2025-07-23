@@ -31,6 +31,9 @@ spec:
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ include "pedro-discord.fullname" . }}-secrets
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

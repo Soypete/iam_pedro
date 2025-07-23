@@ -1,13 +1,13 @@
-name: Discord Bot Build and Deploy
+name: Twitch Bot Build and Deploy
 
 on:
   push:
     branches:
       - 'main'
     paths:
-      - 'cli/discord/**'
-      - 'discord/**'
-      - 'ai/discordchat/**'
+      - 'cli/twitch/**'
+      - 'twitch/**'
+      - 'ai/twitchchat/**'
       - 'database/**'
       - 'logging/**'
       - 'types/**'
@@ -18,16 +18,16 @@ on:
     branches:
       - 'main'
     paths:
-      - 'cli/discord/**'
-      - 'discord/**'
-      - 'ai/discordchat/**'
+      - 'cli/twitch/**'
+      - 'twitch/**'
+      - 'ai/twitchchat/**'
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/discord
+  IMAGE_NAME: ${{ github.repository }}/twitch
 
 jobs:
-  discord-docker-build:
+  twitch-docker-build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -64,7 +64,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: cli/discord/discordBot.Dockerfile
+          file: cli/twitch/twitchBot.Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -76,8 +76,8 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
-  deploy-discord:
-    needs: discord-docker-build
+  deploy-twitch:
+    needs: twitch-docker-build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
@@ -112,12 +112,12 @@ jobs:
           # Test 1Password access
           op vault list
 
-      - name: Deploy Discord bot with Helm
+      - name: Deploy Twitch bot with Helm
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
         run: |
           # Update image tag in values
-          export IMAGE_TAG="${{ needs.discord-docker-build.outputs.image-tag }}"
+          export IMAGE_TAG="${{ needs.twitch-docker-build.outputs.image-tag }}"
           export SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
           
           # Deploy using our script
@@ -126,5 +126,5 @@ jobs:
 
       - name: Verify deployment
         run: |
-          kubectl rollout status deployment/pedro-discord -n pedro-bots --timeout=300s
-          kubectl get pods -n pedro-bots -l "app.kubernetes.io/component=discord"
+          kubectl rollout status deployment/pedro-twitch -n pedro-bots --timeout=300s
+          kubectl get pods -n pedro-bots -l "app.kubernetes.io/component=twitch"

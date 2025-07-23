@@ -1,14 +1,13 @@
 replicaCount: 1
 
 image:
-  repository: iamPedro
   pullPolicy: IfNotPresent
   tag: latest
 
 discordBot:
   enabled: true
   image:
-    repository: iamPedro/discord
+    repository: ghcr.io/soypete/iam_pedro/discord
     tag: latest
   env:
     - name: DISCORD_MODE
@@ -17,11 +16,20 @@ discordBot:
       value: "false"
     - name: MODEL
       value: "meta-llama3.1"
+    # Add your environment variables here
+    # - name: DISCORD_TOKEN
+    #   value: "your-discord-token"
+    # - name: LLAMA_CPP_PATH
+    #   value: "http://llama-cpp-service:8080"
+    # - name: POSTGRES_URL
+    #   value: "postgres://user:pass@postgres:5432/pedro"
+    # - name: POSTGRES_VECTOR_URL
+    #   value: "postgres://user:pass@postgres:5432/pedro_vector"
 
 twitchBot:
   enabled: true
   image:
-    repository: iamPedro/twitch
+    repository: ghcr.io/soypete/iam_pedro/twitch
     tag: latest
   env:
     - name: DISCORD_MODE
@@ -30,6 +38,33 @@ twitchBot:
       value: "true"
     - name: MODEL
       value: "meta-llama3.1"
+    # Add your environment variables here
+    # - name: TWITCH_ID
+    #   value: "your-twitch-client-id"
+    # - name: TWITCH_SECRET
+    #   value: "your-twitch-secret"
+    # - name: LLAMA_CPP_PATH
+    #   value: "http://llama-cpp-service:8080"
+    # - name: POSTGRES_URL
+    #   value: "postgres://user:pass@postgres:5432/pedro"
+    # - name: POSTGRES_VECTOR_URL
+    #   value: "postgres://user:pass@postgres:5432/pedro_vector"
+
+# Secrets managed by 1Password CLI
+# These will be populated by the deploy script
+secrets:
+  twitchSecret: ""
+  postgresUrl: ""
+  postgresVectorUrl: ""
+  discordSecret: ""
+  discordClientId: ""
+  discordPublicKey: ""
+  discordPermission: ""
+  supabasePubKey: ""
+  supabasePrivKey: ""
+  supabaseUrl: ""
+  supabaseJwt: ""
+  llamaCppPath: ""
 
 service:
   type: ClusterIP
