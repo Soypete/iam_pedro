@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
+	"github.com/Soypete/twitch-llm-bot/llms"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/Soypete/twitch-llm-bot/types"
-	"github.com/tmc/langchaingo/llms"
 )
 
 const (

@@ -6,10 +6,10 @@ import (
 	"strings"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
+	"github.com/Soypete/twitch-llm-bot/llms"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/google/uuid"
-	"github.com/tmc/langchaingo/llms"
 )
 
 func (c *Client) manageChatHistory(ctx context.Context, injection []string, chatType llms.ChatMessageType) {

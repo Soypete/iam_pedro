@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Soypete/twitch-llm-bot/llms"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/bwmarrin/discordgo"
 	"github.com/google/uuid"
-	"github.com/tmc/langchaingo/llms"
 )
 
 // TODO: we might move these to types if it helps with db enums

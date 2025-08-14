@@ -5,25 +5,21 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/Soypete/twitch-llm-bot/llms"
 	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/google/uuid"
-	"github.com/tmc/langchaingo/llms"
 )
 
 type mockLLM struct{}
 
-func (m *mockLLM) GenerateContent(ctx context.Context, messages []llms.MessageContent, opts ...llms.CallOption) (*llms.ContentResponse, error) {
-	return &llms.ContentResponse{
-		Choices: []*llms.ContentChoice{
+func (m *mockLLM) GenerateContent(ctx context.Context, messages []llms.MessageContent, opts ...llms.GenerateOption) (*llms.GenerateResponse, error) {
+	return &llms.GenerateResponse{
+		Choices: []llms.Choice{
 			{
 				Content: "Hello World",
 			},
 		},
 	}, nil
-}
-
-func (m *mockLLM) Call(ctx context.Context, prompt string, opts ...llms.CallOption) (string, error) {
-	return "", nil
 }
 
 func TestClient_callLLM(t *testing.T) {

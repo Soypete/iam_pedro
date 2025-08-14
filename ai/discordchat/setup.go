@@ -6,13 +6,13 @@ import (
 	"fmt"
 
 	"github.com/Soypete/twitch-llm-bot/database"
+	"github.com/Soypete/twitch-llm-bot/llms"
+	"github.com/Soypete/twitch-llm-bot/llms/llamacpp"
 	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/Soypete/twitch-llm-bot/types"
-	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/openai"
 )
 
-// Bot is a client for interacting with the OpenAI LLM and the database.
+// Bot is a client for interacting with the HTTP LLM and the database.
 type Bot struct {
 	llm       llms.Model
 	db        database.ResponseWriter
@@ -36,13 +36,10 @@ func Setup(db database.ResponseWriter, modelName string, llmPath string, logger 
 
 	logger.Info("setting up discord chat LLM bot", "model", modelName, "path", llmPath)
 
-	opts := []openai.Option{
-		openai.WithBaseURL(llmPath),
-	}
-	llm, err := openai.New(opts...)
+	llm, err := llamacpp.New(llmPath, llamacpp.WithModel(modelName))
 	if err != nil {
-		logger.Error("failed to create OpenAI LLM", "error", err.Error())
-		return nil, fmt.Errorf("failed to create OpenAI LLM: %w", err)
+		logger.Error("failed to create LlamaCpp client", "error", err.Error())
+		return nil, fmt.Errorf("failed to create LlamaCpp client: %w", err)
 	}
 
 	return &Bot{

@@ -4,12 +4,12 @@ package twitchchat
 import (
 	"fmt"
 
+	"github.com/Soypete/twitch-llm-bot/llms"
+	"github.com/Soypete/twitch-llm-bot/llms/llamacpp"
 	"github.com/Soypete/twitch-llm-bot/logging"
-	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/openai"
 )
 
-// Client is a client for interacting with the OpenAI LLM and the database.
+// Client is a client for interacting with the LLM and the database.
 type Client struct {
 	llm         llms.Model
 	chatHistory []llms.MessageContent
@@ -24,13 +24,10 @@ func Setup(llmPath string, logger *logging.Logger) (*Client, error) {
 
 	logger.Info("setting up twitch chat LLM client", "path", llmPath)
 
-	opts := []openai.Option{
-		openai.WithBaseURL(llmPath),
-	}
-	llm, err := openai.New(opts...)
+	llm, err := llamacpp.New(llmPath)
 	if err != nil {
-		logger.Error("failed to create OpenAI LLM", "error", err.Error())
-		return nil, fmt.Errorf("failed to create OpenAI LLM: %w", err)
+		logger.Error("failed to create LlamaCpp client", "error", err.Error())
+		return nil, fmt.Errorf("failed to create LlamaCpp client: %w", err)
 	}
 
 	return &Client{
