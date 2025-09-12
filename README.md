@@ -99,6 +99,7 @@ Each workflow Pedro generates must use only these valid steps:
 - [ ] Build an executor to parse step list and run them in sequence
 - [ ] Handle `await` or async steps cleanly
 - [ ] Log each step's result and status (success/fail)
+- [ ] **Web Search Retry Mechanism**: Implement automatic retry for failed web searches with improved query formatting, fallback responses, and graceful degradation
 
 ### 4. Discord/Twitch Integration
 
