@@ -95,6 +95,8 @@ func (irc *IRC) handleAsyncResponses(ctx context.Context) {
 			err := irc.db.InsertResponse(ctx, response, irc.modelName)
 			if err != nil {
 				irc.logger.Error("failed to insert async response into database", "error", err.Error(), "messageID", response.UUID)
+			} else {
+				irc.logger.Debug("async web search response stored in database", "messageID", response.UUID)
 			}
 			
 			// Send the response to Twitch chat

@@ -91,6 +91,8 @@ func (c *Client) SingleMessageResponse(ctx context.Context, msg types.TwitchMess
 		}
 
 		// Return immediate response and trigger async search
+		// Set the UUID on the original message so it can be traced
+		msg.UUID = messageID
 		return types.TwitchMessage{
 			Text: "one second and I will look that up for you soypet2Thinking",
 			UUID: messageID,
@@ -123,12 +125,12 @@ func (c *Client) Play20Questions(ctx context.Context, msg types.TwitchMessage, m
 
 // ExecuteWebSearch performs a web search and generates a response based on the results
 func (c *Client) ExecuteWebSearch(ctx context.Context, request *types.WebSearchRequest, responseChan chan<- types.TwitchMessage) {
-	c.logger.Debug("executing web search", "query", request.Query)
+	c.logger.Debug("executing web search", "query", request.Query, "originalMessageID", request.OriginalMsg.UUID)
 
 	// Perform the search
 	searchResult, err := c.ddgClient.Search(request.Query)
 	if err != nil {
-		c.logger.Error("web search failed", "error", err.Error(), "query", request.Query)
+		c.logger.Error("web search failed", "error", err.Error(), "query", request.Query, "messageID", request.OriginalMsg.UUID)
 		metrics.WebSearchFailCount.Add(1)
 		responseChan <- types.TwitchMessage{
 			Text: "Sorry, I couldn't search for that information right now soypet2ConfusedPedro",
@@ -138,6 +140,7 @@ func (c *Client) ExecuteWebSearch(ctx context.Context, request *types.WebSearchR
 	}
 	
 	metrics.WebSearchSuccessCount.Add(1)
+	c.logger.Debug("web search successful", "query", request.Query, "messageID", request.OriginalMsg.UUID)
 
 	now := time.Now().Format(time.DateOnly)
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, fmt.Sprintf(ai.PedroPrompt, now))}
@@ -168,6 +171,7 @@ func (c *Client) ExecuteWebSearch(ctx context.Context, request *types.WebSearchR
 	// Update chat history with the search-informed response
 	c.manageChatHistory(ctx, []string{cleanedResponse}, llms.ChatMessageTypeAI)
 
+	c.logger.Debug("sending web search response", "messageID", request.OriginalMsg.UUID, "responseLength", len(cleanedResponse))
 	responseChan <- types.TwitchMessage{
 		Text: cleanedResponse,
 		UUID: request.OriginalMsg.UUID,
