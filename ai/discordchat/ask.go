@@ -46,3 +46,48 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg types.DiscordAskMes
 	metrics.SuccessfulLLMGen.Add(1)
 	return prompt, nil
 }
+
+// ConversationResponse handles a response with conversation history
+func (b *Bot) ConversationResponse(ctx context.Context, messages []types.DiscordAskMessage, newMessage string) (string, error) {
+	b.logger.Debug("processing discord conversation response", "historyLength", len(messages))
+
+	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, askPedroPrompt)}
+	
+	// Add conversation history
+	for _, msg := range messages {
+		if msg.IsFromPedro {
+			messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeAI, msg.Message))
+		} else {
+			messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, msg.Message))
+		}
+	}
+	
+	// Add the new message
+	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, newMessage))
+
+	b.logger.Debug("calling LLM for discord conversation", "messageCount", len(messageHistory))
+	resp, err := b.llm.GenerateContent(context.Background(), messageHistory,
+		llms.WithCandidateCount(1),
+		llms.WithMaxLength(500),
+		llms.WithTemperature(0.7),
+		llms.WithPresencePenalty(1.0),
+		llms.WithStopWords([]string{"@pedro", "@Pedro", "@PedroAI", "@PedroAI_"}))
+	if err != nil {
+		b.logger.Error("failed to get discord conversation LLM response", "error", err.Error())
+		metrics.FailedLLMGen.Add(1)
+		return "", fmt.Errorf("failed to get llm response: %w", err)
+	}
+
+	prompt := ai.CleanResponse(resp.Choices[0].Content)
+	b.logger.Debug("received discord conversation LLM response", "responseLength", len(prompt))
+
+	if prompt == "" {
+		b.logger.Warn("empty response from discord conversation LLM")
+		metrics.EmptyLLMResponse.Add(1)
+		return "Sorry, I cannot respond to that. Please try again", nil
+	}
+
+	b.logger.Debug("successful discord conversation response generation", "messageLength", len(prompt))
+	metrics.SuccessfulLLMGen.Add(1)
+	return prompt, nil
+}

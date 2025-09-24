@@ -15,6 +15,7 @@ type DiscordWriter interface {
 // AskPedroWriter is an interface for writing AskPedro DiscordMessages to the database.
 type AskPedroWriter interface {
 	InsertDiscordAskPedro(ctx context.Context, message types.DiscordAskMessage) error
+	GetDiscordAskPedroHistory(ctx context.Context, threadID string) ([]types.DiscordAskMessage, error)
 }
 
 // InsertDiscordAskPedro inserts a DiscordAskMessage into the database.
@@ -36,6 +37,26 @@ func (p *Postgres) InsertDiscordAskPedro(ctx context.Context, message types.Disc
 		return fmt.Errorf("error inserting discord ask pedro message: %w", err)
 	}
 	return nil
+}
+
+// GetDiscordAskPedroHistory retrieves the conversation history for a thread from the database.
+func (p *Postgres) GetDiscordAskPedroHistory(ctx context.Context, threadID string) ([]types.DiscordAskMessage, error) {
+	var messages []types.DiscordAskMessage
+	query := `SELECT 
+		thread_id, 
+		message, 
+		username, 
+		thread_timeout,
+		is_from_pedro
+	FROM discord_ask_pedro 
+	WHERE thread_id = $1 
+	ORDER BY created_at ASC;`
+	
+	err := p.connections.SelectContext(ctx, &messages, query, threadID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting discord ask pedro history: %w", err)
+	}
+	return messages, nil
 }
 
 // TwentyQuestionsWriter is an interface for writing 20Questions DiscordMessages to the database.
