@@ -67,23 +67,41 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	userNumber := i.Interaction.Member.User.ID
-	// TODO: break this in to a function we can test
-	msgText := fmt.Sprintf("<@%s>:\nQuestion: %s\nResponse: %s", userNumber, text, resp)
-	_, err = d.Session.ChannelMessageSend(i.Interaction.ChannelID, msgText)
+	// Create initial message in channel
+	initialMsg := fmt.Sprintf("<@%s> asked Pedro: %s", userNumber, text)
+	m, err := d.Session.ChannelMessageSend(i.Interaction.ChannelID, initialMsg)
 	if err != nil {
 		d.logger.Error("error sending message to channel", "error", err.Error(), "channelID", i.Interaction.ChannelID)
 		return
 	}
 	metrics.DiscordMessageSent.Add(1)
 
-	// TODO: add thread handling
+	// Create thread for the conversation
+	threadTitle := "Ask Pedro: " + i.Interaction.Member.User.Username
+	thread, err := d.Session.MessageThreadStart(m.ChannelID, m.ID, threadTitle, 1440)
+	if err != nil {
+		d.logger.Error("error starting thread", "error", err.Error(), "channelID", m.ChannelID)
+		return
+	}
+	d.logger.Debug("started thread for ask pedro", "threadID", thread.ID)
+
+	// Send Pedro's response in the thread
+	_, err = d.Session.ChannelMessageSend(thread.ID, resp)
+	if err != nil {
+		d.logger.Error("error sending response to thread", "error", err.Error(), "threadID", thread.ID)
+		return
+	}
+	metrics.DiscordMessageSent.Add(1)
+
+	// Update message with thread ID for database storage
+	message.ThreadID = thread.ID
 	message = types.DiscordAskMessage{
 		Username:      i.Interaction.Member.User.Username,
 		Message:       resp,
+		ThreadID:      thread.ID,
 		ThreadTimeout: 0,
 		IsFromPedro:   true,
 	}
 
 	d.handleDBerror(d.db.InsertDiscordAskPedro(context.Background(), message))
-	// TODO: listen for the user to respond to the message with a follow up question to Pedro in a thread
 }
