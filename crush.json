@@ -1,0 +1,41 @@
+{
+  "$schema": "https://charm.land/crush.json",
+  "permissions": {
+    "allowed_tools": [
+      "view",
+      "ls",
+      "grep",
+      "edit",
+      "rg",
+      "tree",
+      "op"
+    ]
+  },
+  "providers": {
+    "pedro": {
+      "type": "llama.cpp",
+      "base_url": "https://pedro-gpu.tail6fbc5.ts.net",
+      "models": [
+	{
+          "name": "Qwen 3 30B",
+          "id": "qwen3:30b",
+          "context_window": 32000,
+          "default_max_tokens": 20000
+        }
+      ]
+    },
+  "openai": {
+      "type": "openai",
+      "base_url": "https://api.openai.com/v1",
+      "api_key": "$OPENAI_API_KEY",
+      "models": [
+        {
+          "id": "openai-chat",
+          "name": "Chat GPT5",
+          "context_window": 64000,
+          "default_max_tokens": 5000
+        }
+      ]
+    }
+  }
+}
