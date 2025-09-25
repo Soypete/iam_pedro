@@ -35,3 +35,9 @@ type Discord20QuestionsGame struct {
 	ThreadTimeout int       `db:"thread_timeout"`
 	Status        string    `db:"status"`
 }
+
+// DiscordResponse represents a response from the Discord bot
+type DiscordResponse struct {
+	Text      string
+	WebSearch *WebSearchRequest
+}

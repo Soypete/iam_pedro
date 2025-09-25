@@ -66,9 +66,11 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	if resp == "" {
+	if resp == nil || resp.Text == "" {
 		d.logger.Warn("empty response from LLM", "messageID", messageID)
-		resp = "Sorry, I cannot respond to that. Please try again."
+		resp = &types.DiscordResponse{
+			Text: "Sorry, I cannot respond to that. Please try again.",
+		}
 	}
 
 	userNumber := i.Interaction.Member.User.ID
@@ -91,17 +93,50 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	d.logger.Debug("started thread for ask pedro", "threadID", thread.ID)
 
 	// Send Pedro's response in the thread
-	_, err = d.Session.ChannelMessageSend(thread.ID, resp)
+	_, err = d.Session.ChannelMessageSend(thread.ID, resp.Text)
 	if err != nil {
 		d.logger.Error("error sending response to thread", "error", err.Error(), "threadID", thread.ID)
 		return
 	}
 	metrics.DiscordMessageSent.Add(1)
 
+	// Check if web search is needed
+	if resp.WebSearch != nil {
+		d.logger.Debug("web search requested", "query", resp.WebSearch.Query, "messageID", messageID)
+
+		// Execute web search asynchronously
+		go func() {
+			searchResp, err := d.llm.ExecuteWebSearch(context.Background(), resp.WebSearch)
+			if err != nil {
+				d.logger.Error("web search failed", "error", err.Error(), "query", resp.WebSearch.Query)
+				return
+			}
+
+			// Send the search result as a follow-up message in the thread
+			_, err = d.Session.ChannelMessageSend(thread.ID, searchResp)
+			if err != nil {
+				d.logger.Error("error sending search results to thread", "error", err.Error(), "threadID", thread.ID)
+				return
+			}
+			metrics.DiscordMessageSent.Add(1)
+
+			// Store the search response in the database
+			searchMessage := types.DiscordAskMessage{
+				Username:      "Pedro",
+				Message:       searchResp,
+				ThreadID:      thread.ID,
+				ThreadTimeout: 0,
+				IsFromPedro:   true,
+				Timestamp:     time.Now(),
+			}
+			d.handleDBerror(d.db.InsertDiscordAskPedro(context.Background(), searchMessage))
+		}()
+	}
+
 	// Store Pedro's response
 	message = types.DiscordAskMessage{
 		Username:      "Pedro",
-		Message:       resp,
+		Message:       resp.Text,
 		ThreadID:      thread.ID,
 		ThreadTimeout: 0,
 		IsFromPedro:   true,
