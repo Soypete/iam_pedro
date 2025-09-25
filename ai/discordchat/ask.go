@@ -145,7 +145,7 @@ func (b *Bot) ThreadMessageResponse(ctx context.Context, msg types.DiscordAskMes
 
 	// Build message history starting with system prompt
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, askPedroPrompt)}
-	
+
 	// Add conversation history (excluding the current message since it's already in conversationHistory)
 	messageHistory = append(messageHistory, conversationHistory...)
 
