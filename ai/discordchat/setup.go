@@ -11,11 +11,13 @@ import (
 	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
+	"github.com/tmc/langchaingo/tools"
 )
 
 // Bot is a client for interacting with the OpenAI LLM and the database.
 type Bot struct {
 	llm         llms.Model
+	agent       tools.Tool
 	db          database.ResponseWriter
 	modelName   string
 	logger      *logging.Logger
@@ -53,8 +55,16 @@ func Setup(db database.ResponseWriter, modelName string, llmPath string, logger 
 	// Initialize DuckDuckGo client
 	ddgClient := duckduckgo.NewClient()
 
+	// Create OpenAI Functions Agent
+	agent, err := CreateOpenAIFunctionsAgent(llm, ddgClient, logger)
+	if err != nil {
+		logger.Error("failed to create OpenAI Functions Agent", "error", err.Error())
+		return nil, fmt.Errorf("failed to create OpenAI Functions Agent: %w", err)
+	}
+
 	return &Bot{
 		llm:         llm,
+		agent:       agent,
 		db:          db,
 		modelName:   modelName,
 		logger:      logger,

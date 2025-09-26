@@ -10,6 +10,7 @@ import (
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/tools"
 )
 
 const askPedroPrompt = "Your name is Pedro. You are a chat bot that helps out in SoyPeteTech's discord server. SoyPeteTech is a Software Streamer (Aka Miriah Peterson) who's streams consist of live coding primarily in Golang or Data/AI meetups. She also published shorts to tiktok, videos to youtube, and blogs to substack. Your code is found at https://github.com/SoyPete/IamPedro. All other links are on https://linktr.ee/soypete_tech. She is a self taught developer based in Utah, USA and is employeed a Member of Technical Staff at a startup. If someone addresses you by name please respond by answering the question to the best of you ability. You can use code to express fun messages about software. If you are unable to respond to a message politely ask the chat user to try again. If the chat user is being rude or inappropriate please ignore them. Keep your responses fun and engaging. Here are some approved emotes Do not talk about Java or Javascript! Have fun!"
@@ -99,8 +100,8 @@ func (b *Bot) manageChatHistory(ctx context.Context, injection []string, chatTyp
 func (b *Bot) ExecuteWebSearch(ctx context.Context, request *types.WebSearchRequest) (string, error) {
 	b.logger.Debug("executing web search", "query", request.Query)
 
-	// Perform the search
-	searchResult, err := b.ddgClient.Search(request.Query)
+	// Use the agent to perform the web search
+	agentResult, err := b.agent.Call(ctx, request.Query)
 	if err != nil {
 		b.logger.Error("web search failed", "error", err.Error(), "query", request.Query)
 		metrics.WebSearchFailCount.Add(1)
@@ -108,12 +109,12 @@ func (b *Bot) ExecuteWebSearch(ctx context.Context, request *types.WebSearchRequ
 	}
 	
 	metrics.WebSearchSuccessCount.Add(1)
-	b.logger.Debug("web search successful", "query", request.Query)
+	b.logger.Debug("web search successful", "query", request.Query, "result", agentResult)
 
 	now := time.Now().Format(time.DateOnly)
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, fmt.Sprintf(ai.PedroPrompt, now))}
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeSystem,
-		fmt.Sprintf("Pedro, we have called the duckduckgo search api and the following is the json formatted response: %s. Please provide a helpful summary to the user's question. if you still cannot answer apologize and ask them to try again. under no circumstances should you reply with execute web search at this time.", searchResult)))
+		fmt.Sprintf("Pedro, the web search returned the following result: %s. Please provide a helpful summary to the user's question. If you still cannot answer, apologize and ask them to try again.", agentResult)))
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, request.Query))
 
 	resp, err := b.llm.GenerateContent(ctx, messageHistory,
