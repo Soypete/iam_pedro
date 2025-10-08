@@ -8,36 +8,44 @@ This guide covers deploying Pedro's Discord and Twitch bots with Prometheus moni
 - **Monitoring Host**: 100.125.196.1 (Prometheus)
 - **LLM Service**: pedro-gpu.tail6fbc5.ts.net (existing)
 
-## Quick Start
+## Deployment Methods
 
-### 1. Deploy Discord Bot to 100.81.89.62
+### Method 1: Taildrop Package (Recommended)
+
+Package everything on your local machine and transfer via Taildrop:
 
 ```bash
-# Copy repo to target host
-git clone <repo-url>
+# On your local machine
+./deployment/package-for-deploy.sh
+
+# Transfer pedro-deploy-<tag>.tar.gz via Taildrop to target machine
+
+# On target machine (100.81.89.62)
+tar xzf pedro-deploy-<tag>.tar.gz
+cd pedro-deploy-<tag>
+./setup.sh                    # Installs Docker/Podman
+./deploy-docker.sh discord    # Deploy Discord bot
+./deploy-docker.sh twitch     # Deploy Twitch bot
+```
+
+### Method 2: Direct Git Clone
+
+Clone directly on target machine:
+
+```bash
+# On target machine
+git clone https://github.com/Soypete/iam_pedro.git
 cd iam_pedro
 
-# Build and deploy Discord bot
-./deployment/remote-build-deploy.sh $(git rev-parse --short HEAD) discord
+# Checkout branch
+git checkout deployment-automation
 
-# Edit environment file
-sudo nano /opt/pedro/prod.env
-
-# Restart service after configuration
-sudo systemctl restart pedro-discord
+# Deploy
+./deployment/deploy-docker.sh discord
+./deployment/deploy-docker.sh twitch
 ```
 
-### 2. Deploy Twitch Bot (Optional)
-
-```bash
-# Deploy Twitch bot on same host (different port)
-./deployment/remote-build-deploy.sh $(git rev-parse --short HEAD) twitch
-
-# Restart service after configuration  
-sudo systemctl restart pedro-twitch
-```
-
-### 3. Set up Prometheus on 100.125.196.1
+### Method 3: Prometheus Setup (Monitoring Host)
 
 ```bash
 # Copy prometheus files to monitoring host
@@ -158,40 +166,60 @@ If `TWITCH_TOKEN` is not set, the bot will initiate an OAuth flow on startup.
    ```bash
    TWITCH_TOKEN=op://vault/twitch-bot/access-token
    ```
-9. Restart the service - it will now use the saved token
+9. Restart the container - it will now use the saved token:
+   ```bash
+   docker restart pedro-twitch
+   ```
 
-## Service Management
+## Container Management
+
+Containers run with `--restart unless-stopped` which means they:
+- ✅ Auto-start on boot
+- ✅ Auto-restart on crashes
+- ✅ Stay stopped if you manually stop them
+- ❌ No systemd required!
 
 ### Check Status
 ```bash
-# Discord bot
-sudo systemctl status pedro-discord
+# List running containers
+docker ps
 
-# Twitch bot  
-sudo systemctl status pedro-twitch
-
-# Prometheus
-sudo systemctl status prometheus
+# List all containers (including stopped)
+docker ps -a
 ```
 
 ### View Logs
 ```bash
 # Discord logs
-sudo journalctl -u pedro-discord -f
+docker logs -f pedro-discord
 
 # Twitch logs
-sudo journalctl -u pedro-twitch -f
+docker logs -f pedro-twitch
 
-# Prometheus logs
+# View last 100 lines
+docker logs --tail 100 pedro-discord
+
+# Prometheus logs (if using systemd for Prometheus)
 sudo journalctl -u prometheus -f
 ```
 
-### Restart Services
+### Manage Containers
 ```bash
-# After config changes
-sudo systemctl restart pedro-discord
-sudo systemctl restart pedro-twitch
-sudo systemctl restart prometheus
+# Stop containers
+docker stop pedro-discord
+docker stop pedro-twitch
+
+# Start containers
+docker start pedro-discord
+docker start pedro-twitch
+
+# Restart containers (after config changes)
+docker restart pedro-discord
+docker restart pedro-twitch
+
+# Remove containers (will be recreated on next deploy)
+docker stop pedro-discord && docker rm pedro-discord
+docker stop pedro-twitch && docker rm pedro-twitch
 ```
 
 ## Monitoring Endpoints
