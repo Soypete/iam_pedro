@@ -23,6 +23,7 @@ Requires=docker.service
 Type=forking
 Restart=always
 RestartSec=10
+EnvironmentFile=/opt/pedro/service.env
 ExecStartPre=-/usr/bin/docker stop $CONTAINER_NAME
 ExecStartPre=-/usr/bin/docker rm $CONTAINER_NAME
 ExecStartPre=-/usr/bin/docker pull $IMAGE_NAME:$TAG
@@ -30,7 +31,9 @@ ExecStart=/usr/bin/docker run -d \\
     --name $CONTAINER_NAME \\
     --restart unless-stopped \\
     -p $METRICS_PORT:6060 \\
-    --env-file /opt/pedro/prod.env \\
+    -v /opt/pedro/prod.env:/app/prod.env:ro \\
+    -e OP_SERVICE_ACCOUNT_TOKEN=\${OP_SERVICE_ACCOUNT_TOKEN} \\
+    -e TWITCH_ID=\${TWITCH_ID} \\
     $IMAGE_NAME:$TAG
 ExecStop=/usr/bin/docker stop $CONTAINER_NAME
 ExecStopPost=/usr/bin/docker rm $CONTAINER_NAME
@@ -47,13 +50,25 @@ set -e
 # Ensure directories exist
 sudo mkdir -p /opt/pedro
 
-# Copy environment file if it doesn't exist
+# Check environment files exist
 if [ ! -f /opt/pedro/prod.env ]; then
-    echo "Warning: /opt/pedro/prod.env does not exist. Please create it with your environment variables."
+    echo "Warning: /opt/pedro/prod.env does not exist. Please create it with your 1Password secret references."
     echo "Example variables needed:"
-    echo "DISCORD_TOKEN=your_discord_token"
-    echo "DATABASE_URL=your_database_url"
-    echo "OPENAI_API_KEY=your_openai_key"
+    echo "DISCORD_TOKEN=op://vault/discord-bot/token"
+    echo "DATABASE_URL=op://vault/postgres/connection-url"
+    exit 1
+fi
+
+if [ ! -f /opt/pedro/service.env ]; then
+    echo "Warning: /opt/pedro/service.env does not exist. Creating template..."
+    sudo tee /opt/pedro/service.env > /dev/null <<ENVEOF
+# 1Password Service Account Token (required for op CLI)
+OP_SERVICE_ACCOUNT_TOKEN=your_service_account_token_here
+
+# Twitch Client ID (not a secret, can be plain text)
+TWITCH_ID=your_twitch_client_id
+ENVEOF
+    echo "ERROR: Please edit /opt/pedro/service.env with actual values!"
     exit 1
 fi
 

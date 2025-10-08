@@ -52,55 +52,113 @@ chmod +x setup-prometheus.sh
 
 ## Environment Configuration
 
-### Option 1: Using 1Password Service Account (Recommended)
+The deployment uses two configuration files:
+1. **`/opt/pedro/service.env`** - Non-secret systemd environment variables
+2. **`/opt/pedro/prod.env`** - 1Password secret references (injected at container runtime)
 
-The Docker containers use 1Password CLI (`op`) for secrets management. Set up a 1Password Service Account on the VM:
+### Step 1: Create service.env (Non-Secrets)
+
+This file contains the 1Password service account token and non-secret values:
 
 ```bash
-# Install 1Password CLI
-curl -sSfo op.zip https://cache.agilebits.com/dist/1P/op2/pkg/v2.30.0/op_linux_amd64_v2.30.0.zip
-unzip op.zip
-sudo mv op /usr/local/bin/
-sudo chmod +x /usr/local/bin/op
-
-# Authenticate with Service Account token
-export OP_SERVICE_ACCOUNT_TOKEN="your_service_account_token_here"
-echo 'export OP_SERVICE_ACCOUNT_TOKEN="your_service_account_token_here"' >> ~/.bashrc
-
-# Verify connection
-op vault list
-
-# Create the prod.env file with 1Password secret references
 sudo mkdir -p /opt/pedro
-sudo tee /opt/pedro/prod.env > /dev/null <<EOF
-# Reference format: op://<vault>/<item>/<field>
-DISCORD_TOKEN=op://vault/discord-bot/token
-TWITCH_TOKEN=op://vault/twitch-bot/token
-TWITCH_CHANNEL=op://vault/twitch-bot/channel
-DATABASE_URL=op://vault/postgres/connection-url
-OPENAI_API_KEY=op://vault/openai/api-key
+sudo tee /opt/pedro/service.env > /dev/null <<EOF
+# 1Password Service Account Token (required for op CLI in container)
+OP_SERVICE_ACCOUNT_TOKEN=ops_your_service_account_token_here
+
+# Twitch Client ID (not a secret, safe to store in plain text)
+TWITCH_ID=your_twitch_client_id
+
+# OAuth redirect host for remote authentication
+# Use Tailscale hostname for remote access, or IP address
+OAUTH_REDIRECT_HOST=100.81.89.62:3000
 EOF
+
+sudo chmod 600 /opt/pedro/service.env
 ```
 
-**Note:** The containers use `op run --env-file prod.env` to inject secrets at runtime. Make sure your 1Password vault contains the referenced items.
+### Step 2: Create prod.env (1Password Secret References)
 
-### Option 2: Plain Environment Variables
-
-Alternatively, create `/opt/pedro/prod.env` with plain values:
+This file uses 1Password secret references that will be injected at container runtime:
 
 ```bash
 sudo tee /opt/pedro/prod.env > /dev/null <<EOF
-DISCORD_TOKEN=your_discord_bot_token
-TWITCH_TOKEN=your_twitch_oauth_token
-TWITCH_CHANNEL=your_twitch_channel_name
-DATABASE_URL=postgresql://user:pass@host:port/dbname
-OPENAI_API_KEY=your_openai_api_key
+# Discord Bot
+DISCORD_TOKEN=op://vault/discord-bot/token
+
+# Twitch Bot - use TWITCH_SECRET for OAuth flow
+TWITCH_SECRET=op://vault/twitch-bot/client-secret
+
+# Twitch Bot - OPTIONAL: use TWITCH_TOKEN to skip OAuth flow
+# If set, bot will use this token directly instead of running OAuth
+# TWITCH_TOKEN=op://vault/twitch-bot/access-token
+
+# Database
+DATABASE_URL=op://vault/postgres/connection-url
+
+# LLM Service
+LLAMA_CPP_PATH=https://pedro-gpu.tail6fbc5.ts.net
 EOF
 
 sudo chmod 600 /opt/pedro/prod.env
 ```
 
-**Note:** If using plain values, you'll need to modify the Dockerfile CMD to remove the `op run --` wrapper.
+**Important Notes:**
+- The containers use `op run --env-file=/app/prod.env` to inject secrets at runtime
+- `OP_SERVICE_ACCOUNT_TOKEN` must be set in `service.env` for the container's `op` CLI to authenticate
+- `TWITCH_ID` is not a secret and can be stored as plain text
+- For Twitch: either use `TWITCH_SECRET` (requires OAuth) or `TWITCH_TOKEN` (pre-generated token)
+
+## Twitch OAuth Setup
+
+The Twitch bot supports two authentication methods:
+
+### Method 1: Pre-generated Token (Recommended for Production)
+
+If you have a `TWITCH_TOKEN` in your 1Password vault, the bot will use it directly and skip the OAuth flow. This is best for headless deployments.
+
+To get a token initially, use Method 2 once, then save the token to 1Password.
+
+### Method 2: Remote OAuth Flow (For Initial Setup)
+
+If `TWITCH_TOKEN` is not set, the bot will initiate an OAuth flow on startup.
+
+**Prerequisites:**
+1. Update Twitch Developer Portal with your redirect URL:
+   - Go to https://dev.twitch.tv/console/apps
+   - Edit your application
+   - Add OAuth Redirect URL: `http://100.81.89.62:3000/oauth/redirect` (or your Tailscale hostname)
+   - Save changes
+
+**During First Deployment:**
+1. Start the Twitch bot service
+2. Watch the logs for the OAuth URL:
+   ```bash
+   sudo journalctl -u pedro-twitch -f
+   ```
+3. You'll see output like:
+   ```
+   Visit the URL for the auth dialog: https://id.twitch.tv/oauth2/authorize?...
+   OAuth redirect configured for: http://100.81.89.62:3000/oauth/redirect
+   ```
+4. Open that URL in a browser (from any device on the network/Tailscale)
+5. Authorize the application
+6. The bot will receive the token and print:
+   ```
+   Token received: abc123...
+   IMPORTANT: Save this token to 1Password as TWITCH_TOKEN to avoid OAuth flow on restart
+   ```
+7. Save the token to 1Password:
+   ```bash
+   op item create --category=password --title="twitch-bot" \
+     --vault=vault \
+     access-token=<the_token_from_logs>
+   ```
+8. Update `/opt/pedro/prod.env` to uncomment `TWITCH_TOKEN`:
+   ```bash
+   TWITCH_TOKEN=op://vault/twitch-bot/access-token
+   ```
+9. Restart the service - it will now use the saved token
 
 ## Service Management
 
