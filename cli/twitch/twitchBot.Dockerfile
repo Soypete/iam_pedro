@@ -17,4 +17,4 @@ EXPOSE 6060
 COPY . ./
 RUN go build -v -o main ./cli/twitch
 
-CMD ["op", "run", "--", "--env-file", "prod.env", "/app/main", "-model", "meta-llama3.1", "-discordMode", "-twitchMode"]
+CMD ["op", "run", "--", "--env-file", "prod.env", "/app/main", "-model", "deepseek", "-discordMode", "-twitchMode"]

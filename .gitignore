@@ -16,3 +16,10 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 twitch-llm-bot
+
+# Generated deployment files
+deploy.sh
+pedro-discord.service
+pedro-twitch.service
+remote-deploy.sh
+*.tar.gz
