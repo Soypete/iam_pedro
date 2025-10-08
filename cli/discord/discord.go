@@ -46,6 +46,20 @@ func main() {
 	//  we are not actually connecting to openai, but we are using their api spec to connect to our own model via llama.cpp
 	os.Setenv("OPENAI_API_KEY", "test")
 	llmPath := os.Getenv("LLAMA_CPP_PATH")
+
+	// Debug: Log environment variables
+	logger.Info("environment configuration",
+		"model", model,
+		"llmPath", llmPath,
+		"hasDiscordToken", os.Getenv("DISCORD_TOKEN") != "",
+		"hasDatabaseURL", os.Getenv("DATABASE_URL") != "",
+	)
+
+	if llmPath == "" {
+		logger.Error("LLAMA_CPP_PATH environment variable is not set")
+		os.Exit(1)
+	}
+
 	var session discord.Client
 	discordllm, err := discordchat.Setup(db, model, llmPath, logger)
 	if err != nil {

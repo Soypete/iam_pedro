@@ -38,6 +38,9 @@ TWITCH_ID=your_twitch_client_id
 
 # OAuth redirect host for remote authentication
 OAUTH_REDIRECT_HOST=100.81.89.62:3000
+
+# LLM Service URL (not a secret, can be plain text)
+LLAMA_CPP_PATH=https://pedro-gpu.tail6fbc5.ts.net
 EOF
     echo "ERROR: Please edit $SERVICE_ENV with your actual values!"
     exit 1
@@ -58,9 +61,6 @@ TWITCH_SECRET=op://vault/twitch-bot/client-secret
 
 # Database
 DATABASE_URL=op://vault/postgres/connection-url
-
-# LLM Service
-LLAMA_CPP_PATH=https://pedro-gpu.tail6fbc5.ts.net
 EOF
     echo "ERROR: Please edit $PROD_ENV with your 1Password references!"
     exit 1
@@ -90,6 +90,7 @@ deploy_discord() {
         -v "$PROD_ENV:/app/prod.env:ro" \
         -e OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" \
         -e TWITCH_ID="$TWITCH_ID" \
+        -e LLAMA_CPP_PATH="${LLAMA_CPP_PATH:-https://pedro-gpu.tail6fbc5.ts.net}" \
         localhost/pedro-discord:$TAG
 
     echo "✅ Discord bot deployed!"
@@ -121,6 +122,7 @@ deploy_twitch() {
         -e OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" \
         -e TWITCH_ID="$TWITCH_ID" \
         -e OAUTH_REDIRECT_HOST="$OAUTH_REDIRECT_HOST" \
+        -e LLAMA_CPP_PATH="${LLAMA_CPP_PATH:-https://pedro-gpu.tail6fbc5.ts.net}" \
         localhost/pedro-twitch:$TAG
 
     echo "✅ Twitch bot deployed!"
