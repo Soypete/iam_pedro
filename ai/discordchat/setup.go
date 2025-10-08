@@ -36,6 +36,12 @@ func Setup(db database.ResponseWriter, modelName string, llmPath string, logger 
 
 	logger.Info("setting up discord chat LLM bot", "model", modelName, "path", llmPath)
 
+	// Ensure the path ends with /v1 for OpenAI-compatible API
+	if llmPath != "" && llmPath[len(llmPath)-3:] != "/v1" {
+		llmPath = llmPath + "/v1"
+		logger.Info("appended /v1 to LLM path", "fullPath", llmPath)
+	}
+
 	opts := []openai.Option{
 		openai.WithBaseURL(llmPath),
 	}

@@ -24,6 +24,12 @@ func Setup(llmPath string, logger *logging.Logger) (*Client, error) {
 
 	logger.Info("setting up twitch chat LLM client", "path", llmPath)
 
+	// Ensure the path ends with /v1 for OpenAI-compatible API
+	if llmPath != "" && llmPath[len(llmPath)-3:] != "/v1" {
+		llmPath = llmPath + "/v1"
+		logger.Info("appended /v1 to LLM path", "fullPath", llmPath)
+	}
+
 	opts := []openai.Option{
 		openai.WithBaseURL(llmPath),
 	}
