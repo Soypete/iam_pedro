@@ -33,6 +33,7 @@ func Setup(llmPath string, modelName string, logger *logging.Logger) (*Client, e
 
 	opts := []openai.Option{
 		openai.WithBaseURL(llmPath),
+		openai.WithModel(modelName),
 	}
 	llm, err := openai.New(opts...)
 	if err != nil {

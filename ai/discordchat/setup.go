@@ -44,6 +44,7 @@ func Setup(db database.ResponseWriter, modelName string, llmPath string, logger 
 
 	opts := []openai.Option{
 		openai.WithBaseURL(llmPath),
+		openai.WithModel(modelName),
 	}
 	llm, err := openai.New(opts...)
 	if err != nil {
