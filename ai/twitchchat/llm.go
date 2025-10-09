@@ -30,8 +30,9 @@ func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, ai.PedroPrompt)}
 	messageHistory = append(messageHistory, c.chatHistory...)
 
-	c.logger.Debug("generating content", "historyLength", len(messageHistory))
+	c.logger.Debug("generating content", "historyLength", len(messageHistory), "model", c.modelName)
 	resp, err := c.llm.GenerateContent(ctx, messageHistory,
+		llms.WithModel(c.modelName),
 		llms.WithCandidateCount(1),
 		llms.WithMaxLength(500),
 		llms.WithTemperature(0.7),

@@ -13,11 +13,12 @@ import (
 type Client struct {
 	llm         llms.Model
 	chatHistory []llms.MessageContent
+	modelName   string
 	logger      *logging.Logger
 }
 
 // Setup creates a new twitch chat bot.
-func Setup(llmPath string, logger *logging.Logger) (*Client, error) {
+func Setup(llmPath string, modelName string, logger *logging.Logger) (*Client, error) {
 	if logger == nil {
 		logger = logging.Default()
 	}
@@ -40,7 +41,8 @@ func Setup(llmPath string, logger *logging.Logger) (*Client, error) {
 	}
 
 	return &Client{
-		llm:    llm,
-		logger: logger,
+		llm:       llm,
+		modelName: modelName,
+		logger:    logger,
 	}, nil
 }

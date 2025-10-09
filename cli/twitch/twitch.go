@@ -46,7 +46,7 @@ func main() {
 	//  we are not actually connecting to openai, but we are using their api spec to connect to our own model via llama.cpp
 	os.Setenv("OPENAI_API_KEY", "test")
 	llmPath := os.Getenv("LLAMA_CPP_PATH")
-	twitchllm, err := twitchchat.Setup(llmPath, logger)
+	twitchllm, err := twitchchat.Setup(llmPath, model, logger)
 	if err != nil {
 		logger.Error("failed to setup twitch LLM", "error", err.Error())
 		os.Exit(1)
