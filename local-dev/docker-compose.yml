@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database for local development
+  postgres:
+    image: postgres:15-alpine
+    container_name: pedro-postgres-local
+    environment:
+      POSTGRES_DB: pedro_dev
+      POSTGRES_USER: pedro
+      POSTGRES_PASSWORD: pedro_local_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pedro-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pedro"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Pedro Discord Bot
+  pedro-discord:
+    build:
+      context: ..
+      dockerfile: cli/discord/discordBot.Dockerfile
+    container_name: pedro-discord-local
+    ports:
+      - "6060:6060"
+    environment:
+      # Use host.docker.internal to access Ollama running on host
+      LLAMA_CPP_PATH: "http://host.docker.internal:11434"
+      DATABASE_URL: "postgresql://pedro:pedro_local_dev@postgres:5432/pedro_dev?sslmode=disable"
+      TWITCH_ID: "${TWITCH_ID:-your_twitch_client_id}"
+      # 1Password env vars (if using op CLI locally)
+      OP_SERVICE_ACCOUNT_TOKEN: "${OP_SERVICE_ACCOUNT_TOKEN:-}"
+    volumes:
+      - ../prod.env:/app/prod.env:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      op run --env-file=/app/prod.env --
+      /app/main -model qwen2.5-coder:7b-instruct -errorLevel debug
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Pedro Twitch Bot (optional)
+  pedro-twitch:
+    build:
+      context: ..
+      dockerfile: cli/twitch/twitchBot.Dockerfile
+    container_name: pedro-twitch-local
+    ports:
+      - "6061:6060"
+      - "3000:3000"
+    environment:
+      LLAMA_CPP_PATH: "http://host.docker.internal:11434"
+      DATABASE_URL: "postgresql://pedro:pedro_local_dev@postgres:5432/pedro_dev?sslmode=disable"
+      TWITCH_ID: "${TWITCH_ID:-your_twitch_client_id}"
+      OAUTH_REDIRECT_HOST: "localhost:3000"
+      OP_SERVICE_ACCOUNT_TOKEN: "${OP_SERVICE_ACCOUNT_TOKEN:-}"
+    volumes:
+      - ../prod.env:/app/prod.env:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      op run --env-file=/app/prod.env --
+      /app/main -model qwen2.5-coder:7b-instruct -errorLevel debug
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    profiles:
+      - twitch
+
+volumes:
+  pedro-pgdata:
+    driver: local
+
+networks:
+  default:
+    name: pedro-local-net
