@@ -64,12 +64,37 @@ else
 fi
 
 echo ""
-echo "Pulling Qwen model for local development..."
+echo "Detecting hardware configuration..."
+
+# Auto-detect system RAM for model recommendation
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    TOTAL_RAM_GB=$(sysctl -n hw.memsize | awk '{print int($1/1024/1024/1024)}')
+else
+    TOTAL_RAM_GB=$(free -g | awk '/^Mem:/{print $2}')
+fi
+
+echo "System RAM: ${TOTAL_RAM_GB}GB"
+
+# Recommend model based on RAM
+if [ "$TOTAL_RAM_GB" -ge 80 ]; then
+    RECOMMENDED_MODEL="qwen2.5-coder:72b-instruct"
+    PERFORMANCE_TIER="studio (M3 Ultra / Mac Studio)"
+elif [ "$TOTAL_RAM_GB" -ge 48 ]; then
+    RECOMMENDED_MODEL="qwen2.5-coder:32b-instruct"
+    PERFORMANCE_TIER="laptop (M1 Max / MacBook Pro)"
+else
+    RECOMMENDED_MODEL="qwen2.5-coder:7b-instruct"
+    PERFORMANCE_TIER="basic"
+fi
+
+echo "🔍 Detected performance tier: ${PERFORMANCE_TIER}"
+echo "📦 Recommended model: ${RECOMMENDED_MODEL}"
+echo ""
+echo "Pulling ${RECOMMENDED_MODEL}..."
 echo "This may take a few minutes depending on your internet connection..."
 echo ""
 
-# Pull the recommended model
-ollama pull qwen2.5-coder:7b-instruct
+ollama pull "$RECOMMENDED_MODEL"
 
 echo ""
 echo "✅ Model pulled successfully!"
@@ -99,11 +124,17 @@ echo ""
 echo "Next steps:"
 echo "1. Edit .env and ../prod.env with your configuration"
 echo "2. Make sure 'ollama serve' is running in another terminal"
-echo "3. Run: ./run.sh"
+echo "3. Run: ./run.sh [discord|twitch|both] [--tier=studio|laptop|auto]"
 echo ""
 echo "Available models in Ollama:"
 ollama list
 echo ""
-echo "To pull different models:"
-echo "  ollama pull qwen2.5-coder:3b-instruct  # Smaller, faster (4GB RAM)"
-echo "  ollama pull qwen2.5-coder:14b-instruct # Larger, better (16GB RAM)"
+echo "Performance Tiers (auto-detected by run.sh):"
+echo "  studio  - M3 Ultra / Mac Studio (80GB+) → 72B model, 128k context"
+echo "  laptop  - M1 Max / MacBook Pro (48GB+) → 32B model, 32k context"
+echo "  basic   - Standard hardware (<48GB)    → 7B model, 8k context"
+echo ""
+echo "Manual model management:"
+echo "  ollama pull qwen2.5-coder:72b-instruct  # Studio tier"
+echo "  ollama pull qwen2.5-coder:32b-instruct  # Laptop tier"
+echo "  ollama pull qwen2.5-coder:7b-instruct   # Basic tier (default)"

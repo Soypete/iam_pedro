@@ -38,15 +38,15 @@ Local development stack:
 
 ### System Requirements
 
-Choose a model based on your available RAM:
+The local development environment automatically detects your hardware and selects the optimal model configuration:
 
-| Model | RAM Required | Speed | Quality | Recommended For |
-|-------|--------------|-------|---------|-----------------|
-| `qwen2.5-coder:3b-instruct` | 4-6 GB | Fast | Good | Quick testing, low-RAM systems |
-| `qwen2.5-coder:7b-instruct` | 8-12 GB | Medium | Better | **Default, balanced** |
-| `qwen2.5-coder:14b-instruct` | 16-24 GB | Slow | Best | High-end systems, production-like |
+| Performance Tier | Hardware | Model | Context | Parallel | Recommended For |
+|------------------|----------|-------|---------|----------|-----------------|
+| **Studio** | M3 Ultra / Mac Studio (80GB+ RAM) | `qwen2.5-coder:72b-instruct` | 128k tokens | 8 requests | Production-like quality |
+| **Laptop** | M1 Max / MacBook Pro (48-79GB RAM) | `qwen2.5-coder:32b-instruct` | 32k tokens | 4 requests | **High-quality development** |
+| **Basic** | Standard hardware (<48GB RAM) | `qwen2.5-coder:7b-instruct` | 8k tokens | 2 requests | Quick testing, basic systems |
 
-**Recommended**: 16GB+ RAM for comfortable development with 7B model
+**Auto-detection**: The `run.sh` script automatically detects your system RAM and selects the appropriate tier. You can override with `--tier=studio|laptop|basic` or environment variables.
 
 ## Quick Start
 
@@ -111,15 +111,30 @@ Keep this running while you develop.
 ### 4. Run the Bots
 
 ```bash
-# Start Discord bot only (default)
+# Start Discord bot with auto-detected hardware (default)
 ./run.sh discord
 
-# Start Twitch bot only
+# Start with specific performance tier
+./run.sh discord --tier=studio   # For Mac Studio M3 Ultra (96GB)
+./run.sh discord --tier=laptop   # For MacBook Pro M1 Max (64GB)
+./run.sh discord --tier=basic    # For basic hardware
+
+# Start Twitch bot
 ./run.sh twitch
 
 # Start both bots
 ./run.sh both
+
+# Override with environment variables
+PEDRO_MODEL=qwen2.5-coder:14b-instruct ./run.sh discord
+PEDRO_NUM_CTX=65536 ./run.sh discord
 ```
+
+The script will:
+- 🔍 Auto-detect your system RAM
+- 📦 Select the optimal model and parameters
+- ✅ Check if Ollama is running
+- 🚀 Start the selected services with Docker Compose
 
 ### 5. View Logs
 
@@ -164,39 +179,45 @@ docker compose logs -f postgres
    docker compose logs -f pedro-discord
    ```
 
-### Switching Models
+### Switching Performance Tiers
+
+The easiest way to switch between performance configurations:
 
 ```bash
-# Pull a different model
-ollama pull qwen2.5-coder:3b-instruct
+# Use the --tier flag
+./run.sh discord --tier=studio    # 72B model, 128k context
+./run.sh discord --tier=laptop    # 32B model, 32k context
+./run.sh discord --tier=basic     # 7B model, 8k context
 
-# Edit docker-compose.yml and change the -model flag
-nano docker-compose.yml
-# Change: -model qwen2.5-coder:7b-instruct
-# To:     -model qwen2.5-coder:3b-instruct
+# Or set environment variable
+export PEDRO_PERFORMANCE_TIER=studio
+./run.sh discord
 
-# Restart
-docker compose restart pedro-discord
+# Override specific settings
+PEDRO_MODEL=qwen2.5-coder:14b-instruct ./run.sh discord
 ```
 
-### Using Different Models
+### Manual Model Management
 
 List available models:
 ```bash
 ollama list
 ```
 
-Pull additional models:
+Pull models for different performance tiers:
 ```bash
-# Smaller model (faster, less RAM)
+# Studio tier (80GB+ RAM)
+ollama pull qwen2.5-coder:72b-instruct
+
+# Laptop tier (48GB+ RAM)
+ollama pull qwen2.5-coder:32b-instruct
+
+# Basic tier (default)
+ollama pull qwen2.5-coder:7b-instruct
+
+# Alternative smaller models
 ollama pull qwen2.5-coder:3b-instruct
-
-# Larger model (slower, more accurate)
-ollama pull qwen2.5-coder:14b-instruct
-
-# Other models
 ollama pull llama3.2:3b
-ollama pull codellama:7b
 ```
 
 ## Endpoints
@@ -310,12 +331,36 @@ docker compose exec postgres pg_dump -U pedro pedro_dev > backup.sql
 docker compose exec -T postgres psql -U pedro -d pedro_dev < backup.sql
 ```
 
+## Performance Tier Configuration
+
+### Environment Variables
+
+The performance tier system supports the following environment variables:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `PEDRO_PERFORMANCE_TIER` | Override auto-detection (studio\|laptop\|basic\|auto) | `export PEDRO_PERFORMANCE_TIER=studio` |
+| `PEDRO_MODEL` | Override model selection | `export PEDRO_MODEL=qwen2.5-coder:14b-instruct` |
+| `PEDRO_NUM_CTX` | Override context window size | `export PEDRO_NUM_CTX=65536` |
+| `PEDRO_NUM_PARALLEL` | Override parallel request limit | `export PEDRO_NUM_PARALLEL=8` |
+
+### Hardware Detection
+
+The `run.sh` script auto-detects your hardware based on system RAM:
+
+- **80GB+ RAM** → Studio tier (72B model, 128k context, 8 parallel)
+- **48-79GB RAM** → Laptop tier (32B model, 32k context, 4 parallel)
+- **<48GB RAM** → Basic tier (7B model, 8k context, 2 parallel)
+
+You can always override with `--tier=studio|laptop|basic` or environment variables.
+
 ## Differences from Production
 
 | Aspect | Local Dev | Production |
 |--------|-----------|------------|
 | LLM Service | Ollama (localhost) | vLLM (pedro-gpu.tail6fbc5.ts.net) |
-| Model | qwen2.5-coder:7b | Qwen/Qwen2.5-Coder-14B-Instruct-AWQ |
+| Model | Auto-selected (7B-72B) | Qwen/Qwen2.5-Coder-14B-Instruct-AWQ |
+| Performance Tiers | Auto-detection based on RAM | Fixed configuration |
 | Database | Local PostgreSQL | Production PostgreSQL |
 | Secrets | 1Password or raw env | 1Password service account |
 | Restart Policy | Manual (dev mode) | Auto-restart (unless-stopped) |
@@ -323,10 +368,12 @@ docker compose exec -T postgres psql -U pedro -d pedro_dev < backup.sql
 ## Tips
 
 1. **Keep Ollama running**: Start `ollama serve` once and leave it running
-2. **Use smaller models**: 3B or 7B models are fine for most testing
-3. **Watch logs**: Use `docker compose logs -f` to see what's happening
-4. **Rebuild after code changes**: Run `docker compose build` after modifying code
-5. **Clean up**: Run `docker compose down -v` to remove everything and start fresh
+2. **Let auto-detection work**: The `run.sh` script automatically selects the best model for your hardware
+3. **Match your environment**: Use `--tier=laptop` on your MacBook Pro, `--tier=studio` on your Mac Studio
+4. **Watch logs**: Use `docker compose logs -f` to see what's happening
+5. **Rebuild after code changes**: Run `docker compose build` after modifying code
+6. **Clean up**: Run `docker compose down -v` to remove everything and start fresh
+7. **Pull models ahead of time**: Download the appropriate model for your hardware with `ollama pull` to avoid waiting
 
 ## Next Steps
 

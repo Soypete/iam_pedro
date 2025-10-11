@@ -41,7 +41,7 @@ services:
         condition: service_healthy
     command: >
       op run --env-file=/app/prod.env --
-      /app/main -model qwen2.5-coder:7b-instruct -errorLevel debug
+      /app/main -model ${PEDRO_MODEL:-qwen2.5-coder:7b-instruct} -errorLevel debug
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -68,7 +68,7 @@ services:
         condition: service_healthy
     command: >
       op run --env-file=/app/prod.env --
-      /app/main -model qwen2.5-coder:7b-instruct -errorLevel debug
+      /app/main -model ${PEDRO_MODEL:-qwen2.5-coder:7b-instruct} -errorLevel debug
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
