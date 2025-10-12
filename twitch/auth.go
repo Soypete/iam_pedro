@@ -42,7 +42,9 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 	}
 
 	http.HandleFunc("/oauth/redirect", irc.parseAuthCode)
-	go http.ListenAndServe(":3000", nil)
+	go func() {
+		_ = http.ListenAndServe(":3000", nil)
+	}()
 
 	conf := &oauth2.Config{
 		ClientID:     os.Getenv("TWITCH_ID"),

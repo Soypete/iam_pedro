@@ -63,5 +63,5 @@ func SetupServer() *Server {
 }
 
 func (s *Server) Run() {
-	s.ListenAndServe()
+	_ = s.ListenAndServe()
 }

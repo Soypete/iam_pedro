@@ -27,10 +27,10 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	data := i.Interaction.Data.(discordgo.ApplicationCommandInteractionData) // assert the data type
+	data := i.Data.(discordgo.ApplicationCommandInteractionData) // assert the data type
 	text := data.Options[0].StringValue()
 	message := types.DiscordAskMessage{
-		Username:      i.Interaction.Member.User.Username,
+		Username:      i.Member.User.Username,
 		Message:       text,
 		ThreadTimeout: 0,
 		IsFromPedro:   false,
@@ -71,18 +71,18 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		resp = "Sorry, I cannot respond to that. Please try again."
 	}
 
-	userNumber := i.Interaction.Member.User.ID
+	userNumber := i.Member.User.ID
 	// Create initial message in channel
 	initialMsg := fmt.Sprintf("<@%s> asked Pedro: %s", userNumber, text)
-	m, err := d.Session.ChannelMessageSend(i.Interaction.ChannelID, initialMsg)
+	m, err := d.Session.ChannelMessageSend(i.ChannelID, initialMsg)
 	if err != nil {
-		d.logger.Error("error sending message to channel", "error", err.Error(), "channelID", i.Interaction.ChannelID)
+		d.logger.Error("error sending message to channel", "error", err.Error(), "channelID", i.ChannelID)
 		return
 	}
 	metrics.DiscordMessageSent.Add(1)
 
 	// Create thread for the conversation
-	threadTitle := "Ask Pedro: " + i.Interaction.Member.User.Username
+	threadTitle := "Ask Pedro: " + i.Member.User.Username
 	thread, err := d.Session.MessageThreadStart(m.ChannelID, m.ID, threadTitle, 1440)
 	if err != nil {
 		d.logger.Error("error starting thread", "error", err.Error(), "channelID", m.ChannelID)
