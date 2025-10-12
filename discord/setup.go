@@ -59,5 +59,10 @@ func Setup(llm discordchat.LLM, db database.DiscordWriter, logger *logging.Logge
 		}
 	})
 
+	// Add message create handler for thread replies
+	session.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
+		c.handleThreadReply(s, m)
+	})
+
 	return c, nil
 }

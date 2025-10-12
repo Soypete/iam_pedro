@@ -1,14 +1,21 @@
 package types
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // DiscordAskMessage is metadata about a message that asks Pedro a question.
 type DiscordAskMessage struct {
-	ThreadID      string `db:"thread_id"`
-	Message       string `db:"message"`
-	Username      string `db:"username"`
-	ThreadTimeout int    `db:"thread_timeout"`
-	IsFromPedro   bool   `db:"is_from_pedro"`
+	ThreadID        string    `db:"thread_id"`
+	MessageID       string    `db:"message_id"`
+	Message         string    `db:"message"`
+	Username        string    `db:"username"`
+	ThreadTimeout   int       `db:"thread_timeout"`
+	IsFromPedro     bool      `db:"is_from_pedro"`
+	ParentMessageID string    `db:"parent_message_id"`
+	Timestamp       time.Time `db:"timestamp"`
 }
 
 // Discord20QuestionsMessage is metadata about a message that asks Pedro to play 20 questions.
