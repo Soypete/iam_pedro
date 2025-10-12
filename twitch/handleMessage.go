@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Soypete/twitch-llm-bot/ai/twitchchat"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	types "github.com/Soypete/twitch-llm-bot/types"
 	v2 "github.com/gempir/go-twitch-irc/v2"
@@ -72,6 +73,28 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 		resp, err := irc.llm.SingleMessageResponse(ctx, chat, messageID)
 		if err != nil {
 			irc.logger.Error("failed to get response from LLM", "error", err.Error(), "messageID", messageID)
+			return
+		}
+
+		// Check if this is a web search request
+		if resp.WebSearch != nil {
+			irc.logger.Debug("web search requested", "query", resp.WebSearch.Query, "messageID", messageID)
+
+			// Send immediate response
+			err = irc.db.InsertResponse(ctx, resp, irc.modelName)
+			if err != nil {
+				irc.logger.Error("failed to insert immediate response into database", "error", err.Error(), "messageID", resp.UUID)
+			}
+			irc.Client.Say(peteTwitchChannel, resp.Text)
+			metrics.TwitchMessageSentCount.Add(1)
+
+			// Start async web search
+			if twitchLLM, ok := irc.llm.(*twitchchat.Client); ok {
+				go twitchLLM.ExecuteWebSearch(ctx, resp.WebSearch, irc.asyncResponseCh)
+			} else {
+				irc.logger.Error("LLM client does not support web search")
+			}
+			return
 		}
 
 		err = irc.db.InsertResponse(ctx, resp, irc.modelName)
@@ -81,7 +104,7 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 		}
 		// Don't log the actual response content to protect privacy
 		irc.logger.Debug("sending response to Twitch", "messageID", resp.UUID, "responseLength", len(resp.Text))
-		irc.Client.Say("soypetetech", resp.Text)
+		irc.Client.Say(peteTwitchChannel, resp.Text)
 		metrics.TwitchMessageSentCount.Add(1)
 	}
 }

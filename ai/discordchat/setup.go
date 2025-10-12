@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/Soypete/twitch-llm-bot/database"
+	"github.com/Soypete/twitch-llm-bot/duckduckgo"
 	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/tmc/langchaingo/llms"
@@ -14,10 +15,12 @@ import (
 
 // Bot is a client for interacting with the OpenAI LLM and the database.
 type Bot struct {
-	llm       llms.Model
-	db        database.ResponseWriter
-	modelName string
-	logger    *logging.Logger
+	llm         llms.Model
+	db          database.ResponseWriter
+	modelName   string
+	logger      *logging.Logger
+	ddgClient   *duckduckgo.Client
+	chatHistory []llms.MessageContent
 }
 
 // LLM is an interface that defines the methods for interacting with the LLM from discord.
@@ -25,8 +28,9 @@ type LLM interface {
 	// ai.Chatter
 	Start20Questions(context.Context, types.Discord20QuestionsGame) (string, error)
 	Play20Questions(context.Context, string, []llms.MessageContent) (string, error)
-	SingleMessageResponse(context.Context, types.DiscordAskMessage) (string, error)
+	SingleMessageResponse(context.Context, types.DiscordAskMessage) (*types.DiscordResponse, error)
 	ThreadMessageResponse(context.Context, types.DiscordAskMessage, []llms.MessageContent) (string, error)
+	ExecuteWebSearch(context.Context, *types.WebSearchRequest) (string, error)
 }
 
 // Setup creates a new discord chat bot.
@@ -46,10 +50,15 @@ func Setup(db database.ResponseWriter, modelName string, llmPath string, logger 
 		return nil, fmt.Errorf("failed to create OpenAI LLM: %w", err)
 	}
 
+	// Initialize DuckDuckGo client
+	ddgClient := duckduckgo.NewClient()
+
 	return &Bot{
-		llm:       llm,
-		db:        db,
-		modelName: modelName,
-		logger:    logger,
+		llm:         llm,
+		db:          db,
+		modelName:   modelName,
+		logger:      logger,
+		ddgClient:   ddgClient,
+		chatHistory: []llms.MessageContent{},
 	}, nil
 }
