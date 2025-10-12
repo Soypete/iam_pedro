@@ -21,16 +21,22 @@ type AskPedroWriter interface {
 func (p *Postgres) InsertDiscordAskPedro(ctx context.Context, message types.DiscordAskMessage) error {
 	query := `INSERT INTO discord_ask_pedro (
 		thread_id, 
+		message_id,
 		message, 
 		username, 
 		thread_timeout,
-		is_from_pedro) 
+		is_from_pedro,
+		parent_message_id,
+		timestamp) 
 	VALUES (
 		:thread_id, 
+		:message_id,
 		:message, 
 		:username, 
 		:thread_timeout,
-		:is_from_pedro);`
+		:is_from_pedro,
+		:parent_message_id,
+		:timestamp);`
 	_, err := p.connections.NamedExecContext(ctx, query, message)
 	if err != nil {
 		return fmt.Errorf("error inserting discord ask pedro message: %w", err)

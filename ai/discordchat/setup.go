@@ -26,6 +26,7 @@ type LLM interface {
 	Start20Questions(context.Context, types.Discord20QuestionsGame) (string, error)
 	Play20Questions(context.Context, string, []llms.MessageContent) (string, error)
 	SingleMessageResponse(context.Context, types.DiscordAskMessage) (string, error)
+	ThreadMessageResponse(context.Context, types.DiscordAskMessage, []llms.MessageContent) (string, error)
 }
 
 // Setup creates a new discord chat bot.

@@ -46,3 +46,43 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg types.DiscordAskMes
 	metrics.SuccessfulLLMGen.Add(1)
 	return prompt, nil
 }
+
+// ThreadMessageResponse is a response from the LLM model with full conversation context
+func (b *Bot) ThreadMessageResponse(ctx context.Context, msg types.DiscordAskMessage, conversationHistory []llms.MessageContent) (string, error) {
+	b.logger.Debug("processing discord thread message response", "messageID", msg.MessageID, "threadID", msg.ThreadID)
+
+	// Build message history starting with system prompt
+	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, askPedroPrompt)}
+	
+	// Add conversation history (excluding the current message since it's already in conversationHistory)
+	messageHistory = append(messageHistory, conversationHistory...)
+
+	// Add current message
+	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, fmt.Sprintf("%s: %s", msg.Username, msg.Message)))
+
+	b.logger.Debug("calling LLM for discord thread message", "messageID", msg.MessageID, "historyLength", len(messageHistory))
+	resp, err := b.llm.GenerateContent(ctx, messageHistory,
+		llms.WithCandidateCount(1),
+		llms.WithMaxLength(500),
+		llms.WithTemperature(0.7),
+		llms.WithPresencePenalty(1.0),
+		llms.WithStopWords([]string{"@pedro", "@Pedro", "@PedroAI", "@PedroAI_"}))
+	if err != nil {
+		b.logger.Error("failed to get discord thread LLM response", "error", err.Error(), "messageID", msg.MessageID)
+		metrics.FailedLLMGen.Add(1)
+		return "", fmt.Errorf("failed to get llm response: %w", err)
+	}
+
+	prompt := ai.CleanResponse(resp.Choices[0].Content)
+	b.logger.Debug("received discord thread LLM response", "messageID", msg.MessageID, "responseLength", len(prompt))
+
+	if prompt == "" {
+		b.logger.Warn("empty response from discord thread LLM", "messageID", msg.MessageID)
+		metrics.EmptyLLMResponse.Add(1)
+		return fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", msg.Username), nil
+	}
+
+	b.logger.Debug("successful discord thread response generation", "messageID", msg.MessageID, "messageLength", len(prompt))
+	metrics.SuccessfulLLMGen.Add(1)
+	return prompt, nil
+}
