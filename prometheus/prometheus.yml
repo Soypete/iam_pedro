@@ -36,3 +36,18 @@ scrape_configs:
     metrics_path: '/metrics'
     scrape_interval: 30s
     scrape_timeout: 15s
+
+  # Local Docker services (when running with docker-compose)
+  - job_name: 'pedro-discord-local'
+    static_configs:
+      - targets: ['pedro-discord:6060']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  - job_name: 'pedro-twitch-local'
+    static_configs:
+      - targets: ['pedro-twitch:6060']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
