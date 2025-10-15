@@ -28,13 +28,11 @@ scrape_configs:
     scrape_interval: 30s
     scrape_timeout: 10s
 
-  # Pedro GPU/LLM service (vLLM with built-in Prometheus)
-  - job_name: 'pedro-llm'
+  # Pedro GPU/LLM service (vLLM on 100.79.52.122)
+  # vLLM exposes Prometheus metrics at /metrics by default
+  - job_name: 'pedro-vllm'
     static_configs:
-      - targets: ['pedro-gpu.tail6fbc5.ts.net:443']
-    scheme: https
+      - targets: ['100.79.52.122:8000']
     metrics_path: '/metrics'
     scrape_interval: 30s
     scrape_timeout: 15s
-    tls_config:
-      insecure_skip_verify: true
