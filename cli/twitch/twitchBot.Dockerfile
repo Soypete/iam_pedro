@@ -12,6 +12,7 @@ COPY go.* ./
 RUN go mod download
 
 EXPOSE 6060
+EXPOSE 3000
 
 # pull in all modules from the repo
 COPY . ./

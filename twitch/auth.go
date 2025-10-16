@@ -41,6 +41,13 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 		redirectHost = "localhost:3000"
 	}
 
+	// Determine protocol based on redirect host
+	// Use HTTPS for Tailscale domains, HTTP for localhost
+	protocol := "http"
+	if redirectHost != "localhost:3000" && redirectHost != "127.0.0.1:3000" {
+		protocol = "https"
+	}
+
 	http.HandleFunc("/oauth/redirect", irc.parseAuthCode)
 	go func() {
 		_ = http.ListenAndServe(":3000", nil)
@@ -50,14 +57,14 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 		ClientID:     os.Getenv("TWITCH_ID"),
 		ClientSecret: os.Getenv("TWITCH_SECRET"),
 		Scopes:       []string{"chat:read", "chat:edit", "channel:moderate"},
-		RedirectURL:  fmt.Sprintf("http://%s/oauth/redirect", redirectHost),
+		RedirectURL:  fmt.Sprintf("%s://%s/oauth/redirect", protocol, redirectHost),
 		Endpoint:     twitch.Endpoint,
 	}
 
 	// Redirect user to consent page to ask for permission
 	url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
 	fmt.Printf("Visit the URL for the auth dialog: %v\n", url)
-	fmt.Printf("OAuth redirect configured for: http://%s/oauth/redirect\n", redirectHost)
+	fmt.Printf("OAuth redirect configured for: %s://%s/oauth/redirect\n", protocol, redirectHost)
 
 	for irc.authCode == "" {
 		// wait for auth code
