@@ -35,7 +35,6 @@ func TestClient_callLLM(t *testing.T) {
 		name    string
 		c       Client
 		args    args
-		want    string
 		wantErr bool
 	}{
 		{
@@ -48,7 +47,6 @@ func TestClient_callLLM(t *testing.T) {
 				ctx:       context.Background(),
 				injection: []string{"Hello", "World"},
 			},
-			want:    "Hello World",
 			wantErr: false,
 		},
 	}
@@ -56,11 +54,19 @@ func TestClient_callLLM(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := tt.c.callLLM(tt.args.ctx, tt.args.injection, uuid.New())
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Client.createPrompt() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Client.callLLM() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("Client.createPrompt() = %v, want %v", got, tt.want)
+			if got == nil {
+				t.Errorf("Client.callLLM() returned nil response")
+				return
+			}
+			if len(got.Choices) == 0 {
+				t.Errorf("Client.callLLM() returned response with no choices")
+				return
+			}
+			if got.Choices[0].Content != "Hello World" {
+				t.Errorf("Client.callLLM() content = %v, want %v", got.Choices[0].Content, "Hello World")
 			}
 		})
 	}
