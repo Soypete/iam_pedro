@@ -14,8 +14,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 go build ./...
 
 # Build specific platforms
-go build ./cli/twitch/    # Twitch bot
-go build ./cli/discord/   # Discord bot
+go build ./cli/twitch/     # Twitch bot
+go build ./cli/discord/    # Discord bot
+go build ./cli/keepalive/  # KeepAlive monitoring service
 ```
 
 ### Testing
@@ -49,13 +50,18 @@ goose -dir database/migrations create migration_name sql
 ### Docker
 ```bash
 # Build containers
-docker build -f discordBot.Dockerfile -t pedro-discord .
-docker build -f twitchBot.Dockerfile -t pedro-twitch .
+docker build -f cli/discord/discordBot.Dockerfile -t pedro-discord .
+docker build -f cli/twitch/twitchBot.Dockerfile -t pedro-twitch .
+docker build -f cli/keepalive/keepaliveBot.Dockerfile -t pedro-keepalive .
 
 # Run with required environment variables
 docker run -e LLAMA_CPP_PATH="http://127.0.0.1:8080" \
   -e POSTGRES_URL="" -e TWITCH_ID="" -e TWITCH_SECRET="" \
   -e POSTGRES_VECTOR_URL="" pedro-twitch
+
+# Run keepalive service (uses prod.env with 1Password)
+docker run pedro-keepalive
+# Environment variables are loaded from prod.env via 1Password CLI
 ```
 
 ## Architecture
@@ -80,7 +86,8 @@ docker run -e LLAMA_CPP_PATH="http://127.0.0.1:8080" \
 **Infrastructure**
 - `/database/` - PostgreSQL with embedded migrations, supports vector embeddings
 - `/logging/` - Structured JSON logging with slog
-- `/metrics/` - Prometheus metrics + expvar + pprof on port 6060
+- `/metrics/` - Prometheus metrics + expvar + pprof on port 6060, includes `/healthz` endpoint
+- `/keepalive/` - Health monitoring service that checks bot health and sends Discord alerts
 
 ### Data Flow
 
@@ -133,6 +140,8 @@ Key tables: `twitch_chat`, `bot_response`, `discord_ask_pedro`, `discord_twenty_
 - Prometheus metrics on port 6060
 - Tracks message counts, LLM generation success/failure, response times
 - Structured logging with trace IDs for request correlation
+- `/healthz` endpoint available on all bots for health checks
+- KeepAlive service monitors bot health with exponential backoff and Discord alerting
 
 ## Future Development (From README)
 

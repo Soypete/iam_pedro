@@ -65,7 +65,14 @@ func SetupServer() *Server {
 		))
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+	http.HandleFunc("/healthz", healthzHandler)
 	return &Server{server}
+}
+
+// healthzHandler returns a simple health check response
+func healthzHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }
 
 func (s *Server) Run() {
