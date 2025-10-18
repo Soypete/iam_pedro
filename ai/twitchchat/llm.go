@@ -2,6 +2,7 @@ package twitchchat
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -24,7 +25,7 @@ func (c *Client) manageChatHistory(ctx context.Context, injection []string, chat
 	c.logger.Debug("updated chat history", "new_size", len(c.chatHistory))
 }
 
-func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid.UUID) (string, error) {
+func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid.UUID) (*llms.ContentResponse, error) {
 	c.logger.Debug("calling LLM", "message", strings.Join(injection, " "), "messageID", messageID)
 
 	now := time.Now().Format(time.DateOnly)
@@ -32,77 +33,98 @@ func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, fmt.Sprintf(ai.PedroPrompt, now))}
 	messageHistory = append(messageHistory, c.chatHistory...)
 
+	// Define the web search tool for function calling
+	toolDefinition := llms.Tool{
+		Type: "function",
+		Function: &llms.FunctionDefinition{
+			Name:        "web_search",
+			Description: "Search the web for current information, news, or recent events",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"query": map[string]any{
+						"type":        "string",
+						"description": "The search query to look up",
+					},
+				},
+				"required": []string{"query"},
+			},
+		},
+	}
+
 	c.logger.Debug("generating content", "historyLength", len(messageHistory))
 	resp, err := c.llm.GenerateContent(ctx, messageHistory,
 		llms.WithCandidateCount(1),
 		llms.WithMaxLength(500),
 		llms.WithTemperature(0.7),
-		llms.WithPresencePenalty(1.0), // 2 is the largest penalty for using a work that has already been used
-		llms.WithStopWords([]string{"LUL, PogChamp, Kappa, KappaPride, KappaRoss, KappaWealth"}))
+		llms.WithPresencePenalty(1.0),
+		llms.WithStopWords([]string{"LUL, PogChamp, Kappa, KappaPride, KappaRoss, KappaWealth"}),
+		llms.WithTools([]llms.Tool{toolDefinition}))
 	if err != nil {
 		c.logger.Error("failed to get LLM response", "error", err.Error())
-		return "", fmt.Errorf("failed to get llm response: %w", err)
+		return nil, fmt.Errorf("failed to get llm response: %w", err)
 	}
 
-	// add pedro's prompt to the chat history
-	cleanedResponse := ai.CleanResponse(resp.Choices[0].Content)
-	c.logger.Debug("received LLM response", "response", cleanedResponse)
-	c.manageChatHistory(ctx, []string{cleanedResponse}, llms.ChatMessageTypeAI)
-
-	c.logger.Debug("successfully generated and stored response", "messageID", messageID)
-	return cleanedResponse, nil
+	c.logger.Debug("successfully generated response", "messageID", messageID)
+	return resp, nil
 }
 
 // SingleMessageResponse is a response from the LLM model to a single message, but to work it needs to have context of chat history
 func (c *Client) SingleMessageResponse(ctx context.Context, msg types.TwitchMessage, messageID uuid.UUID) (types.TwitchMessage, error) {
 	c.logger.Debug("processing single message response", "messageID", messageID)
 
-	// TODO: i don't like passing the []string here. it should be cast in the callLLM function
-	prompt, err := c.callLLM(ctx, []string{fmt.Sprintf("%s: %s", msg.Username, msg.Text)}, messageID)
+	resp, err := c.callLLM(ctx, []string{fmt.Sprintf("%s: %s", msg.Username, msg.Text)}, messageID)
 	if err != nil {
 		c.logger.Error("failed to generate response", "error", err.Error(), "messageID", messageID)
 		metrics.FailedLLMGen.Add(1)
 		return types.TwitchMessage{}, err
 	}
 
+	// Check if the LLM wants to call a tool
+	if len(resp.Choices) > 0 && len(resp.Choices[0].ToolCalls) > 0 {
+		toolCall := resp.Choices[0].ToolCalls[0]
+		c.logger.Debug("tool call requested", "function", toolCall.FunctionCall.Name, "messageID", messageID)
+
+		if toolCall.FunctionCall.Name == "web_search" {
+			// Extract the query from the tool call arguments
+			var args struct {
+				Query string `json:"query"`
+			}
+			if err := json.Unmarshal([]byte(toolCall.FunctionCall.Arguments), &args); err != nil {
+				c.logger.Error("failed to parse tool call arguments", "error", err.Error())
+				return types.TwitchMessage{
+					Text: "Sorry, I had trouble understanding the search request soypet2ConfusedPedro",
+					UUID: messageID,
+				}, nil
+			}
+
+			c.logger.Debug("web search requested via tool call", "query", args.Query, "messageID", messageID)
+			msg.UUID = messageID
+			return types.TwitchMessage{
+				Text: "one second and I will look that up for you soypet2Thinking",
+				UUID: messageID,
+				WebSearch: &types.WebSearchRequest{
+					Query:       args.Query,
+					OriginalMsg: msg,
+					ChatHistory: c.chatHistory,
+				},
+			}, nil
+		}
+	}
+
+	// No tool call, process the text response
+	prompt := ai.CleanResponse(resp.Choices[0].Content)
 	if prompt == "" {
 		c.logger.Warn("empty response from LLM", "messageID", messageID)
 		metrics.EmptyLLMResponse.Add(1)
-		// We are trying to tag the user to get them to try again with a better prompt.
 		return types.TwitchMessage{
 			Text: fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", msg.Username),
 			UUID: messageID,
 		}, nil
 	}
 
-	// Check if the response indicates a web search is needed
-	if strings.Contains(prompt, "execute web search") {
-		c.logger.Debug("web search requested", "messageID", messageID)
-
-		// Extract search query from the prompt by splitting after "execute web search"
-		parts := strings.Split(prompt, "execute web search")
-		searchQuery := ""
-		if len(parts) > 1 {
-			searchQuery = strings.TrimSpace(parts[len(parts)-1])
-		}
-
-		if searchQuery == "" {
-			searchQuery = msg.Text // fallback to original message
-		}
-
-		// Return immediate response and trigger async search
-		// Set the UUID on the original message so it can be traced
-		msg.UUID = messageID
-		return types.TwitchMessage{
-			Text: "one second and I will look that up for you soypet2Thinking",
-			UUID: messageID,
-			WebSearch: &types.WebSearchRequest{
-				Query:       searchQuery,
-				OriginalMsg: msg,
-				ChatHistory: c.chatHistory,
-			},
-		}, nil
-	}
+	// Add Pedro's response to chat history
+	c.manageChatHistory(ctx, []string{prompt}, llms.ChatMessageTypeAI)
 
 	c.logger.Debug("successful response generation", "messageID", messageID, "messageLength", len(prompt))
 	metrics.SuccessfulLLMGen.Add(1)
@@ -146,7 +168,7 @@ func (c *Client) ExecuteWebSearch(ctx context.Context, request *types.WebSearchR
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, fmt.Sprintf(ai.PedroPrompt, now))}
 	// messageHistory = append(messageHistory, request.ChatHistory...)
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeSystem,
-		fmt.Sprintf("Pedro, we have called the duckduckgo search api and the following is the json formatted response: %s. Please provide a helpful summary to the user's question. if you still cannot answer apologize and ask them to try again. under no circumstances should you reply with execute web search at this time.", searchResult)))
+		fmt.Sprintf("Pedro, we have called the duckduckgo search api and the following is the json formatted response: %s. Please provide a helpful summary to the user's question. If you still cannot answer, apologize and ask them to try again.", searchResult)))
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, request.Query))
 
 	resp, err := c.llm.GenerateContent(ctx, messageHistory,
