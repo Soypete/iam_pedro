@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Soypete/twitch-llm-bot/duckduckgo"
 	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/stretchr/testify/assert"
@@ -14,21 +15,7 @@ import (
 func TestSingleMessageResponse(t *testing.T) {
 	// Setup dependencies
 	logger := logging.Default()
-	ddgClient := &duckduckgo.Client{
-		BaseURL: "https://api.duckduckgo.com",
-		HTTPClient: &mockHTTPClient{
-			mockSearch: func(query string) ([]byte, error) {
-				return []byte(`{
-					"Abstract": "Golang best practices overview",
-					"Results": [
-						{
-							"Text": "A comprehensive guide to writing clean Go code"
-						}
-					]
-				}`), nil
-			},
-		},
-	}
+	ddgClient := duckduckgo.NewClient()
 
 	// Create bot with mocked dependencies
 	bot := &Bot{
@@ -91,21 +78,7 @@ func TestSingleMessageResponse(t *testing.T) {
 func TestExecuteWebSearch(t *testing.T) {
 	// Setup dependencies
 	logger := logging.Default()
-	ddgClient := &duckduckgo.Client{
-		BaseURL: "https://api.duckduckgo.com",
-		HTTPClient: &mockHTTPClient{
-			mockSearch: func(query string) ([]byte, error) {
-				return []byte(`{
-					"Abstract": "Golang best practices overview",
-					"Results": [
-						{
-							"Text": "A comprehensive guide to writing clean Go code"
-						}
-					]
-				}`), nil
-			},
-		},
-	}
+	ddgClient := duckduckgo.NewClient()
 
 	// Create bot with mocked dependencies
 	bot := &Bot{
@@ -131,4 +104,19 @@ func TestExecuteWebSearch(t *testing.T) {
 	// Assertions
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
+}
+
+// mockWebSearchTool is a mock implementation of the web search tool
+type mockWebSearchTool struct{}
+
+func (m *mockWebSearchTool) Name() string {
+	return "web_search"
+}
+
+func (m *mockWebSearchTool) Description() string {
+	return "Mock web search tool for testing"
+}
+
+func (m *mockWebSearchTool) Call(ctx context.Context, input string) (string, error) {
+	return "Mock search result for: " + input, nil
 }
