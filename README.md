@@ -5,21 +5,26 @@ This is a twitch chat app build in go using [llama.cpp](https://github.com/ggerg
 [![Actions Status](https://github.com/soypete/{}/workflows/build/badge.svg)](https://github.com/soypete/{}/actions/workflows/go.yml)
 [![wakatime](https://wakatime.com/badge/user/953eeb5a-d347-44af-9d8b-a5b8a918cecf/project/018ef728-5089-4148-b326-592f7a744f7e.svg)](https://wakatime.com/badge/user/953eeb5a-d347-44af-9d8b-a5b8a918cecf/project/018ef728-5089-4148-b326-592f7a744f7e)
 
-## To Use
+## Quick Start
 
-install [lama.cpp](https://github.com/ggerganov/llama.cpp) and run there server on `127.0.0.1` and port `8080`
+### Local Development (Recommended for Testing)
 
-Them pull the docker container
-
-```bash
-docker pull ghcr.io/soypete/iam_pedro:latest
-```
-
-Then run the container with the following environment variables
+Run Pedro locally with Ollama - no GPU or production access needed!
 
 ```bash
-docker run -e LLAMA_CPP_PATH="" -e POSTGRES_URL="" -e TWITCH_ID="" -e TWITCH_SECRET="" -e POSTGRES_VECTOR_URL=""
+cd local-dev
+./setup.sh    # One-time setup: installs model, creates configs
+./run.sh      # Start Discord bot
+
+# In another terminal
+ollama serve  # Keep this running
 ```
+
+**See [local-dev/README.md](local-dev/README.md) for complete local development guide.**
+
+### Production Deployment
+
+Deploy to production servers with Docker and systemd. See [deployment/README.md](deployment/README.md) for complete guide.
 
 ## Chat Experience
 
