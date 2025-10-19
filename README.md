@@ -128,4 +128,95 @@ Each workflow Pedro generates must use only these valid steps:
 
 Make Pedro more than a chatbot — make it a visible, understandable, and semi-reliable **agentic planner**.
 
+---
+
+## Production Deployment
+
+### Manual Build and Deploy (Recommended)
+
+Build and deploy Pedro containers to production servers with monitoring:
+
+```bash
+# Build both Discord and Twitch containers with current git commit as tag
+./deployment/build-and-deploy.sh
+
+# Build specific service with custom tag
+./deployment/build-and-deploy.sh v1.2.3 discord
+./deployment/build-and-deploy.sh v1.2.3 twitch
+
+# Deploy to target host (100.81.89.62)
+scp pedro-discord-<TAG>.tar.gz deployment/deploy-*.sh remote-deploy.sh user@100.81.89.62:~/
+ssh user@100.81.89.62
+./remote-deploy.sh
+```
+
+### Services and Ports
+
+- **Discord Bot**: Port 6060 (`http://100.81.89.62:6060/metrics`)
+- **Twitch Bot**: Port 6061 (`http://100.81.89.62:6061/metrics`)
+- **Prometheus**: Port 9090 (`http://100.125.196.1:9090`)
+
+### Environment Setup
+
+Create `/opt/pedro/prod.env` on the target host with:
+
+```bash
+DISCORD_TOKEN=your_discord_token
+TWITCH_TOKEN=your_twitch_token
+TWITCH_CHANNEL=your_twitch_channel
+DATABASE_URL=your_database_url
+OPENAI_API_KEY=your_openai_key
+OP_CONNECT_HOST=your_1password_connect_host
+OP_CONNECT_TOKEN=your_1password_connect_token
+```
+
+### Monitoring Stack
+
+**Prometheus** (Metrics) - Running on 100.125.196.1:9090
+
+Set up Prometheus on 100.125.196.1:
+
+```bash
+# Copy configuration and setup script
+scp prometheus/prometheus.yml prometheus/setup-prometheus.sh user@100.125.196.1:~/
+ssh user@100.125.196.1
+chmod +x setup-prometheus.sh
+./setup-prometheus.sh
+```
+
+This monitors:
+- Pedro Discord Bot metrics (port 6060)
+- Pedro Twitch Bot metrics (port 6061)
+- Pedro LLM service at `https://pedro-gpu.tail6fbc5.ts.net`
+
+**Grafana** (Dashboards) - Running on 100.125.196.1:3000
+
+Deploy Grafana for visualizing metrics:
+
+```bash
+# On 100.125.196.1 (blue2)
+sudo ./deploy-grafana.sh
+```
+
+Import the pre-built Pedro dashboard from `deployment/grafana-pedro-dashboard.json`
+
+**Loki** (Log Aggregation) - TODO
+
+Log aggregation with Loki + Promtail will be set up once the k8s cluster is deployed. This will enable centralized logging for both Discord and Twitch bots with full-text search and log streaming in Grafana.
+
+### Service Management
+
+```bash
+# Check service status
+sudo systemctl status pedro-discord
+sudo systemctl status pedro-twitch
+
+# View logs
+sudo journalctl -u pedro-discord -f
+sudo journalctl -u pedro-twitch -f
+
+# Restart services
+sudo systemctl restart pedro-discord
+sudo systemctl restart pedro-twitch
+```
 

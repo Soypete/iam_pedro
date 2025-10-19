@@ -12,9 +12,10 @@ COPY go.* ./
 RUN go mod download
 
 EXPOSE 6060
+EXPOSE 3000
 
 # pull in all modules from the repo
 COPY . ./
 RUN go build -v -o main ./cli/twitch
 
-CMD ["op", "run", "--", "--env-file", "prod.env", "/app/main", "-model", "meta-llama3.1", "-discordMode", "-twitchMode"]
+CMD ["op", "run", "--env-file=/app/prod.env", "--", "/app/main", "-model", "deepseek"]

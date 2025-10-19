@@ -63,7 +63,7 @@ func (l *Logger) WithContext(ctx context.Context) *Logger {
 	}
 
 	return &Logger{
-		Logger: l.Logger.With("trace_id", ctx.Value("trace_id")),
+		Logger: l.With("trace_id", ctx.Value("trace_id")),
 	}
 }
 
@@ -79,7 +79,7 @@ func (l *Logger) WithFields(fields map[string]interface{}) *Logger {
 	}
 
 	return &Logger{
-		Logger: l.Logger.With(attrs...),
+		Logger: l.With(attrs...),
 	}
 }
 

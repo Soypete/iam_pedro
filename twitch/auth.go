@@ -21,23 +21,51 @@ func (irc *IRC) parseAuthCode(w http.ResponseWriter, req *http.Request) {
 }
 
 // AuthTwitch use oauth2 protocol to retrieve oauth2 token for twitch IRC.
-// _NOTE_: this has not been tested on long standing projects.
+// First checks for TWITCH_TOKEN env var. If not found, runs OAuth flow.
 func (irc *IRC) AuthTwitch(ctx context.Context) error {
+	// Check if token is already available via environment variable
+	if tokenStr := os.Getenv("TWITCH_TOKEN"); tokenStr != "" {
+		fmt.Println("Using TWITCH_TOKEN from environment")
+		irc.tok = &oauth2.Token{
+			AccessToken: tokenStr,
+		}
+		return nil
+	}
+
+	// Fall back to OAuth flow
+	fmt.Println("TWITCH_TOKEN not found, initiating OAuth flow...")
+
+	// Determine redirect host (defaults to localhost for local dev)
+	redirectHost := os.Getenv("OAUTH_REDIRECT_HOST")
+	if redirectHost == "" {
+		redirectHost = "localhost:3000"
+	}
+
+	// Determine protocol based on redirect host
+	// Use HTTPS for Tailscale domains, HTTP for localhost
+	protocol := "http"
+	if redirectHost != "localhost:3000" && redirectHost != "127.0.0.1:3000" {
+		protocol = "https"
+	}
+
 	http.HandleFunc("/oauth/redirect", irc.parseAuthCode)
-	go http.ListenAndServe("localhost:3000", nil)
+	go func() {
+		_ = http.ListenAndServe(":3000", nil)
+	}()
 
 	conf := &oauth2.Config{
-		// TODO: use const for the following.
 		ClientID:     os.Getenv("TWITCH_ID"),
 		ClientSecret: os.Getenv("TWITCH_SECRET"),
 		Scopes:       []string{"chat:read", "chat:edit", "channel:moderate"},
-		RedirectURL:  "http://localhost:3000/oauth/redirect",
+		RedirectURL:  fmt.Sprintf("%s://%s/oauth/redirect", protocol, redirectHost),
 		Endpoint:     twitch.Endpoint,
 	}
+
 	// Redirect user to consent page to ask for permission
-	// for the scopes specified above.
 	url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
 	fmt.Printf("Visit the URL for the auth dialog: %v\n", url)
+	fmt.Printf("OAuth redirect configured for: %s://%s/oauth/redirect\n", protocol, redirectHost)
+
 	for irc.authCode == "" {
 		// wait for auth code
 		time.Sleep(1 * time.Second)
@@ -47,9 +75,9 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 	var err error
 	irc.tok, err = conf.Exchange(ctx, irc.authCode)
 	if err != nil {
-		// print until we have ctx.done
-		fmt.Println(fmt.Errorf("failed to get token with auth code: %w", err))
+		return fmt.Errorf("failed to get token with auth code: %w", err)
 	}
-	fmt.Println("token received")
+	fmt.Printf("Token received: %s\n", irc.tok.AccessToken)
+	fmt.Println("IMPORTANT: Save this token to 1Password as TWITCH_TOKEN to avoid OAuth flow on restart")
 	return nil
 }

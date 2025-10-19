@@ -1,0 +1,38 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Pedro Discord Bot on 100.81.89.62
+  - job_name: 'pedro-discord'
+    static_configs:
+      - targets: ['100.81.89.62:6060']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Pedro Twitch Bot on 100.81.89.62 (different port)
+  - job_name: 'pedro-twitch'
+    static_configs:
+      - targets: ['100.81.89.62:6061']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Pedro GPU/LLM service (vLLM on 100.79.52.122)
+  # vLLM exposes Prometheus metrics at /metrics by default
+  - job_name: 'pedro-vllm'
+    static_configs:
+      - targets: ['100.79.52.122:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 15s
