@@ -67,5 +67,5 @@ func NewPostgres(logger *logging.Logger) (*Postgres, error) {
 
 func (p Postgres) Close() {
 	p.logger.Info("closing postgres connection")
-	p.connections.Close()
+	_ = p.connections.Close()
 }

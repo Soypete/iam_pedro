@@ -40,10 +40,10 @@ func (d Client) stumpPedro(s *discordgo.Session, i *discordgo.InteractionCreate)
 		return
 	}
 
-	data := i.Interaction.Data.(discordgo.ApplicationCommandInteractionData) // assert the data type
+	data := i.Data.(discordgo.ApplicationCommandInteractionData) // assert the data type
 	text := data.Options[0].StringValue()
 	message := types.Discord20QuestionsGame{
-		Username: i.Interaction.Member.User.Username,
+		Username: i.Member.User.Username,
 		Answer:   text,
 		GameID:   uuid.New(),
 	}
@@ -59,8 +59,8 @@ func (d Client) stumpPedro(s *discordgo.Session, i *discordgo.InteractionCreate)
 		return
 	}
 
-	d.logger.Debug("starting 20 questions game", "channelID", i.Interaction.ChannelID)
-	go d.play20Questions(i.Interaction.ChannelID, message)
+	d.logger.Debug("starting 20 questions game", "channelID", i.ChannelID)
+	go d.play20Questions(i.ChannelID, message)
 
 	metrics.DiscordMessageSent.Add(1)
 }

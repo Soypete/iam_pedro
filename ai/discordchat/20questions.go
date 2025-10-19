@@ -34,9 +34,10 @@ func (c *Bot) formatPrompt(user string) []llms.MessageContent {
 // Start20Questions is a response from the LLM model to start a game of 20 questions.
 // It returns the first question.
 func (c *Bot) Start20Questions(ctx context.Context, msg types.Discord20QuestionsGame) (string, error) {
-	c.logger.Debug("starting 20 questions game")
+	c.logger.Debug("starting 20 questions game", "model", c.modelName)
 	chat := c.formatPrompt(msg.Username)
 	resp, err := c.llm.GenerateContent(ctx, chat,
+		llms.WithModel(c.modelName),
 		llms.WithCandidateCount(1),
 		llms.WithTemperature(0.7),
 		llms.WithPresencePenalty(1.0)) // 2 is the largest penalty for using a work that has already been used
@@ -51,8 +52,9 @@ func (c *Bot) Start20Questions(ctx context.Context, msg types.Discord20Questions
 // Play20Questions is a response from the LLM model to a game of 20 questions
 func (c *Bot) Play20Questions(ctx context.Context, user string, gameChat []llms.MessageContent) (string, error) {
 	chat := append(c.formatPrompt(user), gameChat...)
-	c.logger.Debug("calling LLM for 20 questions", "historyLength", len(chat))
+	c.logger.Debug("calling LLM for 20 questions", "historyLength", len(chat), "model", c.modelName)
 	resp, err := c.llm.GenerateContent(ctx, chat,
+		llms.WithModel(c.modelName),
 		llms.WithCandidateCount(1),
 		llms.WithTemperature(0.7),
 		llms.WithPresencePenalty(1.0)) // 2 is the largest penalty for using a work that has already been used

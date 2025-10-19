@@ -51,10 +51,10 @@ func (d Client) MakeCommandHandlers() map[string]func(s *discordgo.Session, i *d
 }
 
 func messageValidatior(s *discordgo.Session, i *discordgo.InteractionCreate) (bool, error) {
-	if i.Interaction.Member == nil || i.Interaction.Member.User == nil {
+	if i.Member == nil || i.Member.User == nil {
 		return false, fmt.Errorf("message does not contain member")
 	}
-	if i.Interaction.Data == nil {
+	if i.Data == nil {
 		return false, fmt.Errorf("message does not contain data")
 	}
 	return true, nil
