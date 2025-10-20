@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Soypete/twitch-llm-bot/logging"
+	"golang.org/x/sync/errgroup"
 )
 
 // ServiceConfig represents configuration for a service to monitor
@@ -95,7 +96,7 @@ func (kas *KeepAliveService) Start(ctx context.Context) error {
 	}
 }
 
-// checkAllServices checks all monitored services
+// checkAllServices checks all monitored services in parallel
 func (kas *KeepAliveService) checkAllServices(ctx context.Context) {
 	kas.mu.RLock()
 	services := make([]*ServiceState, 0, len(kas.services))
@@ -104,9 +105,20 @@ func (kas *KeepAliveService) checkAllServices(ctx context.Context) {
 	}
 	kas.mu.RUnlock()
 
+	// Check all services in parallel using errgroup
+	var eg errgroup.Group
 	for _, svc := range services {
-		kas.checkService(ctx, svc)
+		svc := svc // capture loop variable
+		eg.Go(func() error {
+			kas.checkService(ctx, svc)
+			return nil
+		})
 	}
+
+	// Wait for all checks to complete
+	// We ignore errors since checkService doesn't return errors,
+	// it handles failures internally
+	_ = eg.Wait()
 }
 
 // checkService checks a single service and handles alerting
