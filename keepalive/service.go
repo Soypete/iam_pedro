@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Soypete/twitch-llm-bot/logging"
+	"github.com/Soypete/twitch-llm-bot/metrics"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -127,14 +128,21 @@ func (kas *KeepAliveService) checkService(ctx context.Context, state *ServiceSta
 	state.LastCheckTime = time.Now()
 	state.mu.Unlock()
 
+	// Increment health check attempts
+	metrics.HealthCheckAttempts.Add(1)
+
 	healthy := kas.performHealthCheck(ctx, state.HealthURL)
 
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
 	if healthy {
+		// Record success
+		metrics.HealthCheckSuccesses.Add(1)
+
 		if !state.IsHealthy {
 			// Service recovered
+			metrics.ServiceRecoveries.Add(1)
 			kas.logger.Info("service recovered",
 				"service", state.Name,
 				"after_failures", state.ConsecutiveFailures)
@@ -145,12 +153,17 @@ func (kas *KeepAliveService) checkService(ctx context.Context, state *ServiceSta
 			go func() {
 				if err := kas.alerter.SendAlert(ctx, state.Name, recoveryMsg); err != nil {
 					kas.logger.Error("failed to send recovery alert", "error", err.Error())
+				} else {
+					metrics.AlertsSent.Add(1)
 				}
 			}()
 		}
 		state.IsHealthy = true
 		state.ConsecutiveFailures = 0
 	} else {
+		// Record failure
+		metrics.HealthCheckFailures.Add(1)
+
 		state.ConsecutiveFailures++
 		state.IsHealthy = false
 
@@ -165,6 +178,8 @@ func (kas *KeepAliveService) checkService(ctx context.Context, state *ServiceSta
 			go func() {
 				if err := kas.alerter.SendAlert(ctx, state.Name, msg); err != nil {
 					kas.logger.Error("failed to send initial alert", "error", err.Error())
+				} else {
+					metrics.AlertsSent.Add(1)
 				}
 			}()
 			state.LastAlertTime = time.Now()
@@ -176,6 +191,8 @@ func (kas *KeepAliveService) checkService(ctx context.Context, state *ServiceSta
 				go func() {
 					if err := kas.alerter.SendAlert(ctx, state.Name, msg); err != nil {
 						kas.logger.Error("failed to send repeat alert", "error", err.Error())
+					} else {
+						metrics.AlertsSent.Add(1)
 					}
 				}()
 				state.LastAlertTime = time.Now()

@@ -11,6 +11,8 @@ WORKDIR /app
 COPY go.* ./
 RUN go mod download
 
+EXPOSE 6060
+
 # pull in all modules from the repo
 COPY . ./
 RUN go build -v -o keepalive-service ./cli/keepalive

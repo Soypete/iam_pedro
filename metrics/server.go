@@ -22,6 +22,13 @@ var (
 	DiscordMessageSent         = expvar.NewInt("discord_message_sent")
 	WebSearchSuccessCount      = expvar.NewInt("web_search_success_count")
 	WebSearchFailCount         = expvar.NewInt("web_search_fail_count")
+
+	// KeepAlive metrics
+	HealthCheckAttempts    = expvar.NewInt("health_check_attempts")
+	HealthCheckSuccesses   = expvar.NewInt("health_check_successes")
+	HealthCheckFailures    = expvar.NewInt("health_check_failures")
+	AlertsSent             = expvar.NewInt("alerts_sent")
+	ServiceRecoveries      = expvar.NewInt("service_recoveries")
 )
 
 type Server struct {
@@ -46,6 +53,11 @@ func SetupServer() *Server {
 	TwitchMessageSentCount.Set(0)
 	WebSearchSuccessCount.Set(0)
 	WebSearchFailCount.Set(0)
+	HealthCheckAttempts.Set(0)
+	HealthCheckSuccesses.Set(0)
+	HealthCheckFailures.Set(0)
+	AlertsSent.Set(0)
+	ServiceRecoveries.Set(0)
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(collectors.NewBuildInfoCollector(),
@@ -61,6 +73,11 @@ func SetupServer() *Server {
 				"failed_llm_gen":                prometheus.NewDesc("failed_llm_gen", "number of times errors occured in llm generation", nil, nil),
 				"web_search_success_count":      prometheus.NewDesc("web_search_success_count", "number of successful web searches", nil, nil),
 				"web_search_fail_count":         prometheus.NewDesc("web_search_fail_count", "number of failed web searches", nil, nil),
+				"health_check_attempts":         prometheus.NewDesc("health_check_attempts", "total number of health check attempts", nil, nil),
+				"health_check_successes":        prometheus.NewDesc("health_check_successes", "number of successful health checks", nil, nil),
+				"health_check_failures":         prometheus.NewDesc("health_check_failures", "number of failed health checks", nil, nil),
+				"alerts_sent":                   prometheus.NewDesc("alerts_sent", "number of alerts sent to Discord", nil, nil),
+				"service_recoveries":            prometheus.NewDesc("service_recoveries", "number of service recovery events", nil, nil),
 			},
 		))
 

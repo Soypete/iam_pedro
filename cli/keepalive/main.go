@@ -9,6 +9,7 @@ import (
 
 	"github.com/Soypete/twitch-llm-bot/keepalive"
 	"github.com/Soypete/twitch-llm-bot/logging"
+	"github.com/Soypete/twitch-llm-bot/metrics"
 )
 
 // getEnv gets an environment variable with a default fallback
@@ -114,6 +115,13 @@ func main() {
 		<-stop
 		logger.Info("Received interrupt signal, shutting down...")
 		cancel()
+	}()
+
+	// Start metrics server
+	metricsServer := metrics.SetupServer()
+	go func() {
+		logger.Info("Starting metrics server", "addr", ":6060")
+		metricsServer.Run()
 	}()
 
 	logger.Info("Starting KeepAlive service",
