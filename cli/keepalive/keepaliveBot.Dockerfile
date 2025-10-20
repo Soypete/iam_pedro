@@ -15,4 +15,4 @@ RUN go mod download
 COPY . ./
 RUN go build -v -o keepalive-service ./cli/keepalive
 
-CMD ["sh", "-c", "op run --env-file prod.env -- /app/keepalive-service -discord-token=\"$DISCORD_SECRET\" -discord-bot-url=\"${DISCORD_BOT_URL:-http://discord-bot:6060/healthz}\" -twitch-bot-url=\"${TWITCH_BOT_URL:-}\" -check-interval=${CHECK_INTERVAL:-60} -alert-interval=${ALERT_INTERVAL:-3600} -log-level=${LOG_LEVEL:-info}"]
+CMD ["op", "run", "--env-file", "prod.env", "--", "/app/keepalive-service"]

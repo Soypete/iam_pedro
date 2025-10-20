@@ -2,39 +2,48 @@ package main
 
 import (
 	"context"
-	"flag"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 
 	"github.com/Soypete/twitch-llm-bot/keepalive"
 	"github.com/Soypete/twitch-llm-bot/logging"
 )
 
-func main() {
-	var (
-		discordBotURL string
-		twitchBotURL  string
-		discordToken  string
-		logLevel      string
-		checkInterval int
-		alertInterval int
-	)
+// getEnv gets an environment variable with a default fallback
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
 
-	flag.StringVar(&discordBotURL, "discord-bot-url", "http://localhost:6060/healthz", "Discord bot health endpoint")
-	flag.StringVar(&twitchBotURL, "twitch-bot-url", "", "Twitch bot health endpoint (optional)")
-	flag.StringVar(&discordToken, "discord-token", "", "Discord bot token for alerts")
-	flag.StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
-	flag.IntVar(&checkInterval, "check-interval", 60, "Health check interval in seconds")
-	flag.IntVar(&alertInterval, "alert-interval", 3600, "Alert repeat interval in seconds (default: 1 hour)")
-	flag.Parse()
+// getEnvInt gets an integer environment variable with a default fallback
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
+}
+
+func main() {
+	// Read configuration from environment variables
+	discordBotURL := getEnv("DISCORD_BOT_URL", "http://localhost:6060/healthz")
+	twitchBotURL := getEnv("TWITCH_BOT_URL", "")
+	discordToken := getEnv("DISCORD_SECRET", "")
+	logLevel := getEnv("LOG_LEVEL", "info")
+	checkInterval := getEnvInt("CHECK_INTERVAL", 60)
+	alertInterval := getEnvInt("ALERT_INTERVAL", 3600)
 
 	// Initialize logger
 	logger := logging.NewLogger(logging.LogLevel(logLevel), os.Stdout)
 
-	// Validate required flags
+	// Validate required token
 	if discordToken == "" {
-		logger.Error("discord-token is required")
+		logger.Error("DISCORD_SECRET environment variable is required")
 		os.Exit(1)
 	}
 
