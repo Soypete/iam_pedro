@@ -34,6 +34,7 @@ func main() {
 	discordBotURL := getEnv("DISCORD_BOT_URL", "http://localhost:6060/healthz")
 	twitchBotURL := getEnv("TWITCH_BOT_URL", "")
 	discordToken := getEnv("DISCORD_SECRET", "")
+	discordUserID := getEnv("DISCORD_ALERT_USER_ID", "") // Discord user ID for mentions
 	logLevel := getEnv("LOG_LEVEL", "info")
 	checkInterval := getEnvInt("CHECK_INTERVAL", 60)
 	alertInterval := getEnvInt("ALERT_INTERVAL", 3600)
@@ -47,8 +48,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create Discord alerter (channel and user are hardcoded in the alerter)
-	alerter, err := keepalive.NewDiscordAlerter(discordToken, logger)
+	// Create Discord alerter
+	alerter, err := keepalive.NewDiscordAlerter(discordToken, discordUserID, logger)
 	if err != nil {
 		logger.Error("failed to create Discord alerter", "error", err.Error())
 		os.Exit(1)

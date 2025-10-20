@@ -9,20 +9,20 @@ import (
 )
 
 const (
-	// Hardcoded channel and user info for soypetetech Discord server
+	// Hardcoded channel for soypetetech Discord server
 	alertChannelName = "pedrogpt"
-	alertUserTag     = "soypete"
 )
 
 // DiscordAlerter sends alerts to a Discord channel
 type DiscordAlerter struct {
 	session   *discordgo.Session
 	channelID string
+	userID    string // Discord user ID for mentions (e.g., "<@123456789>")
 	logger    *logging.Logger
 }
 
 // NewDiscordAlerter creates a new Discord alerter using existing Discord bot token
-func NewDiscordAlerter(token string, logger *logging.Logger) (*DiscordAlerter, error) {
+func NewDiscordAlerter(token string, userID string, logger *logging.Logger) (*DiscordAlerter, error) {
 	session, err := discordgo.New("Bot " + token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Discord session: %w", err)
@@ -43,11 +43,12 @@ func NewDiscordAlerter(token string, logger *logging.Logger) (*DiscordAlerter, e
 		return nil, fmt.Errorf("failed to find channel %s: %w", alertChannelName, err)
 	}
 
-	logger.Info("Discord alerter initialized", "channel", alertChannelName, "channelID", channelID)
+	logger.Info("Discord alerter initialized", "channel", alertChannelName, "channelID", channelID, "userID", userID)
 
 	return &DiscordAlerter{
 		session:   session,
 		channelID: channelID,
+		userID:    userID,
 		logger:    logger,
 	}, nil
 }
@@ -72,8 +73,13 @@ func findChannelByName(session *discordgo.Session, channelName string) (string, 
 
 // SendAlert sends an alert message to the configured Discord channel
 func (da *DiscordAlerter) SendAlert(ctx context.Context, serviceName string, message string) error {
-	// Format the message with user mention using hardcoded username
-	alertMessage := fmt.Sprintf("@%s **Alert:** %s", alertUserTag, message)
+	// Format the message with user mention using Discord mention format
+	var alertMessage string
+	if da.userID != "" {
+		alertMessage = fmt.Sprintf("<@%s> **Alert:** %s", da.userID, message)
+	} else {
+		alertMessage = fmt.Sprintf("**Alert:** %s", message)
+	}
 
 	_, err := da.session.ChannelMessageSend(da.channelID, alertMessage)
 	if err != nil {
