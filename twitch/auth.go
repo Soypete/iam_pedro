@@ -2,6 +2,8 @@ package twitchirc
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
@@ -16,12 +18,28 @@ func (irc *IRC) parseAuthCode(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		fmt.Printf("could not parse query: %v", err)
 		http.Error(w, "could not parse query", http.StatusBadRequest)
+		return
+	}
+	receivedState := req.FormValue("state")
+	if receivedState != irc.oauthState {
+		fmt.Printf("invalid oauth state, expected '%s' got '%s'\n", irc.oauthState, receivedState)
+		http.Error(w, "Invalid OAuth state", http.StatusBadRequest)
+		return
 	}
 	irc.authCode = req.FormValue("code")
 }
 
 // AuthTwitch use oauth2 protocol to retrieve oauth2 token for twitch IRC.
 // First checks for TWITCH_TOKEN env var. If not found, runs OAuth flow.
+// generateStateString generates a secure random string for OAuth2 state parameter.
+func generateStateString() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(b), nil
+}
+
 func (irc *IRC) AuthTwitch(ctx context.Context) error {
 	// Check if token is already available via environment variable
 	if tokenStr := os.Getenv("TWITCH_TOKEN"); tokenStr != "" {
@@ -62,7 +80,12 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 	}
 
 	// Redirect user to consent page to ask for permission
-	url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	state, err := generateStateString()
+	if err != nil {
+		return fmt.Errorf("failed to generate oauth state: %w", err)
+	}
+	irc.oauthState = state
+	url := conf.AuthCodeURL(state, oauth2.AccessTypeOffline)
 	fmt.Printf("Visit the URL for the auth dialog: %v\n", url)
 	fmt.Printf("OAuth redirect configured for: %s://%s/oauth/redirect\n", protocol, redirectHost)
 
