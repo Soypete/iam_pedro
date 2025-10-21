@@ -151,6 +151,7 @@ func (c *Client) ExecuteWebSearch(ctx context.Context, request *types.WebSearchR
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, request.Query))
 
 	resp, err := c.llm.GenerateContent(ctx, messageHistory,
+		llms.WithModel(c.modelName),
 		llms.WithCandidateCount(1),
 		llms.WithMaxLength(500),
 		llms.WithTemperature(0.7),
