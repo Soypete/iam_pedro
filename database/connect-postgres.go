@@ -41,11 +41,6 @@ func NewPostgres(logger *logging.Logger) (*Postgres, error) {
 		return nil, fmt.Errorf("error setting dialect: %w", err)
 	}
 
-	// TODO: do not commit
-	if err := goose.DownTo(dbx.DB, "migrations", 4); err != nil  {
-		return nil, fmt.Errorf("error running down migrations: %w", err)
-	}
-
 	logger.Info("running database migrations")
 	if err := goose.Up(dbx.DB, "migrations"); err != nil {
 		logger.Error("error running migrations", "error", err.Error())
