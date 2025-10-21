@@ -18,7 +18,7 @@ func main() {
 	var model string
 	var logLevel string
 
-	flag.StringVar(&model, "model", "", "The model to use for the LLM")
+	flag.StringVar(&model, "model", os.Getenv("MODEL"), "The model to use for the LLM")
 	flag.StringVar(&logLevel, "errorLevel", "info", "Log level (debug, info, warn, error)")
 	flag.Parse()
 

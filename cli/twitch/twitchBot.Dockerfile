@@ -18,4 +18,4 @@ EXPOSE 3000
 COPY . ./
 RUN go build -v -o main ./cli/twitch
 
-CMD ["op", "run", "--env-file=/app/prod.env", "--", "/app/main", "-model", "deepseek"]
+CMD ["op", "run", "--env-file=/app/prod.env", "--", "/app/main"]
