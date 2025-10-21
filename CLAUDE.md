@@ -16,6 +16,7 @@ go build ./...
 # Build specific platforms
 go build -o bin/discord ./cli/discord
 go build -o bin/twitch ./cli/twitch
+go build -o bin/keepalive ./cli/keepalive
 
 # Run Discord bot locally
 go run ./cli/discord -model "your-model-name" -errorLevel debug
@@ -55,13 +56,18 @@ goose -dir database/migrations create migration_name sql
 ### Docker
 ```bash
 # Build containers
-docker build -f discordBot.Dockerfile -t pedro-discord .
-docker build -f twitchBot.Dockerfile -t pedro-twitch .
+docker build -f cli/discord/discordBot.Dockerfile -t pedro-discord .
+docker build -f cli/twitch/twitchBot.Dockerfile -t pedro-twitch .
+docker build -f cli/keepalive/keepaliveBot.Dockerfile -t pedro-keepalive .
 
 # Run with required environment variables
 docker run -e LLAMA_CPP_PATH="http://127.0.0.1:8080" \
   -e POSTGRES_URL="" -e TWITCH_ID="" -e TWITCH_SECRET="" \
   -e POSTGRES_VECTOR_URL="" pedro-twitch
+
+# Run keepalive service (uses prod.env with 1Password)
+docker run pedro-keepalive
+# Environment variables are loaded from prod.env via 1Password CLI
 ```
 
 ### Deployment
@@ -145,6 +151,8 @@ Each bot runs as a separate process with its own systemd service in production.
   - Discord bot exposes metrics on port 6060
   - Twitch bot exposes metrics on port 6061
   - Prometheus server runs on separate host (100.125.196.1:9090)
+  - Includes `/healthz` endpoint for health checks
+- `/keepalive/` - Health monitoring service that checks bot health and sends Discord alerts
 
 ### Data Flow
 
@@ -216,6 +224,8 @@ Key tables: `twitch_chat`, `bot_response`, `discord_ask_pedro`, `discord_twenty_
 - Key metrics: `TwitchConnectionCount`, `TwitchMessageRecievedCount`, `SuccessfulLLMGen`, `FailedLLMGen`, `EmptyLLMResponse`
 - Tracks message counts, LLM generation success/failure, response times
 - Structured logging with trace IDs for request correlation
+- `/healthz` endpoint available on all bots for health checks
+- KeepAlive service monitors bot health with exponential backoff and Discord alerting
 
 ## Testing
 - Unit tests for core logic in `ai/helpers_test.go` and `ai/twitchchat/llm_test.go`
