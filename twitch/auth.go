@@ -41,12 +41,8 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 		redirectHost = "localhost:3000"
 	}
 
-	// Determine protocol based on redirect host
-	// Use HTTPS for Tailscale domains, HTTP for localhost
-	protocol := "http"
-	if redirectHost != "localhost:3000" && redirectHost != "127.0.0.1:3000" {
-		protocol = "https"
-	}
+	// Always use HTTPS for OAuth redirect
+	protocol := "https"
 
 	http.HandleFunc("/oauth/redirect", irc.parseAuthCode)
 	go func() {
