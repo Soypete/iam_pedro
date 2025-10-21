@@ -200,6 +200,104 @@ sudo ./deploy-grafana.sh
 
 Import the pre-built Pedro dashboard from `deployment/grafana-pedro-dashboard.json`
 
+### Setting Up Grafana Alerts with Discord
+
+Grafana can send alerts directly to Discord when metrics exceed thresholds. This is useful for monitoring Pedro in production during demos or live streams.
+
+#### 1. Create Discord Webhook
+
+1. Open your Discord server settings
+2. Go to **Integrations** → **Webhooks**
+3. Click **New Webhook**
+4. Name it "Pedro Alerts" and select your target channel
+5. Copy the webhook URL (format: `https://discord.com/api/webhooks/...`)
+
+#### 2. Configure Grafana Contact Point
+
+1. In Grafana, navigate to **Alerting** → **Contact points**
+2. Click **Add contact point**
+3. Set **Name**: "Discord - Pedro Alerts"
+4. Set **Integration**: "Discord"
+5. Paste your webhook URL
+6. (Optional) Add custom message title: `{{ .GroupLabels.alertname }}`
+7. (Optional) Enable mentions by adding `<@YOUR_USER_ID>` in the message field
+8. Click **Test** to verify, then **Save**
+
+#### 3. Create Alert Rules
+
+Example alerts based on Pedro's metrics:
+
+**High Response Latency Alert**
+- Navigate to **Alerting** → **Alert rules** → **New alert rule**
+- **Alert name**: "Pedro High Latency"
+- **Query**: Use PromQL query from your dashboard
+  ```promql
+  histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=~"pedro-discord|pedro-twitch"}[5m])) > 2
+  ```
+- **Threshold**: Set condition "IS ABOVE 2" (2 seconds)
+- **Evaluation**: Check every 1m for 2m
+- **Contact point**: Select "Discord - Pedro Alerts"
+- **Summary**: `Pedro P95 latency is {{ $value }}s (threshold: 2s)`
+
+**Model Error Rate Alert**
+```promql
+rate(pedro_model_errors_total[5m]) / rate(pedro_model_requests_total[5m]) > 0.1
+```
+
+**Queue Depth Alert**
+```promql
+pedro_queue_depth > 50
+```
+
+#### 4. Test Your Alerts
+
+To trigger alerts for your demo:
+1. Have the audience spam Pedro on Discord or Twitch
+2. Watch Grafana dashboards for metric spikes
+3. Alerts will fire in Discord when thresholds are exceeded
+4. Demo the investigation workflow using Grafana + Docker logs
+
+#### Available Metrics for Alerting
+
+Pedro currently exposes these metrics (via expvar):
+
+**LLM/Bot Metrics (ports 6060/6061)**:
+- `successfull_llm_gen` - Number of successful LLM generations
+- `failed_llm_gen` - Number of failed LLM generations
+- `empty_llm_response` - Number of empty LLM responses
+- `twitch_connection_count` - Number of Twitch connections established
+- `twitch_message_recieved_count` - Twitch messages received
+- `twitch_message_sent_count` - Twitch messages sent
+- `web_search_success_count` - Successful web searches
+- `web_search_fail_count` - Failed web searches
+
+**Go Runtime Metrics** (automatically collected):
+- `go_goroutines` - Number of goroutines
+- `go_memstats_heap_alloc_bytes` - Heap memory allocated
+- `go_memstats_heap_inuse_bytes` - Heap memory in use
+- `go_gc_duration_seconds` - GC pause times
+- `process_cpu_seconds_total` - CPU usage
+- `process_resident_memory_bytes` - Memory usage
+
+**Example Alert Rules**:
+
+High LLM Error Rate:
+```promql
+rate(failed_llm_gen[5m]) / (rate(successfull_llm_gen[5m]) + rate(failed_llm_gen[5m])) > 0.1
+```
+
+High Empty Response Rate:
+```promql
+rate(empty_llm_response[5m]) / rate(successfull_llm_gen[5m]) > 0.2
+```
+
+Web Search Failures:
+```promql
+rate(web_search_fail_count[5m]) > 0.5
+```
+
+For complete PromQL query examples and advanced metrics configuration, see the [GoWest 2025 talk materials](gowest-2025/).
+
 **Loki** (Log Aggregation) - TODO
 
 Log aggregation with Loki + Promtail will be set up once the k8s cluster is deployed. This will enable centralized logging for both Discord and Twitch bots with full-text search and log streaming in Grafana.
