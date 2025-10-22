@@ -62,13 +62,13 @@ func (c *Client) SingleMessageResponse(ctx context.Context, msg types.TwitchMess
 	prompt, err := c.callLLM(ctx, []string{fmt.Sprintf("%s: %s", msg.Username, msg.Text)}, messageID)
 	if err != nil {
 		c.logger.Error("failed to generate response", "error", err.Error(), "messageID", messageID)
-		metrics.FailedLLMGen.Add(1)
+		metrics.FailedLLMGenCount.Add(1)
 		return types.TwitchMessage{}, err
 	}
 
 	if prompt == "" {
 		c.logger.Warn("empty response from LLM", "messageID", messageID)
-		metrics.EmptyLLMResponse.Add(1)
+		metrics.EmptyLLMResponseCount.Add(1)
 		// We are trying to tag the user to get them to try again with a better prompt.
 		return types.TwitchMessage{
 			Text: fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", msg.Username),
@@ -106,7 +106,7 @@ func (c *Client) SingleMessageResponse(ctx context.Context, msg types.TwitchMess
 	}
 
 	c.logger.Debug("successful response generation", "messageID", messageID, "messageLength", len(prompt))
-	metrics.SuccessfulLLMGen.Add(1)
+	metrics.SuccessfulLLMGenCount.Add(1)
 	return types.TwitchMessage{
 		Text: prompt,
 		UUID: messageID,

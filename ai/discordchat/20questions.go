@@ -43,7 +43,7 @@ func (c *Bot) Start20Questions(ctx context.Context, msg types.Discord20Questions
 		llms.WithPresencePenalty(1.0)) // 2 is the largest penalty for using a work that has already been used
 	if err != nil {
 		c.logger.Error("failed to get 20 questions LLM response", "error", err.Error(), "messageID", msg.GameID)
-		metrics.FailedLLMGen.Add(1)
+		metrics.FailedLLMGenCount.Add(1)
 		return "", fmt.Errorf("failed to get llm response: %w", err)
 	}
 	return resp.Choices[0].Content, nil
@@ -60,7 +60,7 @@ func (c *Bot) Play20Questions(ctx context.Context, user string, gameChat []llms.
 		llms.WithPresencePenalty(1.0)) // 2 is the largest penalty for using a work that has already been used
 	if err != nil {
 		c.logger.Error("failed to get 20 questions LLM response", "error", err.Error())
-		metrics.FailedLLMGen.Add(1)
+		metrics.FailedLLMGenCount.Add(1)
 		return "", fmt.Errorf("failed to get llm response: %w", err)
 	}
 
@@ -69,11 +69,11 @@ func (c *Bot) Play20Questions(ctx context.Context, user string, gameChat []llms.
 
 	if prompt == "" {
 		c.logger.Warn("empty response from 20 questions LLM")
-		metrics.EmptyLLMResponse.Add(1)
+		metrics.EmptyLLMResponseCount.Add(1)
 		// We are trying to tag the user to get them to try again with a better prompt.
 		return fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", user), nil
 	}
 
-	metrics.SuccessfulLLMGen.Add(1)
+	metrics.SuccessfulLLMGenCount.Add(1)
 	return prompt, nil
 }
