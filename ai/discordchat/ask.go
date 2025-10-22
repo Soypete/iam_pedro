@@ -35,7 +35,7 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg types.DiscordAskMes
 		llms.WithStopWords([]string{"@pedro", "@Pedro", "@PedroAI", "@PedroAI_"}))
 	if err != nil {
 		b.logger.Error("failed to get discord LLM response", "error", err.Error(), "messageID", msg.ThreadID)
-		metrics.FailedLLMGen.Add(1)
+		metrics.FailedLLMGenCount.Add(1)
 		return nil, fmt.Errorf("failed to get llm response: %w", err)
 	}
 
@@ -44,7 +44,7 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg types.DiscordAskMes
 
 	if prompt == "" {
 		b.logger.Warn("empty response from discord LLM", "messageID", msg.ThreadID)
-		metrics.EmptyLLMResponse.Add(1)
+		metrics.EmptyLLMResponseCount.Add(1)
 		// We are trying to tag the user to get them to try again with a better prompt.
 		return &types.DiscordResponse{
 			Text: fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", msg.Username),
@@ -79,7 +79,7 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg types.DiscordAskMes
 	}
 
 	b.logger.Debug("successful discord response generation", "messageID", msg.ThreadID, "messageLength", len(prompt))
-	metrics.SuccessfulLLMGen.Add(1)
+	metrics.SuccessfulLLMGenCount.Add(1)
 	return &types.DiscordResponse{
 		Text: prompt,
 	}, nil
@@ -164,7 +164,7 @@ func (b *Bot) ThreadMessageResponse(ctx context.Context, msg types.DiscordAskMes
 		llms.WithStopWords([]string{"@pedro", "@Pedro", "@PedroAI", "@PedroAI_"}))
 	if err != nil {
 		b.logger.Error("failed to get discord thread LLM response", "error", err.Error(), "messageID", msg.MessageID)
-		metrics.FailedLLMGen.Add(1)
+		metrics.FailedLLMGenCount.Add(1)
 		return "", fmt.Errorf("failed to get llm response: %w", err)
 	}
 
@@ -173,11 +173,11 @@ func (b *Bot) ThreadMessageResponse(ctx context.Context, msg types.DiscordAskMes
 
 	if prompt == "" {
 		b.logger.Warn("empty response from discord thread LLM", "messageID", msg.MessageID)
-		metrics.EmptyLLMResponse.Add(1)
+		metrics.EmptyLLMResponseCount.Add(1)
 		return fmt.Sprintf("sorry, I cannot respond to @%s. Please try again", msg.Username), nil
 	}
 
 	b.logger.Debug("successful discord thread response generation", "messageID", msg.MessageID, "messageLength", len(prompt))
-	metrics.SuccessfulLLMGen.Add(1)
+	metrics.SuccessfulLLMGenCount.Add(1)
 	return prompt, nil
 }

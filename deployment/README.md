@@ -239,9 +239,9 @@ The bots expose these metrics:
 - `twitch_message_sent_count` - Messages sent to Twitch  
 - `discord_message_recieved` - Messages received from Discord
 - `discord_message_sent` - Messages sent to Discord
-- `empty_llm_response` - Empty responses from LLM
-- `successfull_llm_gen` - Successful LLM generations
-- `failed_llm_gen` - Failed LLM generations
+- `empty_llm_response_count` - Empty responses from LLM
+- `successful_llm_gen_count` - Successful LLM generations
+- `failed_llm_gen_count` - Failed LLM generations
 
 ## Troubleshooting
 

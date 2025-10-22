@@ -32,35 +32,37 @@ func getEnvInt(key string, defaultValue int) int {
 func main() {
 	// Read configuration from environment variables
 	discordBotURL := getEnv("DISCORD_BOT_URL", "http://localhost:6060/healthz")
-	twitchBotURL := getEnv("TWITCH_BOT_URL", "")
+	twitchBotURL := getEnv("TWITCH_BOT_URL", "http://localhost:6061/healthz")
 	discordToken := getEnv("DISCORD_SECRET", "")
-	discordUserID := getEnv("DISCORD_ALERT_USER_ID", "") // Discord user ID for mentions
+	discordUserID := getEnv("DISCORD_ALERT_USER_ID", "soypete_tech") // Discord user ID for mentions
 	logLevel := getEnv("LOG_LEVEL", "info")
 	checkInterval := getEnvInt("CHECK_INTERVAL", 60)
 	alertInterval := getEnvInt("ALERT_INTERVAL", 3600)
 
 	// Initialize logger
 	logger := logging.NewLogger(logging.LogLevel(logLevel), os.Stdout)
+	stop := make(chan os.Signal, 1)
 
 	// Validate required token
 	if discordToken == "" {
 		logger.Error("DISCORD_SECRET environment variable is required")
-		os.Exit(1)
+		stop <- os.Interrupt
 	}
 
-	// Create Discord alerter
+	// Create Discord alerter to publish alerts
 	alerter, err := keepalive.NewDiscordAlerter(discordToken, discordUserID, logger)
 	if err != nil {
 		logger.Error("failed to create Discord alerter", "error", err.Error())
-		os.Exit(1)
+		stop <- os.Interrupt
 	}
 	defer func() {
 		if err := alerter.Close(); err != nil {
-			logger.Error("failed to close Discord alerter", "error", err.Error())
+				stop <- os.Interrupt
 		}
 	}()
 
-	// Configure services to monitor
+	// Configure services to monitor pedro discord app
+
 	services := []keepalive.ServiceConfig{
 		{
 			Name:      "Discord Bot",
@@ -69,27 +71,24 @@ func main() {
 	}
 
 	// Add Twitch bot if URL is provided
-	if twitchBotURL != "" {
-		services = append(services, keepalive.ServiceConfig{
-			Name:      "Twitch Bot",
-			HealthURL: twitchBotURL,
-		})
-	}
+	services = append(services, keepalive.ServiceConfig{
+		Name:      "Twitch Bot",
+		HealthURL: twitchBotURL,
+	})
 
 	// Add VLLM/llama.cpp if LLAMA_CPP_PATH is set
-	llamaCppPath := os.Getenv("LLAMA_CPP_PATH")
-	if llamaCppPath != "" {
-		// Convert llama.cpp URL to health endpoint
+	aiModelPath := os.Getenv("LLAMA_CPP_PATH")
+	if aiModelPath != "" {
+
 		// e.g., http://127.0.0.1:8080 -> http://127.0.0.1:8080/health
-		vllmHealthURL := llamaCppPath
-		if vllmHealthURL[len(vllmHealthURL)-1] != '/' {
-			vllmHealthURL += "/"
+		if aiModelPath[len(aiModelPath)-1] != '/' {
+			aiModelPath += "/"
 		}
-		vllmHealthURL += "health"
+		aiModelPath += "health"
 
 		services = append(services, keepalive.ServiceConfig{
 			Name:      "VLLM/llama.cpp",
-			HealthURL: vllmHealthURL,
+			HealthURL: aiModelPath,
 		})
 	}
 
@@ -107,13 +106,13 @@ func main() {
 	defer cancel()
 
 	// Handle shutdown gracefully
-	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
 	go func() {
 		<-stop
 		logger.Info("Received interrupt signal, shutting down...")
 		cancel()
+		os.Exit(0)
 	}()
 
 	logger.Info("Starting KeepAlive service",
