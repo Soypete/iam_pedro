@@ -29,7 +29,15 @@ func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid
 
 	now := time.Now().Format(time.DateOnly)
 	c.manageChatHistory(ctx, injection, llms.ChatMessageTypeHuman)
-	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, fmt.Sprintf(ai.PedroPrompt, now))}
+
+	// Build system prompt with optional GoWest addendum
+	systemPrompt := fmt.Sprintf(ai.PedroPrompt, now)
+	if c.gowestMode {
+		systemPrompt += ai.GoWestAddendum
+		c.logger.Debug("using GoWest enhanced prompt")
+	}
+
+	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, systemPrompt)}
 	messageHistory = append(messageHistory, c.chatHistory...)
 
 	c.logger.Debug("generating content", "historyLength", len(messageHistory), "model", c.modelName)
@@ -144,7 +152,14 @@ func (c *Client) ExecuteWebSearch(ctx context.Context, request *types.WebSearchR
 	c.logger.Debug("web search successful", "query", request.Query, "messageID", request.OriginalMsg.UUID)
 
 	now := time.Now().Format(time.DateOnly)
-	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, fmt.Sprintf(ai.PedroPrompt, now))}
+
+	// Build system prompt with optional GoWest addendum
+	systemPrompt := fmt.Sprintf(ai.PedroPrompt, now)
+	if c.gowestMode {
+		systemPrompt += ai.GoWestAddendum
+	}
+
+	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, systemPrompt)}
 	// messageHistory = append(messageHistory, request.ChatHistory...)
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeSystem,
 		fmt.Sprintf("Pedro, we have called the duckduckgo search api and the following is the json formatted response: %s. Please provide a helpful summary to the user's question. if you still cannot answer apologize and ask them to try again. under no circumstances should you reply with execute web search at this time.", searchResult)))

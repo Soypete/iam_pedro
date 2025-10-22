@@ -1,6 +1,6 @@
 FROM 1password/op:2
 
-FROM golang:1.23-alpine
+FROM golang:1.25-alpine
 
 RUN apk add --no-cache git
 
