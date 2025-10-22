@@ -118,6 +118,7 @@ func (b *Bot) ExecuteWebSearch(ctx context.Context, request *types.WebSearchRequ
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, request.Query))
 
 	resp, err := b.llm.GenerateContent(ctx, messageHistory,
+		llms.WithModel(b.modelName),
 		llms.WithCandidateCount(1),
 		llms.WithMaxLength(500),
 		llms.WithTemperature(0.7),
@@ -155,6 +156,7 @@ func (b *Bot) ThreadMessageResponse(ctx context.Context, msg types.DiscordAskMes
 
 	b.logger.Debug("calling LLM for discord thread message", "messageID", msg.MessageID, "historyLength", len(messageHistory))
 	resp, err := b.llm.GenerateContent(ctx, messageHistory,
+		llms.WithModel(b.modelName),
 		llms.WithCandidateCount(1),
 		llms.WithMaxLength(500),
 		llms.WithTemperature(0.7),
