@@ -19,13 +19,13 @@ type ServiceConfig struct {
 
 // ServiceState tracks the state of a monitored service
 type ServiceState struct {
-	Name              string
-	HealthURL         string
-	LastCheckTime     time.Time
-	LastAlertTime     time.Time
+	Name                string
+	HealthURL           string
+	LastCheckTime       time.Time
+	LastAlertTime       time.Time
 	ConsecutiveFailures int
-	IsHealthy         bool
-	mu                sync.RWMutex
+	IsHealthy           bool
+	mu                  sync.RWMutex
 }
 
 // KeepAliveService monitors multiple services and alerts on failures
@@ -65,12 +65,12 @@ func NewKeepAliveService(
 
 	for _, svc := range services {
 		kas.services[svc.Name] = &ServiceState{
-			Name:              svc.Name,
-			HealthURL:         svc.HealthURL,
-			LastCheckTime:     time.Time{},
-			LastAlertTime:     time.Time{},
+			Name:                svc.Name,
+			HealthURL:           svc.HealthURL,
+			LastCheckTime:       time.Time{},
+			LastAlertTime:       time.Time{},
 			ConsecutiveFailures: 0,
-			IsHealthy:         true,
+			IsHealthy:           true,
 		}
 	}
 
@@ -187,14 +187,12 @@ func (kas *KeepAliveService) checkService(ctx context.Context, state *ServiceSta
 // performHealthCheck performs the actual HTTP health check with exponential backoff
 func (kas *KeepAliveService) performHealthCheck(ctx context.Context, url string) bool {
 	backoffDuration := 1 * time.Second
-	maxRetries := 3
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		if attempt > 0 {
-			// Exponential backoff: 1s, 2s, 4s
-			time.Sleep(backoffDuration)
-			backoffDuration *= 2
-		}
+	attempt := 0
+	for range 3 {
+		// Exponential backoff: 1s, 2s, 4s
+		time.Sleep(backoffDuration)
+		backoffDuration *= 2
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {

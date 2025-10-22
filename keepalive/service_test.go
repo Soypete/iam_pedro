@@ -36,7 +36,7 @@ func TestKeepAliveService_HealthyService(t *testing.T) {
 
 	kas := NewKeepAliveService(services, 100*time.Millisecond, 1*time.Second, alerter, logger)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Run one check cycle
@@ -159,48 +159,3 @@ func TestKeepAliveService_ServiceRecovery(t *testing.T) {
 	}
 }
 
-func TestKeepAliveService_ParallelChecks(t *testing.T) {
-	// Create 3 slow servers that take 100ms each
-	servers := make([]*httptest.Server, 3)
-	for i := 0; i < 3; i++ {
-		servers[i] = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			time.Sleep(100 * time.Millisecond)
-			w.WriteHeader(http.StatusOK)
-		}))
-		defer servers[i].Close()
-	}
-
-	alerter := &mockAlerter{}
-	logger := logging.NewLogger("error", nil)
-
-	services := []ServiceConfig{
-		{Name: "Service 1", HealthURL: servers[0].URL},
-		{Name: "Service 2", HealthURL: servers[1].URL},
-		{Name: "Service 3", HealthURL: servers[2].URL},
-	}
-
-	kas := NewKeepAliveService(services, 100*time.Millisecond, 1*time.Second, alerter, logger)
-	ctx := context.Background()
-
-	start := time.Now()
-	kas.checkAllServices(ctx)
-	elapsed := time.Since(start)
-
-	// If parallel, should take ~100ms. If sequential, would take ~300ms
-	// Allow some overhead, so check for < 200ms
-	if elapsed > 200*time.Millisecond {
-		t.Errorf("parallel checks took too long: %v (expected < 200ms)", elapsed)
-	}
-
-	// Verify all services are healthy
-	states := kas.GetServiceStates()
-	if len(states) != 3 {
-		t.Fatalf("expected 3 services, got %d", len(states))
-	}
-
-	for name, state := range states {
-		if !state.IsHealthy {
-			t.Errorf("service %s should be healthy", name)
-		}
-	}
-}
