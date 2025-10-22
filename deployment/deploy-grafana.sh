@@ -11,6 +11,7 @@ echo ""
 # Configuration file paths
 SERVICE_ENV="/opt/pedro/service.env"
 GRAFANA_ENV="/opt/pedro/grafana.env"
+PROVISIONING_DIR="/opt/pedro/grafana-provisioning"
 
 # Check prerequisites
 if ! command -v docker &> /dev/null; then
@@ -50,6 +51,15 @@ EOF
     echo ""
 fi
 
+# Copy provisioning configuration if available
+if [ -d "config/grafana/provisioning" ]; then
+    echo "Copying Grafana provisioning configuration..."
+    sudo mkdir -p "$PROVISIONING_DIR"
+    sudo cp -r config/grafana/provisioning/* "$PROVISIONING_DIR/"
+    echo "✅ Provisioning configuration copied to $PROVISIONING_DIR"
+    echo ""
+fi
+
 # Stop and remove existing container
 echo "Stopping existing Grafana container..."
 docker stop grafana 2>/dev/null || true
@@ -76,15 +86,28 @@ echo "✅ Successfully retrieved password from 1Password"
 
 # Run Grafana container
 echo "Starting Grafana container..."
-docker run -d \
+
+# Build docker run command with conditional provisioning mount
+DOCKER_CMD="docker run -d \
     --name grafana \
     --restart unless-stopped \
     -p 3000:3000 \
-    -v grafana-data:/var/lib/grafana \
-    -e "GF_SECURITY_ADMIN_USER=admin" \
-    -e "GF_SECURITY_ADMIN_PASSWORD=$ADMIN_PASSWORD" \
-    -e "GF_SERVER_ROOT_URL=http://100.125.196.1:3000" \
-    grafana/grafana:latest
+    -v grafana-data:/var/lib/grafana"
+
+# Add provisioning mount if directory exists
+if [ -d "$PROVISIONING_DIR" ]; then
+    DOCKER_CMD="$DOCKER_CMD \
+    -v $PROVISIONING_DIR:/etc/grafana/provisioning"
+    echo "✅ Mounting provisioning configuration"
+fi
+
+DOCKER_CMD="$DOCKER_CMD \
+    -e GF_SECURITY_ADMIN_USER=admin \
+    -e GF_SECURITY_ADMIN_PASSWORD=$ADMIN_PASSWORD \
+    -e GF_SERVER_ROOT_URL=http://100.125.196.1:3000 \
+    grafana/grafana:latest"
+
+eval $DOCKER_CMD
 
 echo ""
 echo "✅ Grafana deployed!"
@@ -93,13 +116,30 @@ echo "   URL: http://100.125.196.1:3000"
 echo "   Username: admin"
 echo "   Password: (from 1Password: op://pedro/k8s-grafana-password/password)"
 echo ""
-echo "Next steps:"
-echo "  1. Access Grafana at http://100.125.196.1:3000"
-echo "  2. Add Prometheus data source: http://100.125.196.1:9090"
-echo "  3. Create dashboards for:"
-echo "     - Discord bot metrics (port 6060)"
-echo "     - Twitch bot metrics (port 6061)"
-echo "     - vLLM metrics from Prometheus"
+
+if [ -d "$PROVISIONING_DIR" ]; then
+    echo "✅ Auto-provisioned resources:"
+    echo "   - Prometheus datasource (http://100.125.196.1:9090)"
+    echo "   - vLLM Performance Dashboard"
+    echo "   - Twitch Bot Metrics Dashboard"
+    echo "   - Discord Bot Metrics Dashboard"
+    echo "   - Alert rules (requires contact point setup)"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Access Grafana at http://100.125.196.1:3000"
+    echo "  2. Check 'Pedro Bot' folder for pre-loaded dashboards"
+    echo "  3. (Optional) Configure Discord webhook for alerts"
+    echo "     See: config/grafana/ALERTS-README.md"
+else
+    echo "Next steps:"
+    echo "  1. Access Grafana at http://100.125.196.1:3000"
+    echo "  2. Add Prometheus data source: http://100.125.196.1:9090"
+    echo "  3. Import dashboards from config/grafana/"
+    echo "     - grafana-vllm-dashboard.json"
+    echo "     - grafana-twitch-dashboard.json"
+    echo "     - grafana-discord-dashboard.json"
+    echo "  4. (Optional) Import alert rules: grafana-alert-rules.yaml"
+fi
 echo ""
 echo "Manage container:"
 echo "  docker logs -f grafana          # View logs"

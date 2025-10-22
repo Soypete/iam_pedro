@@ -262,9 +262,9 @@ To trigger alerts for your demo:
 Pedro currently exposes these metrics (via expvar):
 
 **LLM/Bot Metrics (ports 6060/6061)**:
-- `successfull_llm_gen` - Number of successful LLM generations
-- `failed_llm_gen` - Number of failed LLM generations
-- `empty_llm_response` - Number of empty LLM responses
+- `successful_llm_gen_count` - Number of successful LLM generations
+- `failed_llm_gen_count` - Number of failed LLM generations
+- `empty_llm_response_count` - Number of empty LLM responses
 - `twitch_connection_count` - Number of Twitch connections established
 - `twitch_message_recieved_count` - Twitch messages received
 - `twitch_message_sent_count` - Twitch messages sent
@@ -283,12 +283,12 @@ Pedro currently exposes these metrics (via expvar):
 
 High LLM Error Rate:
 ```promql
-rate(failed_llm_gen[5m]) / (rate(successfull_llm_gen[5m]) + rate(failed_llm_gen[5m])) > 0.1
+rate(failed_llm_gen_count[5m]) / (rate(successful_llm_gen_count[5m]) + rate(failed_llm_gen_count[5m])) > 0.1
 ```
 
 High Empty Response Rate:
 ```promql
-rate(empty_llm_response[5m]) / rate(successfull_llm_gen[5m]) > 0.2
+rate(empty_llm_response_count[5m]) / rate(successful_llm_gen_count[5m]) > 0.2
 ```
 
 Web Search Failures:

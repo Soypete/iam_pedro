@@ -221,7 +221,7 @@ Key tables: `twitch_chat`, `bot_response`, `discord_ask_pedro`, `discord_twenty_
 ### Metrics and Monitoring
 - Prometheus metrics exposed on ports 6060/6061
 - Use `metrics.<MetricName>.Add(1)` to increment counters
-- Key metrics: `TwitchConnectionCount`, `TwitchMessageRecievedCount`, `SuccessfulLLMGen`, `FailedLLMGen`, `EmptyLLMResponse`
+- Key metrics: `TwitchConnectionCount`, `TwitchMessageRecievedCount`, `SuccessfulLLMGenCount`, `FailedLLMGenCount`, `EmptyLLMResponseCount`
 - Tracks message counts, LLM generation success/failure, response times
 - Structured logging with trace IDs for request correlation
 - `/healthz` endpoint available on all bots for health checks

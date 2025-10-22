@@ -27,10 +27,19 @@ func (d Client) handleDBerror(err error) {
 }
 
 func (d Client) stumpPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	// Track command metrics
+	start := time.Now()
+	metrics.DiscordCommandTotal.WithLabelValues("stump_pedro").Inc()
+	defer func() {
+		duration := time.Since(start).Seconds()
+		metrics.DiscordCommandDuration.WithLabelValues("stump_pedro").Observe(duration)
+	}()
+
 	response := "Failed to play 20 questions. Please try again later"
 	valid, err := messageValidatior(s, i)
 	if !valid {
 		d.logger.Error("error responding to stumpPedro command, no data", "error", err.Error())
+		metrics.DiscordCommandErrors.WithLabelValues("stump_pedro").Inc()
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -99,6 +108,7 @@ func (d Client) play20Questions(channelID string, message types.Discord20Questio
 
 	// store game in db
 	d.handleDBerror(d.db.CreateDiscord20Questions(context.Background(), game))
+	metrics.DiscordStumpPedroGames.WithLabelValues("started").Inc()
 
 	// Get starting message from LLM
 	startMessage, err := d.llm.Start20Questions(ctx, game)
@@ -150,6 +160,7 @@ func (d Client) play20Questions(channelID string, message types.Discord20Questio
 				return
 			}
 			metrics.DiscordMessageSent.Add(1)
+			metrics.DiscordStumpPedroGames.WithLabelValues("won").Inc()
 			return
 		}
 
@@ -179,6 +190,7 @@ func (d Client) play20Questions(channelID string, message types.Discord20Questio
 				d.logger.Error("error sending success message to thread", "error", err.Error(), "threadID", thread.ID)
 				return
 			}
+			metrics.DiscordStumpPedroGames.WithLabelValues("won").Inc()
 			break
 		}
 
@@ -202,6 +214,7 @@ func (d Client) play20Questions(channelID string, message types.Discord20Questio
 				return
 			}
 			metrics.DiscordMessageSent.Add(1)
+			metrics.DiscordStumpPedroGames.WithLabelValues("won").Inc()
 			d.handleDBerror(d.db.EndDiscord20Questions(ctx, game.GameID.String(), questionNumber))
 			return
 		}
@@ -215,6 +228,7 @@ func (d Client) play20Questions(channelID string, message types.Discord20Questio
 			}
 
 			metrics.DiscordMessageSent.Add(1)
+			metrics.DiscordStumpPedroGames.WithLabelValues("lost").Inc()
 			d.handleDBerror(d.db.EndDiscord20Questions(ctx, game.GameID.String(), questionNumber))
 			_, err = d.Session.ChannelMessageSend(thread.ID, "Game over. You win this round!")
 			if err != nil {

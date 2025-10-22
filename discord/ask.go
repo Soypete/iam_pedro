@@ -15,9 +15,18 @@ import (
 )
 
 func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	// Track command metrics
+	start := time.Now()
+	metrics.DiscordCommandTotal.WithLabelValues("ask_pedro").Inc()
+	defer func() {
+		duration := time.Since(start).Seconds()
+		metrics.DiscordCommandDuration.WithLabelValues("ask_pedro").Observe(duration)
+	}()
+
 	valid, err := messageValidatior(s, i)
 	if !valid {
 		d.logger.Error("error responding to askPedro command, no data", "error", err.Error())
+		metrics.DiscordCommandErrors.WithLabelValues("ask_pedro").Inc()
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -57,6 +66,7 @@ func (d Client) askPedro(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	resp, err := d.llm.SingleMessageResponse(context.Background(), message)
 	if err != nil {
 		d.logger.Error("error calling llm | single message response", "error", err.Error(), "messageID", messageID)
+		metrics.DiscordCommandErrors.WithLabelValues("ask_pedro").Inc()
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
