@@ -64,8 +64,9 @@ docker run -e LLAMA_CPP_PATH="http://127.0.0.1:8080" \
 
 **AI Layer (`/ai/`)**
 - `chatter.go` - Core interface defining `Chatter` contract for all bot implementations
-- `twitchchat/` - Twitch-specific LLM client with async web search integration
-- `discordchat/` - Discord-specific LLM client with 20 questions game support
+- `agent/` - Shared tool calling logic (web search tool, tool definitions, parsers)
+- `twitchchat/` - Twitch-specific LLM client with async web search integration via tool calling
+- `discordchat/` - Discord-specific LLM client with 20 questions game support and tool calling
 - Pedro's personality is defined in `ai.PedroPrompt` constant
 
 **Platform Integration**
@@ -86,7 +87,7 @@ docker run -e LLAMA_CPP_PATH="http://127.0.0.1:8080" \
 
 1. **Message Reception**: Discord slash commands or Twitch chat messages
 2. **AI Processing**: Messages go through platform-specific LLM clients
-3. **Web Search Integration**: If Pedro responds with "execute web search", triggers async DuckDuckGo lookup
+3. **Web Search Integration**: LLM uses tool calling to trigger web searches when needed
 4. **Response Handling**: Immediate response + async follow-up with search results
 5. **Persistence**: All interactions stored in PostgreSQL with chat history management
 
@@ -104,10 +105,12 @@ DISCORD_TOKEN=""                        # Discord bot token
 ## Important Implementation Details
 
 ### Web Search Flow
-- Pedro can trigger web searches by responding with "execute web search [query]"
-- Immediate response: "one second and I will look that up for you soypet2Thinking"
-- Async function performs DuckDuckGo search and generates informed follow-up response
+- Pedro uses OpenAI function calling to trigger web searches via the `web_search` tool
+- Tool definition and parsing logic is shared in `ai/agent` package
+- When LLM calls the tool, immediate response: "one second and I will look that up for you"
+- Async function performs DuckDuckGo search via `WebSearchTool` and generates informed follow-up response
 - Chat history is preserved and passed to the async search function
+- Metrics tracked: `WebSearchSuccessCount` and `WebSearchFailCount` (both platforms)
 
 ### Database Schema
 Key tables: `twitch_chat`, `bot_response`, `discord_ask_pedro`, `discord_twenty_questions_games`

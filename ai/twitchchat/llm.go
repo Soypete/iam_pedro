@@ -2,12 +2,12 @@ package twitchchat
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
+	"github.com/Soypete/twitch-llm-bot/ai/agent"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/google/uuid"
@@ -33,24 +33,8 @@ func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, fmt.Sprintf(ai.PedroPrompt, now))}
 	messageHistory = append(messageHistory, c.chatHistory...)
 
-	// Define the web search tool for function calling
-	toolDefinition := llms.Tool{
-		Type: "function",
-		Function: &llms.FunctionDefinition{
-			Name:        "web_search",
-			Description: "Search the web for current information, news, or recent events",
-			Parameters: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"query": map[string]any{
-						"type":        "string",
-						"description": "The search query to look up",
-					},
-				},
-				"required": []string{"query"},
-			},
-		},
-	}
+	// Get web search tool definition from shared agent package
+	toolDefinition := agent.GetWebSearchToolDefinition()
 
 	c.logger.Debug("generating content", "historyLength", len(messageHistory))
 	resp, err := c.llm.GenerateContent(ctx, messageHistory,
@@ -86,11 +70,9 @@ func (c *Client) SingleMessageResponse(ctx context.Context, msg types.TwitchMess
 		c.logger.Debug("tool call requested", "function", toolCall.FunctionCall.Name, "messageID", messageID)
 
 		if toolCall.FunctionCall.Name == "web_search" {
-			// Extract the query from the tool call arguments
-			var args struct {
-				Query string `json:"query"`
-			}
-			if err := json.Unmarshal([]byte(toolCall.FunctionCall.Arguments), &args); err != nil {
+			// Parse the tool call using shared agent package
+			query, err := agent.ParseWebSearchToolCall(toolCall)
+			if err != nil {
 				c.logger.Error("failed to parse tool call arguments", "error", err.Error())
 				return types.TwitchMessage{
 					Text: "Sorry, I had trouble understanding the search request soypet2ConfusedPedro",
@@ -98,13 +80,13 @@ func (c *Client) SingleMessageResponse(ctx context.Context, msg types.TwitchMess
 				}, nil
 			}
 
-			c.logger.Debug("web search requested via tool call", "query", args.Query, "messageID", messageID)
+			c.logger.Debug("web search requested via tool call", "query", query, "messageID", messageID)
 			msg.UUID = messageID
 			return types.TwitchMessage{
 				Text: "one second and I will look that up for you soypet2Thinking",
 				UUID: messageID,
 				WebSearch: &types.WebSearchRequest{
-					Query:       args.Query,
+					Query:       query,
 					OriginalMsg: msg,
 					ChatHistory: c.chatHistory,
 				},

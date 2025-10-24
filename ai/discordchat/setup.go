@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Soypete/twitch-llm-bot/ai/agent"
 	"github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/duckduckgo"
 	"github.com/Soypete/twitch-llm-bot/logging"
@@ -55,16 +56,12 @@ func Setup(db database.ResponseWriter, modelName string, llmPath string, logger 
 	// Initialize DuckDuckGo client
 	ddgClient := duckduckgo.NewClient()
 
-	// Create OpenAI Functions Agent
-	agent, err := CreateOpenAIFunctionsAgent(llm, ddgClient, logger)
-	if err != nil {
-		logger.Error("failed to create OpenAI Functions Agent", "error", err.Error())
-		return nil, fmt.Errorf("failed to create OpenAI Functions Agent: %w", err)
-	}
+	// Create web search agent using shared agent package
+	webSearchAgent := agent.CreateWebSearchAgent(ddgClient)
 
 	return &Bot{
 		llm:         llm,
-		agent:       agent,
+		agent:       webSearchAgent,
 		db:          db,
 		modelName:   modelName,
 		logger:      logger,

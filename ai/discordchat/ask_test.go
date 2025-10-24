@@ -2,6 +2,8 @@ package discordchat
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/Soypete/twitch-llm-bot/duckduckgo"
@@ -119,4 +121,74 @@ func (m *mockWebSearchTool) Description() string {
 
 func (m *mockWebSearchTool) Call(ctx context.Context, input string) (string, error) {
 	return "Mock search result for: " + input, nil
+}
+
+// mockLLM is a mock implementation of the LLM interface for testing
+type mockLLM struct {
+	responseOverride string
+	shouldCallTool   bool
+}
+
+func (m *mockLLM) GenerateContent(ctx context.Context, messages []llms.MessageContent, opts ...llms.CallOption) (*llms.ContentResponse, error) {
+	// Check if the last human message looks like it needs a web search
+	// This simulates the LLM deciding to call the web_search tool
+	needsWebSearch := false
+	searchQuery := "golang best practices"
+
+	if len(messages) > 0 {
+		lastMsg := messages[len(messages)-1]
+		if lastMsg.Role == llms.ChatMessageTypeHuman {
+			for _, part := range lastMsg.Parts {
+				if textPart, ok := part.(llms.TextContent); ok {
+					text := string(textPart.Text)
+					// If the message contains "execute web search" in the test input, trigger tool call
+					if strings.Contains(text, "execute web search") {
+						needsWebSearch = true
+						// Extract what comes after "execute web search"
+						parts := strings.Split(text, "execute web search")
+						if len(parts) > 1 {
+							searchQuery = strings.TrimSpace(parts[1])
+						}
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// If web search is needed, return a tool call
+	if needsWebSearch || m.shouldCallTool {
+		return &llms.ContentResponse{
+			Choices: []*llms.ContentChoice{
+				{
+					ToolCalls: []llms.ToolCall{
+						{
+							FunctionCall: &llms.FunctionCall{
+								Name:      "web_search",
+								Arguments: fmt.Sprintf(`{"query":"%s"}`, searchQuery),
+							},
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	// Otherwise return normal content
+	content := "Mock LLM response"
+	if m.responseOverride != "" {
+		content = m.responseOverride
+	}
+
+	return &llms.ContentResponse{
+		Choices: []*llms.ContentChoice{
+			{
+				Content: content,
+			},
+		},
+	}, nil
+}
+
+func (m *mockLLM) Call(ctx context.Context, prompt string, opts ...llms.CallOption) (string, error) {
+	return "Mock LLM response", nil
 }

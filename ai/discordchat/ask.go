@@ -2,12 +2,12 @@ package discordchat
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
+	"github.com/Soypete/twitch-llm-bot/ai/agent"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/tmc/langchaingo/llms"
@@ -28,24 +28,8 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg types.DiscordAskMes
 
 	b.logger.Debug("calling LLM for discord message", "messageID", msg.ThreadID)
 
-	// Define the web search tool for function calling
-	toolDefinition := llms.Tool{
-		Type: "function",
-		Function: &llms.FunctionDefinition{
-			Name:        "web_search",
-			Description: "Search the web for current information, news, or recent events",
-			Parameters: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"query": map[string]any{
-						"type":        "string",
-						"description": "The search query to look up",
-					},
-				},
-				"required": []string{"query"},
-			},
-		},
-	}
+	// Get web search tool definition from shared agent package
+	toolDefinition := agent.GetWebSearchToolDefinition()
 
 	resp, err := b.llm.GenerateContent(ctx, messageHistory,
 		llms.WithCandidateCount(1),
@@ -66,22 +50,20 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg types.DiscordAskMes
 		b.logger.Debug("tool call requested", "function", toolCall.FunctionCall.Name, "messageID", msg.ThreadID)
 
 		if toolCall.FunctionCall.Name == "web_search" {
-			// Extract the query from the tool call arguments
-			var args struct {
-				Query string `json:"query"`
-			}
-			if err := json.Unmarshal([]byte(toolCall.FunctionCall.Arguments), &args); err != nil {
+			// Parse the tool call using shared agent package
+			query, err := agent.ParseWebSearchToolCall(toolCall)
+			if err != nil {
 				b.logger.Error("failed to parse tool call arguments", "error", err.Error())
 				return &types.DiscordResponse{
 					Text: "Sorry, I had trouble understanding the search request :confused:",
 				}, nil
 			}
 
-			b.logger.Debug("web search requested via tool call", "query", args.Query, "messageID", msg.ThreadID)
+			b.logger.Debug("web search requested via tool call", "query", query, "messageID", msg.ThreadID)
 			return &types.DiscordResponse{
 				Text: "one second and I will look that up for you :thinking:",
 				WebSearch: &types.WebSearchRequest{
-					Query:       args.Query,
+					Query:       query,
 					ChatHistory: b.chatHistory,
 				},
 			}, nil
