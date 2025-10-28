@@ -30,13 +30,7 @@ func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid
 	now := time.Now().Format(time.DateOnly)
 	c.manageChatHistory(ctx, injection, llms.ChatMessageTypeHuman)
 
-	// Build system prompt with optional GoWest addendum
 	systemPrompt := fmt.Sprintf(ai.PedroPrompt, now)
-	if c.gowestMode {
-		systemPrompt += ai.GoWestAddendum
-		c.logger.Debug("using GoWest enhanced prompt")
-	}
-
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, systemPrompt)}
 	messageHistory = append(messageHistory, c.chatHistory...)
 
@@ -153,12 +147,7 @@ func (c *Client) ExecuteWebSearch(ctx context.Context, request *types.WebSearchR
 
 	now := time.Now().Format(time.DateOnly)
 
-	// Build system prompt with optional GoWest addendum
 	systemPrompt := fmt.Sprintf(ai.PedroPrompt, now)
-	if c.gowestMode {
-		systemPrompt += ai.GoWestAddendum
-	}
-
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, systemPrompt)}
 	// messageHistory = append(messageHistory, request.ChatHistory...)
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeSystem,
