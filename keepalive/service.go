@@ -2,6 +2,7 @@ package keepalive
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -13,18 +14,31 @@ import (
 
 // ServiceConfig represents configuration for a service to monitor
 type ServiceConfig struct {
-	Name      string
-	HealthURL string
+	Name         string
+	HealthURL    string
+	AuthHealthURL string // Optional: URL to check auth token health (e.g., /healthz/auth)
+}
+
+// AuthHealthResponse represents the response from /healthz/auth endpoint
+type AuthHealthResponse struct {
+	HasToken         bool      `json:"has_token"`
+	LastRefreshTime  time.Time `json:"last_refresh_time"`
+	ExpirationTime   time.Time `json:"expiration_time"`
+	IsExpired        bool      `json:"is_expired"`
+	HoursUntilExpiry float64   `json:"hours_until_expiry"`
 }
 
 // ServiceState tracks the state of a monitored service
 type ServiceState struct {
 	Name                string
 	HealthURL           string
+	AuthHealthURL       string
 	LastCheckTime       time.Time
 	LastAlertTime       time.Time
+	LastAuthAlertTime   time.Time // Track when we last alerted about auth expiry
 	ConsecutiveFailures int
 	IsHealthy           bool
+	AuthHealth          *AuthHealthResponse
 	mu                  sync.RWMutex
 }
 
@@ -67,10 +81,13 @@ func NewKeepAliveService(
 		kas.services[svc.Name] = &ServiceState{
 			Name:                svc.Name,
 			HealthURL:           svc.HealthURL,
+			AuthHealthURL:       svc.AuthHealthURL,
 			LastCheckTime:       time.Time{},
 			LastAlertTime:       time.Time{},
+			LastAuthAlertTime:   time.Time{},
 			ConsecutiveFailures: 0,
 			IsHealthy:           true,
+			AuthHealth:          nil,
 		}
 	}
 
@@ -128,6 +145,11 @@ func (kas *KeepAliveService) checkService(ctx context.Context, state *ServiceSta
 	state.mu.Unlock()
 
 	healthy := kas.performHealthCheck(ctx, state.HealthURL)
+
+	// If AuthHealthURL is configured, check auth token health
+	if state.AuthHealthURL != "" {
+		kas.checkAuthHealth(ctx, state)
+	}
 
 	state.mu.Lock()
 	defer state.mu.Unlock()
@@ -227,6 +249,91 @@ func (kas *KeepAliveService) performHealthCheck(ctx context.Context, url string)
 	}
 
 	return false
+}
+
+// checkAuthHealth checks the auth token health and alerts if expiring soon or expired
+func (kas *KeepAliveService) checkAuthHealth(ctx context.Context, state *ServiceState) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, state.AuthHealthURL, nil)
+	if err != nil {
+		kas.logger.Error("failed to create auth health check request",
+			"error", err.Error(),
+			"url", state.AuthHealthURL)
+		return
+	}
+
+	resp, err := kas.httpClient.Do(req)
+	if err != nil {
+		kas.logger.Debug("auth health check request failed",
+			"error", err.Error(),
+			"url", state.AuthHealthURL)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		kas.logger.Debug("auth health check returned non-OK status",
+			"status", resp.StatusCode,
+			"url", state.AuthHealthURL)
+		return
+	}
+
+	var authHealth AuthHealthResponse
+	if err := json.NewDecoder(resp.Body).Decode(&authHealth); err != nil {
+		kas.logger.Error("failed to decode auth health response",
+			"error", err.Error(),
+			"url", state.AuthHealthURL)
+		return
+	}
+
+	state.mu.Lock()
+	state.AuthHealth = &authHealth
+	state.mu.Unlock()
+
+	// Alert if token is expired
+	if authHealth.IsExpired {
+		state.mu.Lock()
+		// Only alert once per hour
+		if time.Since(state.LastAuthAlertTime) >= kas.alertInterval {
+			state.mu.Unlock()
+			msg := fmt.Sprintf("⚠️ Auth token for %s has EXPIRED! Last refreshed: %s",
+				state.Name,
+				authHealth.LastRefreshTime.Format(time.RFC3339))
+			go func() {
+				if err := kas.alerter.SendAlert(ctx, state.Name, msg); err != nil {
+					kas.logger.Error("failed to send auth expiry alert", "error", err.Error())
+				}
+			}()
+			state.mu.Lock()
+			state.LastAuthAlertTime = time.Now()
+			state.mu.Unlock()
+		} else {
+			state.mu.Unlock()
+		}
+		return
+	}
+
+	// Alert if token will expire within 12 hours
+	if authHealth.HoursUntilExpiry <= 12 && authHealth.HoursUntilExpiry > 0 {
+		state.mu.Lock()
+		// Only alert once per hour
+		if time.Since(state.LastAuthAlertTime) >= kas.alertInterval {
+			state.mu.Unlock()
+			msg := fmt.Sprintf("⚠️ Auth token for %s will expire in %.1f hours (at %s). Please refresh the token.",
+				state.Name,
+				authHealth.HoursUntilExpiry,
+				authHealth.ExpirationTime.Format(time.RFC3339))
+			go func() {
+				if err := kas.alerter.SendAlert(ctx, state.Name, msg); err != nil {
+					kas.logger.Error("failed to send auth expiry warning", "error", err.Error())
+				}
+			}()
+			state.mu.Lock()
+			state.LastAuthAlertTime = time.Now()
+			state.mu.Unlock()
+		} else {
+			state.mu.Unlock()
+		}
+	}
 }
 
 // ServiceStateSnapshot is a snapshot of a service state without locks

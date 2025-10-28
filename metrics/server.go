@@ -115,6 +115,11 @@ func SetupServer() *Server {
 	return &Server{server}
 }
 
+// RegisterAuthHealthHandler registers the auth health check endpoint
+func (s *Server) RegisterAuthHealthHandler(handler http.HandlerFunc) {
+	http.HandleFunc("/healthz/auth", handler)
+}
+
 // healthzHandler returns a simple health check response
 func healthzHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
