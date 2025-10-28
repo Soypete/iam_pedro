@@ -11,6 +11,11 @@ import (
 	"golang.org/x/oauth2/twitch"
 )
 
+// TODO: Future enhancement - Add reauth endpoint for automated token refresh
+// This will allow the keepalive service to trigger token refresh when expiry is detected.
+// Implementation should be done once k8s deployment is setup to handle secure token management.
+// Proposed endpoint: POST /auth/refresh that triggers the OAuth flow and updates the token.
+
 func (irc *IRC) parseAuthCode(w http.ResponseWriter, req *http.Request) {
 	err := req.ParseForm()
 	if err != nil {
@@ -29,6 +34,7 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 		irc.tok = &oauth2.Token{
 			AccessToken: tokenStr,
 		}
+		irc.tokenRefreshTime = time.Now()
 		return nil
 	}
 
@@ -73,6 +79,7 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get token with auth code: %w", err)
 	}
+	irc.tokenRefreshTime = time.Now()
 	fmt.Printf("Token received: %s\n", irc.tok.AccessToken)
 	fmt.Println("IMPORTANT: Save this token to 1Password as TWITCH_TOKEN to avoid OAuth flow on restart")
 	return nil

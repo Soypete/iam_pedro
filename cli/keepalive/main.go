@@ -71,9 +71,12 @@ func main() {
 	}
 
 	// Add Twitch bot if URL is provided
+	// Extract base URL and add auth health endpoint
+	twitchBotAuthURL := getEnv("TWITCH_BOT_AUTH_URL", "http://localhost:6061/healthz/auth")
 	services = append(services, keepalive.ServiceConfig{
-		Name:      "Twitch Bot",
-		HealthURL: twitchBotURL,
+		Name:         "Twitch Bot",
+		HealthURL:    twitchBotURL,
+		AuthHealthURL: twitchBotAuthURL,
 	})
 
 	// Add VLLM/llama.cpp if LLAMA_CPP_PATH is set
