@@ -17,11 +17,10 @@ type Client struct {
 	modelName   string
 	logger      *logging.Logger
 	ddgClient   *duckduckgo.Client
-	gowestMode  bool
 }
 
 // Setup creates a new twitch chat bot.
-func Setup(llmPath string, modelName string, gowestMode bool, logger *logging.Logger) (*Client, error) {
+func Setup(llmPath string, modelName string, logger *logging.Logger) (*Client, error) {
 	if logger == nil {
 		logger = logging.Default()
 	}
@@ -47,15 +46,10 @@ func Setup(llmPath string, modelName string, gowestMode bool, logger *logging.Lo
 	// Initialize DuckDuckGo client
 	ddgClient := duckduckgo.NewClient()
 
-	if gowestMode {
-		logger.Info("GoWest conference mode enabled")
-	}
-
 	return &Client{
-		llm:        llm,
-		modelName:  modelName,
-		logger:     logger,
-		ddgClient:  ddgClient,
-		gowestMode: gowestMode,
+		llm:       llm,
+		modelName: modelName,
+		logger:    logger,
+		ddgClient: ddgClient,
 	}, nil
 }
