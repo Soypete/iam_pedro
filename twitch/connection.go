@@ -3,6 +3,7 @@ package twitchirc
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
 	"github.com/Soypete/twitch-llm-bot/database"
@@ -23,6 +24,7 @@ type IRC struct {
 	wg               *sync.WaitGroup
 	Client           *v2.Client
 	tok              *oauth2.Token
+	tokenRefreshTime time.Time        // Time when the token was last refreshed
 	llm              ai.Chatter
 	authCode         string
 	logger           *logging.Logger

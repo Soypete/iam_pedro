@@ -59,6 +59,11 @@ func main() {
 		logger.Error("failed to setup twitch IRC", "error", err.Error())
 		stop <- os.Interrupt
 	}
+
+	// Register auth health endpoint
+	server.RegisterAuthHealthHandler(irc.AuthHealthHandler())
+	logger.Debug("auth health endpoint registered at /healthz/auth")
+
 	logger.Info("starting twitch IRC connection")
 	// long running function
 	err = irc.ConnectIRC(ctx, wg)
