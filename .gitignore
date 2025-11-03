@@ -5,6 +5,7 @@
 *.so
 *.dylib
 *.swp
+bin/
 
 # macOS
 .DS_Store

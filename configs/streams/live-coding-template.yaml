@@ -1,0 +1,82 @@
+# Live Coding Stream Template
+# Copy this file and customize for your coding stream
+
+metadata:
+  slug: "live-coding-YYYY-MM-DD"  # Update with today's date
+  name: "Live Coding Stream - [Topic]"
+  meetup_group: ""  # Leave empty for regular streams
+  date: "2025-11-10T18:00:00-07:00"  # Update with stream date/time
+  duration_minutes: 120
+
+event_info:
+  title: "[What You're Building Today]"
+  description: "[Brief description of today's coding project, goals, and what viewers will learn]"
+
+location:
+  type: "virtual"
+  venue: "Twitch"
+  address: ""
+  parking: ""
+  accessibility: "Live on Twitch with chat interaction"
+
+links:
+  registration: ""
+  video_call: "https://twitch.tv/soypetetech"
+  dial_in: ""
+  more_phone_numbers: ""
+
+schedule:
+  - time: "18:00"
+    event: "Stream start - intro and overview"
+    duration_minutes: 10
+  - time: "18:10"
+    event: "Main coding session"
+    duration_minutes: 90
+  - time: "19:40"
+    event: "Q&A and wrap-up"
+    duration_minutes: 20
+
+speakers:
+  - name: "Miriah Peterson"
+    title: "Software Engineer & Streamer"
+    handle: "SoyPeteTech"
+    bio: "Self-taught developer specializing in Go and Data/AI. Streams live coding focused on practical, production-ready solutions."
+    talk_title: ""
+    talk_description: ""
+    social:
+      github: "soypete"
+      twitch: "soypetetech"
+
+hosts:
+  - name: "Miriah P."
+
+forge_info:
+  is_forge_event: false
+  about: ""
+  mission: ""
+  other_meetups: []
+  community_links:
+    website: ""
+  how_to_join: ""
+  how_to_speak: ""
+  sponsorship: ""
+
+bot_instructions:
+  response_style: "helpful and enthusiastic about coding"
+  key_points:
+    - "Today we're building [project description]"
+    - "Using [tech stack: Go, PostgreSQL, etc.]"
+    - "Great for learning [key concepts]"
+    - "Feel free to ask questions in chat!"
+    - "Code will be available on GitHub after stream"
+  encourage:
+    - "New to [language/tech]? Perfect time to learn!"
+    - "Don't hesitate to ask questions - we're all learning together"
+    - "Check out the GitHub repo if you want to follow along"
+
+# Additional notes for customization:
+# - Update the date and time to match your stream schedule
+# - Fill in the project description and tech stack
+# - Add any relevant GitHub repo links in the key_points
+# - Customize the encourage messages for your audience
+# - Keep descriptions concise (Pedro has a 500-char response limit)

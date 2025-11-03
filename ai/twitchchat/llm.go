@@ -30,7 +30,13 @@ func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid
 	now := time.Now().Format(time.DateOnly)
 	c.manageChatHistory(ctx, injection, llms.ChatMessageTypeHuman)
 
+	// Build system prompt with optional stream context addendum
 	systemPrompt := fmt.Sprintf(ai.PedroPrompt, now)
+	if c.streamConfig != "" && c.streamAddendum != "" {
+		systemPrompt += c.streamAddendum
+		c.logger.Debug("using stream context enhanced prompt", "streamConfig", c.streamConfig)
+	}
+
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, systemPrompt)}
 	messageHistory = append(messageHistory, c.chatHistory...)
 

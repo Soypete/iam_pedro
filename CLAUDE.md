@@ -23,6 +23,9 @@ go run ./cli/discord -model "your-model-name" -errorLevel debug
 
 # Run Twitch bot locally
 go run ./cli/twitch -model "your-model-name" -errorLevel debug
+
+# Run with stream context (provides Pedro with info about what's happening)
+go run ./cli/twitch -model "your-model-name" -streamConfig "configs/streams/golang-nov-2025.yaml"
 ```
 
 ### Testing
@@ -64,6 +67,15 @@ docker build -f cli/keepalive/keepaliveBot.Dockerfile -t pedro-keepalive .
 docker run -e LLAMA_CPP_PATH="http://127.0.0.1:8080" \
   -e POSTGRES_URL="" -e TWITCH_ID="" -e TWITCH_SECRET="" \
   -e POSTGRES_VECTOR_URL="" pedro-twitch
+
+# Run with stream config (mount configs directory)
+docker run \
+  -v $(pwd)/configs:/app/configs:ro \
+  -e LLAMA_CPP_PATH="http://127.0.0.1:8080" \
+  -e POSTGRES_URL="" -e TWITCH_ID="" -e TWITCH_SECRET="" \
+  pedro-twitch \
+  -model "your-model" \
+  -streamConfig "/app/configs/streams/golang-nov-2025.yaml"
 
 # Run keepalive service (uses prod.env with 1Password)
 docker run pedro-keepalive
@@ -212,6 +224,37 @@ Key tables: `twitch_chat`, `bot_response`, `discord_ask_pedro`, `discord_twenty_
 - Explicitly avoids Java and JavaScript discussions
 - Response limit: 500 characters, no newlines
 
+### Stream Context Configuration
+- **Purpose**: Provide Pedro with information about what's happening on stream
+- **Location**: `configs/streams/*.yaml` files
+- **Usage**: `-streamConfig` CLI flag with path to config file
+- **Types**: Supports meetups, live coding sessions, conferences, workshops
+- **Benefits**: Pedro can answer questions about events, speakers, topics, schedules
+
+**Config Structure**:
+- `metadata`: Name, date, duration
+- `event_info`: Title and description
+- `speakers`: Speaker bios and talk information
+- `schedule`: Timeline of events
+- `forge_info`: For Forge Utah meetup events
+- `bot_instructions`: Key points and response style
+
+**Files**:
+- `ai/meetup_config.go`: Config loader and prompt generator
+- `ai/twitchchat/setup.go`: `SetupWithStreamConfig()` function
+- `ai/twitchchat/llm.go`: Injects stream context into system prompt (line 33-38)
+
+**Examples**:
+- `configs/streams/golang-nov-2025.yaml`: Meetup event
+- `configs/streams/live-coding-template.yaml`: Regular coding stream
+- See `configs/streams/README.md` for Docker mounting and detailed usage
+
+**Docker**: Mount configs directory as volume:
+```bash
+docker run -v $(pwd)/configs:/app/configs:ro pedro-twitch \
+  -streamConfig "/app/configs/streams/your-config.yaml"
+```
+
 ### LLM Response Cleanup
 - All LLM responses are cleaned via `ai.CleanResponse()` which:
   - Removes newlines (Twitch has strict message format requirements)
@@ -231,6 +274,16 @@ Key tables: `twitch_chat`, `bot_response`, `discord_ask_pedro`, `discord_twenty_
 - Unit tests for core logic in `ai/helpers_test.go` and `ai/twitchchat/llm_test.go`
 - Integration tests for message handling in `twitch/handleMessage_test.go`
 - Use table-driven tests following Go conventions
+
+### Testing Guidelines
+- **Target Coverage**:
+  - ~70% for business logic
+  - 100% for helper functions
+- **Test File Naming**: `*_test.go` in same package
+- **Test Function Naming**: `TestFunctionName` or `Test_functionName` for unexported functions
+- **Table-Driven Tests**: Preferred for testing multiple scenarios
+- **Run Tests**: `go test ./... -v -cover`
+- **Coverage Report**: `go test ./... -coverprofile=coverage.out && go tool cover -html=coverage.out`
 
 ## Future Development (From README)
 

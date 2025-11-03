@@ -17,9 +17,11 @@ import (
 func main() {
 	var model string
 	var logLevel string
+	var streamConfig string
 
 	flag.StringVar(&model, "model", os.Getenv("MODEL"), "The model to use for the LLM")
 	flag.StringVar(&logLevel, "errorLevel", "info", "Log level (debug, info, warn, error)")
+	flag.StringVar(&streamConfig, "streamConfig", "", "Path to stream context config file (e.g., 'configs/streams/golang-nov-2025.yaml')")
 	flag.Parse()
 
 	// Initialize logger
@@ -46,7 +48,7 @@ func main() {
 	//  we are not actually connecting to openai, but we are using their api spec to connect to our own model via llama.cpp
 	_ = os.Setenv("OPENAI_API_KEY", "test")
 	llmPath := os.Getenv("LLAMA_CPP_PATH")
-	twitchllm, err := twitchchat.Setup(llmPath, model, logger)
+	twitchllm, err := twitchchat.SetupWithStreamConfig(llmPath, model, streamConfig, logger)
 	if err != nil {
 		logger.Error("failed to setup twitch LLM", "error", err.Error())
 		os.Exit(1)
