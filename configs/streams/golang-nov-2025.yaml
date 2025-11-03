@@ -1,0 +1,79 @@
+# Utah Go User Group - November 2025 Meetup
+# Beyond Hello World: Mastering net/http for Production Go Services
+
+metadata:
+  slug: "golang-nov-2025"
+  name: "Utah Go User Group - November 2025"
+  meetup_group: "golang"
+  date: "2025-11-06T18:30:00-07:00"  # Update with actual date
+  duration_minutes: 60
+
+event_info:
+  title: "Beyond Hello World: Mastering net/http for Production Go Services"
+  description: "A practical deep dive into Go's net/http package covering building robust HTTP servers, request routing patterns, authentication strategies, connection pooling configuration, and testing with httptest. Learn why you don't always need a framework and how to avoid common pitfalls like using the default HTTP client in production."
+
+location:
+  type: "virtual"  # virtual, hybrid, in-person
+  venue: "Google Meet"
+  address: ""
+  parking: ""
+  accessibility: "Virtual event accessible to all"
+
+links:
+  registration: "https://www.meetup.com/utah-go-user-group/"
+  video_call: "https://meet.google.com/dkn-ekxb-qrj"
+  dial_in: "+1 336-673-3641, PIN: 540 425 241#"
+  more_phone_numbers: "https://tel.meet/dkn-ekxb-qrj?pin=6901484653898"
+
+schedule:
+  - time: "18:30"
+    event: "Introduction and announcements"
+    duration_minutes: 5
+  - time: "18:35"
+    event: "Main Presentation: Beyond Hello World"
+    duration_minutes: 40
+    speaker: "Miriah Peterson"
+  - time: "19:15"
+    event: "Open discussion - tech/architecture/ops/whatever"
+    duration_minutes: 45
+
+speakers:
+  - name: "Miriah Peterson"
+    title: "Member of Technical Staff"
+    handle: "SoyPeteTech"
+    bio: "Self-taught developer based in Utah, specializing in Golang and Data/AI. Streams live coding on Twitch and is passionate about production-ready Go services. Member of Technical Staff at a startup."
+    talk_title: "Beyond Hello World: Mastering net/http for Production Go Services"
+    talk_description: "A practical deep dive into Go's net/http package covering building robust HTTP servers, request routing patterns, authentication strategies, connection pooling configuration, and testing with httptest. Learn why you don't always need a framework and how to avoid common pitfalls like using the default HTTP client in production."
+    social:
+      github: "soypete"
+      twitch: "soypetetech"
+
+hosts:
+  - name: "Clint B."
+  - name: "Miriah P."
+
+forge_info:
+  is_forge_event: true
+  about: "Utah Go User Group is part of Forge Utah Foundation, a non-profit supporting local tech communities through meetups, workshops, and networking events."
+  mission: "Building Utah's tech community through education, collaboration, and networking"
+  other_meetups:
+    - "Data Engineering & AI Meetup"
+    - "Cloud Native Utah"
+  community_links:
+    website: "https://forgeutah.org"
+  how_to_join: "Visit forgeutah.org or join us on Meetup.com - all events are free and open to everyone!"
+  how_to_speak: "Want to share your knowledge? Reach out to organizers on Meetup.com or ping us in community chat. We welcome speakers at all experience levels!"
+  sponsorship: "Interested in sponsoring? Contact organizers through Meetup.com to help us provide food, venue, and resources for the community."
+
+bot_instructions:
+  response_style: "enthusiastic and welcoming"
+  key_points:
+    - "This is a virtual event - anyone can join via Google Meet"
+    - "Perfect for Go developers at all levels - from beginners to production experts"
+    - "Part of Forge Utah Foundation's mission to build tech community in Utah"
+    - "Stay after the presentation for open discussion about tech/architecture/ops"
+    - "All Forge Utah events are free and welcoming to everyone"
+  encourage:
+    - "First time at a meetup? You're welcome! We love newcomers"
+    - "Have questions about Go? Perfect time to ask during the discussion"
+    - "Want to speak at a future meetup? Let the organizers know!"

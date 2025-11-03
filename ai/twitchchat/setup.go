@@ -4,6 +4,7 @@ package twitchchat
 import (
 	"fmt"
 
+	"github.com/Soypete/twitch-llm-bot/ai"
 	"github.com/Soypete/twitch-llm-bot/duckduckgo"
 	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/tmc/langchaingo/llms"
@@ -12,20 +13,27 @@ import (
 
 // Client is a client for interacting with the OpenAI LLM and the database.
 type Client struct {
-	llm         llms.Model
-	chatHistory []llms.MessageContent
-	modelName   string
-	logger      *logging.Logger
-	ddgClient   *duckduckgo.Client
+	llm            llms.Model
+	chatHistory    []llms.MessageContent
+	modelName      string
+	logger         *logging.Logger
+	ddgClient      *duckduckgo.Client
+	streamConfig   string
+	streamAddendum string
 }
 
 // Setup creates a new twitch chat bot.
 func Setup(llmPath string, modelName string, logger *logging.Logger) (*Client, error) {
+	return SetupWithStreamConfig(llmPath, modelName, "", logger)
+}
+
+// SetupWithStreamConfig creates a new twitch chat bot with optional stream context configuration.
+func SetupWithStreamConfig(llmPath string, modelName string, streamConfigPath string, logger *logging.Logger) (*Client, error) {
 	if logger == nil {
 		logger = logging.Default()
 	}
 
-	logger.Info("setting up twitch chat LLM client", "path", llmPath)
+	logger.Info("setting up twitch chat LLM client", "path", llmPath, "streamConfig", streamConfigPath)
 
 	// Ensure the path ends with /v1 for OpenAI-compatible API
 	if llmPath != "" && llmPath[len(llmPath)-3:] != "/v1" {
@@ -46,10 +54,37 @@ func Setup(llmPath string, modelName string, logger *logging.Logger) (*Client, e
 	// Initialize DuckDuckGo client
 	ddgClient := duckduckgo.NewClient()
 
-	return &Client{
-		llm:       llm,
-		modelName: modelName,
-		logger:    logger,
-		ddgClient: ddgClient,
-	}, nil
+	client := &Client{
+		llm:          llm,
+		modelName:    modelName,
+		logger:       logger,
+		ddgClient:    ddgClient,
+		streamConfig: streamConfigPath,
+	}
+
+	// Load stream config if path provided
+	if streamConfigPath != "" {
+		logger.Info("loading stream configuration", "path", streamConfigPath)
+		config, err := ai.LoadStreamConfig(streamConfigPath)
+		if err != nil {
+			logger.Error("failed to load stream config", "error", err.Error(), "path", streamConfigPath)
+			return nil, fmt.Errorf("failed to load stream config from '%s': %w", streamConfigPath, err)
+		}
+
+		client.streamAddendum = ai.GenerateMeetupAddendum(config)
+		logger.Info("stream context enabled", "eventTitle", config.EventInfo.Title)
+	}
+
+	return client, nil
+}
+
+// SetupWithMeetupMode is deprecated - use SetupWithStreamConfig instead
+// Kept for backward compatibility
+func SetupWithMeetupMode(llmPath string, modelName string, meetupSlug string, logger *logging.Logger) (*Client, error) {
+	if meetupSlug == "" {
+		return SetupWithStreamConfig(llmPath, modelName, "", logger)
+	}
+	// Convert slug to path for backward compatibility
+	configPath := fmt.Sprintf("configs/streams/%s.yaml", meetupSlug)
+	return SetupWithStreamConfig(llmPath, modelName, configPath, logger)
 }
