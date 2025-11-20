@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
+	"github.com/Soypete/twitch-llm-bot/ai/agent"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/tmc/langchaingo/llms"
 )
 
-const askPedroPrompt = "Your name is Pedro. You are a chat bot that helps out in SoyPeteTech's discord server. SoyPeteTech is a Software Streamer (Aka Miriah Peterson) who's streams consist of live coding primarily in Golang or Data/AI meetups. She also published shorts to tiktok, videos to youtube, and blogs to substack. Your code is found at https://github.com/SoyPete/IamPedro. All other links are on https://linktr.ee/soypete_tech. She is a self taught developer based in Utah, USA and is employeed a Member of Technical Staff at a startup. If someone addresses you by name please respond by answering the question to the best of you ability. You can use code to express fun messages about software. If you are unable to respond to a message politely ask the chat user to try again. If the chat user is being rude or inappropriate please ignore them. Keep your responses fun and engaging. Here are some approved emotes Do not talk about Java or Javascript! Have fun!"
+const askPedroPrompt = "Your name is Pedro. You are a chat bot that helps out in SoyPeteTech's discord server. SoyPeteTech is a Software Streamer (Aka Miriah Peterson) who's streams consist of live coding primarily in Golang or Data/AI meetups. She also published shorts to tiktok, videos to youtube, and blogs to substack. Your code is found at https://github.com/SoyPete/IamPedro. All other links are on https://linktr.ee/soypete_tech. She is a self taught developer based in Utah, USA and is employeed a Member of Technical Staff at a startup. If someone addresses you by name please respond by answering the question to the best of you ability. You can use code to express fun messages about software. If you are unsure about current events, news, or need to look up recent information, you can use the web_search tool to find up-to-date information. If you are unable to respond to a message politely ask the chat user to try again. If the chat user is being rude or inappropriate please ignore them. Keep your responses fun and engaging. Here are some approved emotes Do not talk about Java or Javascript! Have fun!"
 
 // SingleMessageResponse is a response from the LLM model to a single message
 func (b *Bot) SingleMessageResponse(ctx context.Context, msg types.DiscordAskMessage) (*types.DiscordResponse, error) {
@@ -26,19 +27,51 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg types.DiscordAskMes
 	messageHistory = append(messageHistory, b.chatHistory...)
 
 	b.logger.Debug("calling LLM for discord message", "messageID", msg.ThreadID, "model", b.modelName)
-	resp, err := b.llm.GenerateContent(context.Background(), messageHistory,
+
+	// Get web search tool definition from shared agent package
+	toolDefinition := agent.GetWebSearchToolDefinition()
+
+	resp, err := b.llm.GenerateContent(ctx, messageHistory,
 		llms.WithModel(b.modelName),
 		llms.WithCandidateCount(1),
 		llms.WithMaxLength(500),
 		llms.WithTemperature(0.7),
-		llms.WithPresencePenalty(1.0), // 2 is the largest penalty for using a work that has already been used
-		llms.WithStopWords([]string{"@pedro", "@Pedro", "@PedroAI", "@PedroAI_"}))
+		llms.WithPresencePenalty(1.0),
+		llms.WithStopWords([]string{"@pedro", "@Pedro", "@PedroAI", "@PedroAI_"}),
+		llms.WithTools([]llms.Tool{toolDefinition}))
 	if err != nil {
 		b.logger.Error("failed to get discord LLM response", "error", err.Error(), "messageID", msg.ThreadID)
 		metrics.FailedLLMGenCount.Add(1)
 		return nil, fmt.Errorf("failed to get llm response: %w", err)
 	}
 
+	// Check if the LLM wants to call a tool
+	if len(resp.Choices) > 0 && len(resp.Choices[0].ToolCalls) > 0 {
+		toolCall := resp.Choices[0].ToolCalls[0]
+		b.logger.Debug("tool call requested", "function", toolCall.FunctionCall.Name, "messageID", msg.ThreadID)
+
+		if toolCall.FunctionCall.Name == "web_search" {
+			// Parse the tool call using shared agent package
+			query, err := agent.ParseWebSearchToolCall(toolCall)
+			if err != nil {
+				b.logger.Error("failed to parse tool call arguments", "error", err.Error())
+				return &types.DiscordResponse{
+					Text: "Sorry, I had trouble understanding the search request :confused:",
+				}, nil
+			}
+
+			b.logger.Debug("web search requested via tool call", "query", query, "messageID", msg.ThreadID)
+			return &types.DiscordResponse{
+				Text: "one second and I will look that up for you :thinking:",
+				WebSearch: &types.WebSearchRequest{
+					Query:       query,
+					ChatHistory: b.chatHistory,
+				},
+			}, nil
+		}
+	}
+
+	// No tool call, just return the text response
 	prompt := ai.CleanResponse(resp.Choices[0].Content)
 	b.logger.Debug("received discord LLM response", "messageID", msg.ThreadID, "responseLength", len(prompt))
 
@@ -53,30 +86,6 @@ func (b *Bot) SingleMessageResponse(ctx context.Context, msg types.DiscordAskMes
 
 	// Add Pedro's response to chat history
 	b.manageChatHistory(ctx, []string{prompt}, llms.ChatMessageTypeAI)
-
-	// Check if the response indicates a web search is needed
-	if strings.Contains(prompt, "execute web search") {
-		b.logger.Debug("web search requested", "messageID", msg.ThreadID)
-
-		// Extract search query from the prompt by splitting after "execute web search"
-		parts := strings.Split(prompt, "execute web search")
-		searchQuery := ""
-		if len(parts) > 1 {
-			searchQuery = strings.TrimSpace(parts[len(parts)-1])
-		}
-
-		if searchQuery == "" {
-			searchQuery = msg.Message // fallback to original message
-		}
-
-		return &types.DiscordResponse{
-			Text: "one second and I will look that up for you :thinking:",
-			WebSearch: &types.WebSearchRequest{
-				Query:       searchQuery,
-				ChatHistory: b.chatHistory,
-			},
-		}, nil
-	}
 
 	b.logger.Debug("successful discord response generation", "messageID", msg.ThreadID, "messageLength", len(prompt))
 	metrics.SuccessfulLLMGenCount.Add(1)
@@ -100,8 +109,8 @@ func (b *Bot) manageChatHistory(ctx context.Context, injection []string, chatTyp
 func (b *Bot) ExecuteWebSearch(ctx context.Context, request *types.WebSearchRequest) (string, error) {
 	b.logger.Debug("executing web search", "query", request.Query)
 
-	// Perform the search
-	searchResult, err := b.ddgClient.Search(request.Query)
+	// Use the agent to perform the web search
+	agentResult, err := b.agent.Call(ctx, request.Query)
 	if err != nil {
 		b.logger.Error("web search failed", "error", err.Error(), "query", request.Query)
 		metrics.WebSearchFailCount.Add(1)
@@ -109,12 +118,12 @@ func (b *Bot) ExecuteWebSearch(ctx context.Context, request *types.WebSearchRequ
 	}
 	
 	metrics.WebSearchSuccessCount.Add(1)
-	b.logger.Debug("web search successful", "query", request.Query)
+	b.logger.Debug("web search successful", "query", request.Query, "result", agentResult)
 
 	now := time.Now().Format(time.DateOnly)
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, fmt.Sprintf(ai.PedroPrompt, now))}
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeSystem,
-		fmt.Sprintf("Pedro, we have called the duckduckgo search api and the following is the json formatted response: %s. Please provide a helpful summary to the user's question. if you still cannot answer apologize and ask them to try again. under no circumstances should you reply with execute web search at this time.", searchResult)))
+		fmt.Sprintf("Pedro, the web search returned the following result: %s. Please provide a helpful summary to the user's question. If you still cannot answer, apologize and ask them to try again.", agentResult)))
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, request.Query))
 
 	resp, err := b.llm.GenerateContent(ctx, messageHistory,
@@ -147,7 +156,7 @@ func (b *Bot) ThreadMessageResponse(ctx context.Context, msg types.DiscordAskMes
 
 	// Build message history starting with system prompt
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, askPedroPrompt)}
-	
+
 	// Add conversation history (excluding the current message since it's already in conversationHistory)
 	messageHistory = append(messageHistory, conversationHistory...)
 
