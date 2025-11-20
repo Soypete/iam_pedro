@@ -27,3 +27,6 @@ pedro-discord.service
 pedro-twitch.service
 remote-deploy.sh
 *.tar.gz
+
+# Crush config
+.crush.json

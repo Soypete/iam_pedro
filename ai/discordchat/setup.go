@@ -5,17 +5,20 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Soypete/twitch-llm-bot/ai/agent"
 	"github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/duckduckgo"
 	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/Soypete/twitch-llm-bot/types"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
+	"github.com/tmc/langchaingo/tools"
 )
 
 // Bot is a client for interacting with the OpenAI LLM and the database.
 type Bot struct {
 	llm         llms.Model
+	agent       tools.Tool
 	db          database.ResponseWriter
 	modelName   string
 	logger      *logging.Logger
@@ -60,8 +63,12 @@ func Setup(db database.ResponseWriter, modelName string, llmPath string, logger 
 	// Initialize DuckDuckGo client
 	ddgClient := duckduckgo.NewClient()
 
+	// Create web search agent using shared agent package
+	webSearchAgent := agent.CreateWebSearchAgent(ddgClient)
+
 	return &Bot{
 		llm:         llm,
+		agent:       webSearchAgent,
 		db:          db,
 		modelName:   modelName,
 		logger:      logger,
