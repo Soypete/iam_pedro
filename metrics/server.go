@@ -24,6 +24,12 @@ var (
 	WebSearchSuccessCount      = expvar.NewInt("web_search_success_count")
 	WebSearchFailCount         = expvar.NewInt("web_search_fail_count")
 
+	// Moderation metrics (expvar)
+	ModActionTotal    = expvar.NewInt("mod_action_total")
+	ModActionSuccess  = expvar.NewInt("mod_action_success")
+	ModActionFailed   = expvar.NewInt("mod_action_failed")
+	ModActionNoAction = expvar.NewInt("mod_action_no_action")
+
 	// Prometheus metrics with labels
 	DiscordCommandTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -57,6 +63,30 @@ var (
 		},
 		[]string{"status"},
 	)
+
+	// Moderation Prometheus metrics
+	ModerationActionsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "moderation_actions_total",
+			Help: "Total number of moderation actions by tool type",
+		},
+		[]string{"tool", "success"},
+	)
+
+	ModerationEvaluationsTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "moderation_evaluations_total",
+			Help: "Total number of messages evaluated for moderation",
+		},
+	)
+
+	ModerationDecisionDuration = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "moderation_decision_duration_seconds",
+			Help:    "Duration of moderation decision-making process",
+			Buckets: prometheus.DefBuckets,
+		},
+	)
 )
 
 type Server struct {
@@ -83,6 +113,10 @@ func SetupServer() *Server {
 	DiscordMessageSent.Set(0)
 	WebSearchSuccessCount.Set(0)
 	WebSearchFailCount.Set(0)
+	ModActionTotal.Set(0)
+	ModActionSuccess.Set(0)
+	ModActionFailed.Set(0)
+	ModActionNoAction.Set(0)
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(
@@ -101,6 +135,10 @@ func SetupServer() *Server {
 				"failed_llm_gen_count":          prometheus.NewDesc("failed_llm_gen_count", "number of times errors occured in llm generation", nil, nil),
 				"web_search_success_count":      prometheus.NewDesc("web_search_success_count", "number of successful web searches", nil, nil),
 				"web_search_fail_count":         prometheus.NewDesc("web_search_fail_count", "number of failed web searches", nil, nil),
+				"mod_action_total":              prometheus.NewDesc("mod_action_total", "total number of moderation actions", nil, nil),
+				"mod_action_success":            prometheus.NewDesc("mod_action_success", "number of successful moderation actions", nil, nil),
+				"mod_action_failed":             prometheus.NewDesc("mod_action_failed", "number of failed moderation actions", nil, nil),
+				"mod_action_no_action":          prometheus.NewDesc("mod_action_no_action", "number of no-action moderation decisions", nil, nil),
 			},
 		),
 		// Register Discord command metrics with labels
@@ -108,6 +146,10 @@ func SetupServer() *Server {
 		DiscordCommandErrors,
 		DiscordCommandDuration,
 		DiscordStumpPedroGames,
+		// Register moderation metrics
+		ModerationActionsTotal,
+		ModerationEvaluationsTotal,
+		ModerationDecisionDuration,
 	)
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))

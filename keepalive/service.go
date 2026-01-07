@@ -268,7 +268,7 @@ func (kas *KeepAliveService) checkAuthHealth(ctx context.Context, state *Service
 			"url", state.AuthHealthURL)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		kas.logger.Debug("auth health check returned non-OK status",
