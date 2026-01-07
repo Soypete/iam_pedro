@@ -1,0 +1,65 @@
+# Moderation Configuration for Pedro
+# Copy this file to configs/moderation.yaml and customize
+
+enabled: true
+
+# Channels to moderate (empty = all channels)
+channels: []
+
+# Sensitivity level: conservative, moderate, aggressive
+# - conservative: Only act on obvious, severe violations
+# - moderate: Act on clear violations, give benefit of doubt
+# - aggressive: Act on potential violations, err on side of caution
+sensitivity_level: moderate
+
+# Allowed moderation tools (whitelist)
+# Available tools:
+# - no_action: Take no action (always recommended to include)
+# - warn_user: Send a warning message
+# - timeout_user: Temporarily ban user
+# - ban_user: Permanently ban user
+# - unban_user: Remove ban/timeout
+# - delete_message: Delete a single message
+# - clear_chat: Clear all chat messages
+# - emote_only_mode: Toggle emote-only mode
+# - subscriber_only_mode: Toggle subscriber-only mode
+# - follower_only_mode: Toggle follower-only mode
+# - slow_mode: Toggle slow mode
+allowed_tools:
+  - no_action
+  - warn_user
+  - timeout_user
+  - delete_message
+
+# Rate limits to prevent abuse
+rate_limits:
+  # Maximum moderation actions per minute
+  actions_per_minute: 10
+  # Maximum permanent bans per hour
+  bans_per_hour: 5
+  # Maximum timeouts per user per hour
+  timeouts_per_user_per_hour: 3
+
+# Channel rules included in LLM context
+channel_rules:
+  - "Be respectful to all community members"
+  - "No spam or self-promotion without permission"
+  - "No hate speech, harassment, or discrimination"
+  - "Keep discussions relevant to the stream content"
+  - "No excessive caps or repeated characters"
+  - "Links must be relevant to the conversation"
+  - "No backseat gaming unless asked"
+  - "No talking about Java in chat - 5 minute timeout for violations"
+
+# Dry run mode - log actions but don't execute them
+# Recommended for initial testing
+dry_run: true
+
+# Escalation configuration for repeat offenders
+escalation:
+  # Number of warnings before automatic timeout
+  warnings_before_timeout: 2
+  # Number of timeouts before automatic ban
+  timeouts_before_ban: 3
+  # Multiplier for timeout duration on repeat offenses (e.g., 60s -> 120s -> 240s)
+  timeout_multiplier: 2.0

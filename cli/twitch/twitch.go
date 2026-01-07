@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"sync"
 
+	"github.com/Soypete/twitch-llm-bot/ai"
 	"github.com/Soypete/twitch-llm-bot/ai/twitchchat"
 	database "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/logging"
@@ -18,10 +19,16 @@ func main() {
 	var model string
 	var logLevel string
 	var streamConfig string
+	var modConfigPath string
+	var enableModeration bool
+	var dryRun bool
 
 	flag.StringVar(&model, "model", os.Getenv("MODEL"), "The model to use for the LLM")
 	flag.StringVar(&logLevel, "errorLevel", "info", "Log level (debug, info, warn, error)")
 	flag.StringVar(&streamConfig, "streamConfig", "", "Path to stream context config file (e.g., 'configs/streams/golang-nov-2025.yaml')")
+	flag.StringVar(&modConfigPath, "modConfig", "", "Path to moderation config file (e.g., 'configs/moderation.yaml')")
+	flag.BoolVar(&enableModeration, "enableModeration", false, "Enable chat moderation system")
+	flag.BoolVar(&dryRun, "modDryRun", false, "Run moderation in dry-run mode (log actions without executing)")
 	flag.Parse()
 
 	// Initialize logger
@@ -54,9 +61,44 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Load moderation config if enabled
+	var modConfig *ai.ModerationConfig
+	if enableModeration || modConfigPath != "" {
+		if modConfigPath != "" {
+			modConfig, err = ai.LoadModerationConfig(modConfigPath)
+			if err != nil {
+				logger.Error("failed to load moderation config", "error", err.Error())
+				os.Exit(1)
+			}
+			logger.Info("loaded moderation config", "path", modConfigPath)
+		} else {
+			// Use default config if no path provided but moderation is enabled
+			modConfig = ai.DefaultModerationConfig()
+			logger.Info("using default moderation config")
+		}
+
+		// Override enabled and dry-run from flags
+		if enableModeration {
+			modConfig.Enabled = true
+		}
+		if dryRun {
+			modConfig.DryRun = true
+		}
+
+		logger.Info("moderation configuration",
+			"enabled", modConfig.Enabled,
+			"dryRun", modConfig.DryRun,
+			"sensitivity", modConfig.SensitivityLevel,
+		)
+	}
+
 	var irc *twitchirc.IRC
-	// setup twitch IRC
-	irc, err = twitchirc.SetupTwitchIRC(wg, twitchllm, model, db, logger)
+	// setup twitch IRC with optional moderation
+	if modConfig != nil && modConfig.Enabled {
+		irc, err = twitchirc.SetupTwitchIRCWithModeration(wg, twitchllm, model, db, db, modConfig, logger)
+	} else {
+		irc, err = twitchirc.SetupTwitchIRC(wg, twitchllm, model, db, logger)
+	}
 	if err != nil {
 		logger.Error("failed to setup twitch IRC", "error", err.Error())
 		stop <- os.Interrupt
