@@ -29,6 +29,7 @@ type IRC struct {
 	authCode         string
 	logger           *logging.Logger
 	asyncResponseCh  chan types.TwitchMessage
+	faqProcessor     *FAQProcessor
 }
 
 // SetupTwitchIRC sets up the IRC, configures oauth, and inits connection functions.
@@ -59,6 +60,13 @@ func SetupTwitchIRC(wg *sync.WaitGroup, llm ai.Chatter, modelName string, db dat
 	return irc, nil
 }
 
+// SetFAQProcessor sets the FAQ processor for semantic FAQ matching
+// The FAQ processor runs in parallel with the main chat processing
+func (irc *IRC) SetFAQProcessor(processor *FAQProcessor) {
+	irc.faqProcessor = processor
+	irc.logger.Info("FAQ processor enabled")
+}
+
 // connectIRC gets the auth and connects to the twitch IRC server for channel.
 func (irc *IRC) ConnectIRC(ctx context.Context, wg *sync.WaitGroup) error {
 	irc.logger.Info("connecting to twitch IRC")
@@ -83,7 +91,7 @@ func (irc *IRC) ConnectIRC(ctx context.Context, wg *sync.WaitGroup) error {
 	return nil
 }
 
-// handleAsyncResponses listens for async responses (like web search results) and sends them to chat
+// handleAsyncResponses listens for async responses (like web search results and FAQ matches) and sends them to chat
 func (irc *IRC) handleAsyncResponses(ctx context.Context) {
 	for {
 		select {
@@ -91,16 +99,22 @@ func (irc *IRC) handleAsyncResponses(ctx context.Context) {
 			irc.logger.Info("shutting down async response handler")
 			return
 		case response := <-irc.asyncResponseCh:
-			irc.logger.Debug("received async response", "messageID", response.UUID, "responseLength", len(response.Text))
-			
-			// Store the response in the database
-			err := irc.db.InsertResponse(ctx, response, irc.modelName)
-			if err != nil {
-				irc.logger.Error("failed to insert async response into database", "error", err.Error(), "messageID", response.UUID)
+			irc.logger.Debug("received async response", "messageID", response.UUID, "username", response.Username, "responseLength", len(response.Text))
+
+			// FAQ responses are already stored by the FAQ service, skip database insert
+			// FAQ responses have Username = "Pedro_FAQ"
+			if response.Username != "Pedro_FAQ" {
+				// Store the response in the database (web search responses, etc.)
+				err := irc.db.InsertResponse(ctx, response, irc.modelName)
+				if err != nil {
+					irc.logger.Error("failed to insert async response into database", "error", err.Error(), "messageID", response.UUID)
+				} else {
+					irc.logger.Debug("async response stored in database", "messageID", response.UUID)
+				}
 			} else {
-				irc.logger.Debug("async web search response stored in database", "messageID", response.UUID)
+				irc.logger.Debug("FAQ response, skipping database insert")
 			}
-			
+
 			// Send the response to Twitch chat
 			irc.Client.Say(peteTwitchChannel, response.Text)
 			metrics.TwitchMessageSentCount.Add(1)

@@ -59,6 +59,13 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 		return
 	}
 
+	// Fork message to FAQ processor (non-blocking, runs in parallel)
+	// This checks if the message matches any FAQ entries and responds automatically
+	if irc.faqProcessor != nil && ShouldProcessMessage(msg) {
+		metrics.FAQCheckCount.Add(1)
+		go irc.faqProcessor.ProcessMessageFromPrivate(ctx, msg)
+	}
+
 	// TODO: replace nitbot commands with a classifier model that prompts the LLM
 	if strings.Contains(chat.Text, "Pedro") || strings.Contains(chat.Text, "pedro") || strings.Contains(chat.Text, "soy_llm_bot") {
 		irc.logger.Debug("processing message that mentions bot")

@@ -23,6 +23,10 @@ var (
 	DiscordMessageSent         = expvar.NewInt("discord_message_sent")
 	WebSearchSuccessCount      = expvar.NewInt("web_search_success_count")
 	WebSearchFailCount         = expvar.NewInt("web_search_fail_count")
+	FAQCheckCount              = expvar.NewInt("faq_check_count")
+	FAQMatchCount              = expvar.NewInt("faq_match_count")
+	FAQResponseSentCount       = expvar.NewInt("faq_response_sent_count")
+	FAQCheckFailCount          = expvar.NewInt("faq_check_fail_count")
 
 	// Prometheus metrics with labels
 	DiscordCommandTotal = prometheus.NewCounterVec(
@@ -83,6 +87,10 @@ func SetupServer() *Server {
 	DiscordMessageSent.Set(0)
 	WebSearchSuccessCount.Set(0)
 	WebSearchFailCount.Set(0)
+	FAQCheckCount.Set(0)
+	FAQMatchCount.Set(0)
+	FAQResponseSentCount.Set(0)
+	FAQCheckFailCount.Set(0)
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(
@@ -101,6 +109,10 @@ func SetupServer() *Server {
 				"failed_llm_gen_count":          prometheus.NewDesc("failed_llm_gen_count", "number of times errors occured in llm generation", nil, nil),
 				"web_search_success_count":      prometheus.NewDesc("web_search_success_count", "number of successful web searches", nil, nil),
 				"web_search_fail_count":         prometheus.NewDesc("web_search_fail_count", "number of failed web searches", nil, nil),
+				"faq_check_count":               prometheus.NewDesc("faq_check_count", "number of FAQ checks performed", nil, nil),
+				"faq_match_count":               prometheus.NewDesc("faq_match_count", "number of FAQ matches found", nil, nil),
+				"faq_response_sent_count":       prometheus.NewDesc("faq_response_sent_count", "number of FAQ responses sent", nil, nil),
+				"faq_check_fail_count":          prometheus.NewDesc("faq_check_fail_count", "number of FAQ check failures", nil, nil),
 			},
 		),
 		// Register Discord command metrics with labels
