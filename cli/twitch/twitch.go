@@ -11,6 +11,7 @@ import (
 	"github.com/Soypete/twitch-llm-bot/ai"
 	"github.com/Soypete/twitch-llm-bot/ai/twitchchat"
 	database "github.com/Soypete/twitch-llm-bot/database"
+	"github.com/Soypete/twitch-llm-bot/faq"
 	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	twitchirc "github.com/Soypete/twitch-llm-bot/twitch"
@@ -23,6 +24,7 @@ func main() {
 	var modConfigPath string
 	var enableModeration bool
 	var dryRun bool
+	var faqConfig string
 
 	flag.StringVar(&model, "model", os.Getenv("MODEL"), "The model to use for the LLM")
 	flag.StringVar(&logLevel, "errorLevel", "info", "Log level (debug, info, warn, error)")
@@ -30,6 +32,7 @@ func main() {
 	flag.StringVar(&modConfigPath, "modConfig", "", "Path to moderation config file (e.g., 'configs/moderation.yaml')")
 	flag.BoolVar(&enableModeration, "enableModeration", false, "Enable chat moderation system")
 	flag.BoolVar(&dryRun, "modDryRun", false, "Run moderation in dry-run mode (log actions without executing)")
+	flag.StringVar(&faqConfig, "faqConfig", "", "Path to FAQ config file for semantic FAQ responses (e.g., 'configs/faq/entries.yaml')")
 	flag.Parse()
 
 	// Initialize logger
@@ -105,6 +108,21 @@ func main() {
 		stop <- os.Interrupt
 	}
 
+	// Setup FAQ service if config is provided
+	if faqConfig != "" {
+		logger.Info("setting up FAQ service", "config", faqConfig)
+		faqService, err := setupFAQService(db, llmPath, model, faqConfig, logger)
+		if err != nil {
+			logger.Error("failed to setup FAQ service", "error", err.Error())
+			// Continue without FAQ - it's optional
+		} else {
+			// Create FAQ processor and attach to IRC
+			faqProcessor := twitchirc.NewFAQProcessor(faqService, irc.GetAsyncResponseChannel(), logger)
+			irc.SetFAQProcessor(faqProcessor)
+			logger.Info("FAQ service enabled and attached to Twitch IRC")
+		}
+	}
+
 	// Register auth health endpoint
 	server.RegisterAuthHealthHandler(irc.AuthHealthHandler())
 	logger.Debug("auth health endpoint registered at /healthz/auth")
@@ -142,6 +160,33 @@ func main() {
 		}
 	}()
 	Shutdown(ctx, wg, irc, stop, logger)
+}
+
+// setupFAQService initializes the FAQ service from a config file
+func setupFAQService(db *database.Postgres, llmPath, chatModel, configPath string, logger *logging.Logger) (*faq.Service, error) {
+	// Load FAQ config
+	config, err := faq.LoadConfig(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Info("loaded FAQ config",
+		"entries", len(config.Entries),
+		"embeddingModel", config.EmbeddingModel,
+		"threshold", config.SimilarityThreshold,
+	)
+
+	// Create FAQ service
+	serviceConfig := faq.ServiceConfig{
+		LLMPath:             llmPath,
+		EmbeddingModel:      config.EmbeddingModel,
+		ChatModel:           chatModel,
+		SimilarityThreshold: config.SimilarityThreshold,
+		UsePerUserCooldown:  true, // Enable per-user cooldowns
+		Logger:              logger,
+	}
+
+	return faq.NewService(db.DB(), serviceConfig)
 }
 
 // Shutdown cancels the context and logs a message.
