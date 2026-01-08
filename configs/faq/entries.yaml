@@ -1,0 +1,155 @@
+# FAQ Entries Configuration
+# This file defines semantic FAQ entries for automatic chat responses
+#
+# How it works:
+# 1. When a viewer sends a message, it's compared against these FAQ questions
+# 2. If the message is semantically similar (above the threshold), Pedro responds automatically
+# 3. The response is generated naturally by the LLM using the cached response as context
+#
+# Usage:
+#   faq sync --config configs/faq/entries.yaml
+#
+# Notes:
+# - Question text is used to generate embeddings for semantic matching
+# - Keep questions conversational and similar to how viewers might ask
+# - Cooldowns prevent spam (in seconds)
+# - Categories are for organization only
+
+# Embedding model used for generating question embeddings
+# IMPORTANT: If you change this model, run 'faq sync' to regenerate all embeddings
+embedding_model: "text-embedding-3-small"
+
+# Minimum cosine similarity score to trigger a response
+# Higher = more strict matching, lower = more lenient
+# Recommended range: 0.70-0.85
+similarity_threshold: 0.75
+
+# Default cooldown for entries that don't specify one (in seconds)
+default_cooldown_seconds: 300
+
+entries:
+  # =========================================
+  # SOCIAL MEDIA & CONTENT
+  # =========================================
+
+  - question: "What's your YouTube channel?"
+    response: "Check out SoypeteTech on YouTube for Go tutorials, tech talks, and more: https://youtube.com/@soypetetech"
+    category: "social"
+    is_active: true
+    cooldown_seconds: 600
+
+  - question: "Where can I find your videos?"
+    response: "All my videos are on YouTube at https://youtube.com/@soypetetech - subscribe for Go, data engineering, and tech content!"
+    category: "social"
+    is_active: true
+    cooldown_seconds: 600
+
+  - question: "Do you have a Twitter account?"
+    response: "Yes! Follow me on Twitter/X at @soypete01 for tech updates and stream announcements"
+    category: "social"
+    is_active: true
+    cooldown_seconds: 600
+
+  - question: "Where can I follow you on social media?"
+    response: "Find me on YouTube (youtube.com/@soypetetech), Twitter (@soypete01), and GitHub (github.com/Soypete)!"
+    category: "social"
+    is_active: true
+    cooldown_seconds: 600
+
+  # =========================================
+  # SCHEDULE & STREAMS
+  # =========================================
+
+  - question: "When do you stream?"
+    response: "I typically stream Tuesdays and Thursdays at 7pm Mountain Time. Check out the schedule at soypete.tech for updates!"
+    category: "schedule"
+    is_active: true
+    cooldown_seconds: 600
+
+  - question: "What time is the next stream?"
+    response: "Streams are usually Tuesdays and Thursdays at 7pm MT. Follow the channel for notifications when I go live!"
+    category: "schedule"
+    is_active: true
+    cooldown_seconds: 600
+
+  - question: "What do you stream about?"
+    response: "I focus on Go (Golang) programming, data engineering, AI/ML topics, and general software development. Sometimes I also stream conference talks and meetup events!"
+    category: "schedule"
+    is_active: true
+    cooldown_seconds: 600
+
+  # =========================================
+  # LEARNING RESOURCES
+  # =========================================
+
+  - question: "Where can I learn Go?"
+    response: "Great question! Check out my O'Reilly course on Go, the official Go tour (tour.golang.org), and the Go documentation. I also stream Go tutorials regularly!"
+    category: "content"
+    is_active: true
+    cooldown_seconds: 600
+
+  - question: "Do you have any courses?"
+    response: "Yes! I have a Go course available on O'Reilly Media. Search for 'SoypeteTech' or 'Miriah Peterson' on O'Reilly Learning."
+    category: "content"
+    is_active: true
+    cooldown_seconds: 600
+
+  - question: "What resources do you recommend for learning programming?"
+    response: "For Go: tour.golang.org and Effective Go. For data: start with SQL basics. I also share resources on my YouTube channel and during streams!"
+    category: "content"
+    is_active: true
+    cooldown_seconds: 600
+
+  # =========================================
+  # EVENTS & CONFERENCES
+  # =========================================
+
+  - question: "Are you speaking at any conferences?"
+    response: "I frequently speak at Go and data conferences! Check my Twitter (@soypete01) for upcoming conference announcements."
+    category: "events"
+    is_active: true
+    cooldown_seconds: 600
+
+  - question: "What meetups do you run?"
+    response: "I help organize Utah Go meetups through Forge Utah Foundation. Check forgeut.org for upcoming events and how to get involved!"
+    category: "events"
+    is_active: true
+    cooldown_seconds: 600
+
+  # =========================================
+  # ABOUT THE STREAM
+  # =========================================
+
+  - question: "What is your setup?"
+    response: "I use a Mac with a mechanical keyboard, Yeti mic, and Logitech webcam. For streaming I use OBS. The bot (that's me, Pedro!) runs on llama.cpp!"
+    category: "tech"
+    is_active: true
+    cooldown_seconds: 600
+
+  - question: "What IDE do you use?"
+    response: "I primarily use VS Code with the Go extension, but I also use Neovim for quick edits. Both work great for Go development!"
+    category: "tech"
+    is_active: true
+    cooldown_seconds: 600
+
+  - question: "Who is Pedro?"
+    response: "I'm Pedro, the AI assistant bot for this stream! I'm powered by llama.cpp and help answer questions about the stream and tech topics. soypet2Dance"
+    category: "about"
+    is_active: true
+    cooldown_seconds: 300
+
+  # =========================================
+  # COMMUNITY
+  # =========================================
+
+  - question: "How can I support the stream?"
+    response: "Thanks for asking! You can follow the channel, subscribe, share with friends, or just hang out and chat. Your presence makes the stream better!"
+    category: "community"
+    is_active: true
+    cooldown_seconds: 600
+
+  - question: "Do you have a Discord?"
+    response: "Not currently, but you can connect with the community through the stream chat and on Twitter! I'm also active in the Gophers Slack."
+    category: "community"
+    is_active: true
+    cooldown_seconds: 600
