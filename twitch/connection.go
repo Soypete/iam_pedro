@@ -67,6 +67,12 @@ func (irc *IRC) SetFAQProcessor(processor *FAQProcessor) {
 	irc.logger.Info("FAQ processor enabled")
 }
 
+// GetAsyncResponseChannel returns the channel for sending async responses to chat
+// Used by the FAQ processor to send FAQ responses
+func (irc *IRC) GetAsyncResponseChannel() chan<- types.TwitchMessage {
+	return irc.asyncResponseCh
+}
+
 // connectIRC gets the auth and connects to the twitch IRC server for channel.
 func (irc *IRC) ConnectIRC(ctx context.Context, wg *sync.WaitGroup) error {
 	irc.logger.Info("connecting to twitch IRC")
