@@ -11,6 +11,7 @@ import (
 	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/Soypete/twitch-llm-bot/twitch/helix"
+	"github.com/Soypete/twitch-llm-bot/twitch/messagequeue"
 	"github.com/Soypete/twitch-llm-bot/twitch/moderation"
 	"github.com/Soypete/twitch-llm-bot/types"
 	v2 "github.com/gempir/go-twitch-irc/v2"
@@ -43,6 +44,11 @@ type IRC struct {
 	helixClient   *helix.Client
 	broadcasterID string
 	moderatorID   string
+
+	// Message queue system
+	messageBroker *messagequeue.Broker
+
+	// FAQ processor
 	faqProcessor  *FAQProcessor
 }
 
@@ -176,6 +182,18 @@ func (irc *IRC) ConnectIRC(ctx context.Context, wg *sync.WaitGroup) error {
 		}
 	}
 
+	// Initialize message broker for queue-based message distribution
+	irc.messageBroker = messagequeue.NewBroker(1000, irc.logger)
+
+	// Subscribe FAQ processor to message broker if configured
+	if irc.faqProcessor != nil {
+		irc.messageBroker.Subscribe(irc.faqProcessor)
+		irc.logger.Info("FAQ processor subscribed to message broker")
+	}
+
+	// Start the message broker
+	irc.messageBroker.Start(ctx, wg)
+
 	c.OnPrivateMessage(func(msg v2.PrivateMessage) {
 		metrics.TwitchMessageRecievedCount.Add(1)
 		irc.logger.Debug("received message", "user", msg.User.Name, "message", msg.Message)
@@ -189,7 +207,11 @@ func (irc *IRC) ConnectIRC(ctx context.Context, wg *sync.WaitGroup) error {
 			}
 		}
 
+		// Publish to message broker (distributes to all consumers)
+		irc.messageBroker.Publish(msg)
+
 		// Handle normal chat
+
 		irc.HandleChat(ctx, msg)
 	})
 
