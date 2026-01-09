@@ -9,6 +9,7 @@ import (
 	"github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/Soypete/twitch-llm-bot/metrics"
+	"github.com/Soypete/twitch-llm-bot/twitch/messagequeue"
 	"github.com/Soypete/twitch-llm-bot/types"
 	v2 "github.com/gempir/go-twitch-irc/v2"
 	"github.com/pkg/errors"
@@ -29,7 +30,12 @@ type IRC struct {
 	authCode         string
 	logger           *logging.Logger
 	asyncResponseCh  chan types.TwitchMessage
-	faqProcessor     *FAQProcessor
+
+	// Message queue system
+	messageBroker *messagequeue.Broker
+
+	// FAQ processor
+	faqProcessor *FAQProcessor
 }
 
 // SetupTwitchIRC sets up the IRC, configures oauth, and inits connection functions.
@@ -82,9 +88,27 @@ func (irc *IRC) ConnectIRC(ctx context.Context, wg *sync.WaitGroup) error {
 		metrics.TwitchConnectionCount.Add(1)
 		irc.logger.Info("connection to twitch IRC established")
 	})
+
+	// Initialize message broker for queue-based message distribution
+	irc.messageBroker = messagequeue.NewBroker(1000, irc.logger)
+
+	// Subscribe FAQ processor to message broker if configured
+	if irc.faqProcessor != nil {
+		irc.messageBroker.Subscribe(irc.faqProcessor)
+		irc.logger.Info("FAQ processor subscribed to message broker")
+	}
+
+	// Start the message broker
+	irc.messageBroker.Start(ctx, wg)
+
 	c.OnPrivateMessage(func(msg v2.PrivateMessage) {
 		metrics.TwitchMessageRecievedCount.Add(1)
 		irc.logger.Debug("received message", "user", msg.User.Name, "message", msg.Message)
+
+		// Publish to message broker (distributes to all consumers)
+		irc.messageBroker.Publish(msg)
+
+		// Handle normal chat (Process 1 - Pedro responses)
 		irc.HandleChat(ctx, msg)
 	})
 

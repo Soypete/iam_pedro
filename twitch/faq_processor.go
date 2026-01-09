@@ -31,9 +31,25 @@ func NewFAQProcessor(service *faq.Service, responseCh chan<- types.TwitchMessage
 	}
 }
 
-// ProcessMessage checks a message against FAQ entries and sends a response if matched
+// Name returns the consumer name for the message broker
+func (p *FAQProcessor) Name() string {
+	return "FAQProcessor"
+}
+
+// ProcessMessage implements the Consumer interface for message broker
+// Converts v2.PrivateMessage and processes it against FAQ entries
+func (p *FAQProcessor) ProcessMessage(ctx context.Context, msg v2.PrivateMessage) {
+	twitchMsg := types.TwitchMessage{
+		Username: msg.User.DisplayName,
+		Text:     msg.Message,
+		Time:     time.Now(),
+	}
+	p.processInternal(ctx, twitchMsg)
+}
+
+// processInternal checks a message against FAQ entries and sends a response if matched
 // This method is designed to be called as a goroutine to avoid blocking the main chat flow
-func (p *FAQProcessor) ProcessMessage(ctx context.Context, msg types.TwitchMessage) {
+func (p *FAQProcessor) processInternal(ctx context.Context, msg types.TwitchMessage) {
 	if p.service == nil {
 		return
 	}
@@ -87,13 +103,9 @@ func (p *FAQProcessor) ProcessMessage(ctx context.Context, msg types.TwitchMessa
 
 // ProcessMessageFromPrivate converts a v2.PrivateMessage and processes it
 // This is a convenience method for the main chat handler
+// Note: Now just calls ProcessMessage directly since it has the right signature
 func (p *FAQProcessor) ProcessMessageFromPrivate(ctx context.Context, msg v2.PrivateMessage) {
-	twitchMsg := types.TwitchMessage{
-		Username: msg.User.DisplayName,
-		Text:     msg.Message,
-		Time:     time.Now(),
-	}
-	p.ProcessMessage(ctx, twitchMsg)
+	p.ProcessMessage(ctx, msg)
 }
 
 // ShouldProcessMessage determines if a message should be checked against FAQs
