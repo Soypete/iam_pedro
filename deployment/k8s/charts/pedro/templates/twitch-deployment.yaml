@@ -23,6 +23,7 @@ spec:
         - name: twitch
           image: "{{ .Values.twitch.image.repository }}:{{ .Values.twitch.image.tag }}"
           imagePullPolicy: {{ .Values.twitch.image.pullPolicy }}
+          command: ["/app/main"]
           {{- if .Values.twitch.args }}
           args:
             {{- toYaml .Values.twitch.args | nindent 12 }}

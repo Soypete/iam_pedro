@@ -23,6 +23,7 @@ spec:
         - name: discord
           image: "{{ .Values.discord.image.repository }}:{{ .Values.discord.image.tag }}"
           imagePullPolicy: {{ .Values.discord.image.pullPolicy }}
+          command: ["/app/main"]
           {{- if .Values.discord.args }}
           args:
             {{- toYaml .Values.discord.args | nindent 12 }}
