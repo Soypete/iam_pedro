@@ -1,0 +1,18 @@
+{{- if .Values.discord.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: pedro-discord
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "pedro.discord.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "pedro.discord.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: metrics
+      port: {{ .Values.discord.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+{{- end }}

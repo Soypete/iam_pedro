@@ -1,0 +1,22 @@
+{{- if .Values.twitch.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: pedro-twitch
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "pedro.twitch.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "pedro.twitch.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: metrics
+      port: {{ .Values.twitch.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+    - name: oauth
+      port: {{ .Values.twitch.oauth.port }}
+      targetPort: oauth
+      protocol: TCP
+{{- end }}
