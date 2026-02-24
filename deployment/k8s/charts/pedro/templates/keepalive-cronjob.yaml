@@ -1,0 +1,59 @@
+{{- if .Values.keepalive.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pedro-keepalive
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "pedro.keepalive.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.keepalive.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: {{ .Values.keepalive.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            {{- include "pedro.keepalive.labels" . | nindent 12 }}
+        spec:
+          {{- include "pedro.imagePullSecrets" . | nindent 10 }}
+          restartPolicy: Never
+          containers:
+            - name: keepalive
+              image: "{{ .Values.keepalive.image.repository }}:{{ .Values.keepalive.image.tag }}"
+              imagePullPolicy: {{ .Values.keepalive.image.pullPolicy }}
+              command: ["/app/keepalive-service"]
+              env:
+                - name: DISCORD_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: pedro-secrets
+                      key: discord-secret
+                - name: DISCORD_BOT_URL
+                  value: "http://pedro-discord.{{ .Values.global.namespace }}.svc.cluster.local:{{ .Values.discord.metrics.port }}/healthz"
+                - name: TWITCH_BOT_URL
+                  value: "http://pedro-twitch.{{ .Values.global.namespace }}.svc.cluster.local:{{ .Values.twitch.metrics.port }}/healthz"
+                - name: TWITCH_BOT_AUTH_URL
+                  value: "http://pedro-twitch.{{ .Values.global.namespace }}.svc.cluster.local:{{ .Values.twitch.metrics.port }}/healthz/auth"
+                - name: CHECK_INTERVAL
+                  value: {{ .Values.keepalive.config.checkInterval | quote }}
+                - name: ALERT_INTERVAL
+                  value: {{ .Values.keepalive.config.alertInterval | quote }}
+                - name: LOG_LEVEL
+                  value: {{ .Values.keepalive.config.logLevel | quote }}
+                - name: DISCORD_ALERT_USER_ID
+                  value: {{ .Values.keepalive.config.discordAlertUserId | quote }}
+                {{- if .Values.secrets.llamaCppPath }}
+                - name: LLAMA_CPP_PATH
+                  valueFrom:
+                    secretKeyRef:
+                      name: pedro-secrets
+                      key: llama-cpp-path
+                      optional: true
+                {{- end }}
+              resources:
+                {{- toYaml .Values.keepalive.resources | nindent 16 }}
+{{- end }}

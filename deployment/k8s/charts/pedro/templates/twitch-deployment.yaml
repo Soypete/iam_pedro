@@ -1,0 +1,99 @@
+{{- if .Values.twitch.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pedro-twitch
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "pedro.twitch.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.twitch.replicas }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "pedro.twitch.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pedro.twitch.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- include "pedro.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: twitch
+          image: "{{ .Values.twitch.image.repository }}:{{ .Values.twitch.image.tag }}"
+          imagePullPolicy: {{ .Values.twitch.image.pullPolicy }}
+          command: ["/app/main"]
+          {{- if .Values.twitch.args }}
+          args:
+            {{- toYaml .Values.twitch.args | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.twitch.metrics.port }}
+              protocol: TCP
+            - name: oauth
+              containerPort: {{ .Values.twitch.oauth.port }}
+              protocol: TCP
+          env:
+            - name: LLAMA_CPP_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: pedro-secrets
+                  key: llama-cpp-path
+            - name: POSTGRES_URL
+              valueFrom:
+                secretKeyRef:
+                  name: pedro-secrets
+                  key: postgres-url
+            - name: POSTGRES_VECTOR_URL
+              valueFrom:
+                secretKeyRef:
+                  name: pedro-secrets
+                  key: postgres-vector-url
+            - name: TWITCH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: pedro-secrets
+                  key: twitch-secret
+            - name: TWITCH_ID
+              valueFrom:
+                secretKeyRef:
+                  name: pedro-secrets
+                  key: twitch-id
+            - name: MODEL
+              valueFrom:
+                secretKeyRef:
+                  name: pedro-secrets
+                  key: model
+                  optional: true
+          {{- if .Values.twitch.streamConfig.enabled }}
+          volumeMounts:
+            - name: stream-config
+              mountPath: /etc/pedro
+              readOnly: true
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.twitch.resources | nindent 12 }}
+      {{- if .Values.twitch.streamConfig.enabled }}
+      volumes:
+        - name: stream-config
+          configMap:
+            name: pedro-stream-config
+      {{- end }}
+{{- end }}

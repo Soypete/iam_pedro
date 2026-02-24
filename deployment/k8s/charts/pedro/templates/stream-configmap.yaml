@@ -1,0 +1,12 @@
+{{- if and .Values.twitch.enabled .Values.twitch.streamConfig.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pedro-stream-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "pedro.twitch.labels" . | nindent 4 }}
+data:
+  stream-config.yaml: |
+    {{- .Values.twitch.streamConfig.data | nindent 4 }}
+{{- end }}

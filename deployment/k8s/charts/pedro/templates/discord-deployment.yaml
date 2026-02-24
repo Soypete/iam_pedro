@@ -1,0 +1,79 @@
+{{- if .Values.discord.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pedro-discord
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "pedro.discord.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.discord.replicas }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "pedro.discord.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pedro.discord.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- include "pedro.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: discord
+          image: "{{ .Values.discord.image.repository }}:{{ .Values.discord.image.tag }}"
+          imagePullPolicy: {{ .Values.discord.image.pullPolicy }}
+          command: ["/app/main"]
+          {{- if .Values.discord.args }}
+          args:
+            {{- toYaml .Values.discord.args | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.discord.metrics.port }}
+              protocol: TCP
+          env:
+            - name: LLAMA_CPP_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: pedro-secrets
+                  key: llama-cpp-path
+            - name: POSTGRES_URL
+              valueFrom:
+                secretKeyRef:
+                  name: pedro-secrets
+                  key: postgres-url
+            - name: POSTGRES_VECTOR_URL
+              valueFrom:
+                secretKeyRef:
+                  name: pedro-secrets
+                  key: postgres-vector-url
+            - name: DISCORD_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: pedro-secrets
+                  key: discord-secret
+            - name: MODEL
+              valueFrom:
+                secretKeyRef:
+                  name: pedro-secrets
+                  key: model
+                  optional: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.discord.resources | nindent 12 }}
+{{- end }}

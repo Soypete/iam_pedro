@@ -1,0 +1,98 @@
+# Default values for pedro Helm chart
+# Homelab k3s deployment
+
+global:
+  namespace: pedro
+  # Image pull secret for GHCR (create with deploy script)
+  imagePullSecrets:
+    - name: ghcr-pull-secret
+
+discord:
+  enabled: true
+  image:
+    repository: ghcr.io/soypete/iam_pedro/discord
+    tag: latest
+    pullPolicy: Always
+  replicas: 1
+  # CLI args passed to the binary (e.g., ["-model", "your-model", "-errorLevel", "debug"])
+  args: []
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  metrics:
+    port: 6060
+
+twitch:
+  enabled: true
+  image:
+    repository: ghcr.io/soypete/iam_pedro/twitch
+    tag: latest
+    pullPolicy: Always
+  replicas: 1
+  # CLI args passed to the binary
+  # e.g., ["-model", "your-model", "-errorLevel", "debug", "-streamConfig", "/etc/pedro/stream-config.yaml"]
+  args: []
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  metrics:
+    port: 6060
+  oauth:
+    port: 3000
+  # Optional: mount a stream config file via ConfigMap
+  streamConfig:
+    enabled: false
+    # Contents of the stream config YAML (paste your config here)
+    data: ""
+
+keepalive:
+  enabled: true
+  image:
+    repository: ghcr.io/soypete/iam_pedro/keepalive
+    tag: latest
+    pullPolicy: Always
+  # Cron schedule (every 5 minutes)
+  schedule: "*/5 * * * *"
+  # Kill the job after this many seconds
+  activeDeadlineSeconds: 120
+  config:
+    checkInterval: "10"
+    alertInterval: "300"
+    logLevel: "info"
+    discordAlertUserId: "soypete_tech"
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+
+# Secrets - set via deploy script or --set flags
+# These are stored in a K8s Secret named pedro-secrets
+secrets:
+  # Set to false if you manage the pedro-secrets Secret externally
+  create: true
+  llamaCppPath: ""
+  postgresUrl: ""
+  postgresVectorUrl: ""
+  discordSecret: ""
+  twitchSecret: ""
+  twitchId: ""
+  model: ""
+
+# Prometheus ServiceMonitor (requires prometheus-operator CRDs)
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: "30s"
+    # Additional labels for the ServiceMonitor (match your Prometheus selector)
+    labels: {}
