@@ -1,0 +1,98 @@
+# Default values for twitch-llm-bot (pedro bots).
+# Override with --set or a values file on helm upgrade --install.
+
+# ---------------------------------------------------------------------------
+# Discord bot
+# ---------------------------------------------------------------------------
+discord:
+  enabled: true
+  image:
+    repository: ghcr.io/soypete/pedro-discord
+    tag: latest
+    pullPolicy: Always
+
+  # LLM config — pedrogpt has 32GB VRAM so 32B Q4_K_M fits comfortably (~19GB)
+  # Good choices: gpt-oss-32b-Q4_K_M, Qwen3-32B-Q4_K_M, gemma-3-27b-it-Q4_K_M
+  # Check https://huggingface.co/unsloth for exact filenames
+  model: ""
+  llamaCppPath: "http://100.121.229.114:8080"
+
+  # Twitch client ID (non-secret, safe in values)
+  twitchId: ""
+
+  replicaCount: 1
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+  metrics:
+    port: 6060
+
+# ---------------------------------------------------------------------------
+# Twitch bot
+# ---------------------------------------------------------------------------
+twitch:
+  enabled: true
+  image:
+    repository: ghcr.io/soypete/pedro-twitch
+    tag: latest
+    pullPolicy: Always
+
+  # LLM config — same as discord above
+  model: ""
+  llamaCppPath: "http://100.121.229.114:8080"
+
+  # Twitch client ID (non-secret)
+  twitchId: ""
+
+  # OAuth redirect host (IP:port or hostname:port accessible from outside)
+  oauthRedirectHost: ""
+
+  replicaCount: 1
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+  metrics:
+    port: 6060
+
+  oauth:
+    port: 3000
+
+  ingress:
+    enabled: true
+    # Uses Tailscale operator — set tailscaleFunnel: true for public access
+    # (required for Twitch OAuth since Twitch servers must reach the redirect URL)
+    className: tailscale
+    tailscaleFunnel: true
+    annotations: {}
+    # The Tailscale hostname will be pedro-twitch-oauth.<tailnet>.ts.net
+    # Set OAUTH_REDIRECT_HOST to that value in twitch.oauthRedirectHost
+
+# ---------------------------------------------------------------------------
+# Secrets / config wiring
+# These names must match what create-k8s-secrets.sh creates.
+# ---------------------------------------------------------------------------
+secrets:
+  # k8s Secret containing OP_SERVICE_ACCOUNT_TOKEN
+  opServiceAccountSecret: "pedro-service-account"
+  # k8s ConfigMap containing prod.env (op:// references)
+  prodEnvConfigMap: "pedro-prod-env"
+
+# ---------------------------------------------------------------------------
+# Prometheus ServiceMonitor
+# ---------------------------------------------------------------------------
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+  # Labels added to the ServiceMonitor (must match Prometheus serviceMonitorSelector)
+  additionalLabels: {}

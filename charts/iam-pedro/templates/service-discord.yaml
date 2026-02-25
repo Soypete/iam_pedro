@@ -1,0 +1,21 @@
+{{- if .Values.discord.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: pedro-discord
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: pedro-discord
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: discord
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: pedro-discord
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: metrics
+      port: {{ .Values.discord.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+{{- end }}

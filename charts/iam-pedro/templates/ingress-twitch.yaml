@@ -1,0 +1,32 @@
+{{- if .Values.twitch.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pedro-twitch-oauth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: pedro-twitch
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: twitch
+  annotations:
+    {{- if .Values.twitch.ingress.tailscaleFunnel }}
+    # Funnel = publicly accessible via https://<name>.<tailnet>.ts.net
+    # Required for Twitch OAuth redirect (Twitch servers must reach this URL)
+    tailscale.com/funnel: "true"
+    {{- end }}
+    {{- with .Values.twitch.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.twitch.ingress.className | default "tailscale" }}
+  rules:
+    - http:
+        paths:
+          - path: /oauth
+            pathType: Prefix
+            backend:
+              service:
+                name: pedro-twitch
+                port:
+                  name: oauth
+{{- end }}

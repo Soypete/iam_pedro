@@ -1,0 +1,14 @@
+apiVersion: v2
+name: iam-pedro
+description: iam_pedro — Twitch and Discord AI chatbot backed by llama.cpp
+type: application
+version: 0.1.0
+appVersion: "1.0"
+keywords:
+  - pedro
+  - twitch
+  - discord
+  - llm
+  - chatbot
+maintainers:
+  - name: soypete
