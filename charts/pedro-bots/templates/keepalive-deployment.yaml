@@ -1,0 +1,53 @@
+{{- if .Values.keepalive.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pedro-bots.fullname" . }}-keepalive
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pedro-bots.labels" . | nindent 4 }}
+    app.kubernetes.io/component: keepalive
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "pedro-bots.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: keepalive
+  template:
+    metadata:
+      labels:
+        {{- include "pedro-bots.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: keepalive
+    spec:
+      containers:
+        - name: keepalive
+          image: "{{ .Values.keepalive.image.repository }}:{{ .Values.keepalive.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            {{- range .Values.keepalive.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ include "pedro-bots.fullname" . }}-secrets
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

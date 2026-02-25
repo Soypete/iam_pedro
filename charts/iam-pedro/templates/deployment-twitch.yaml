@@ -1,0 +1,71 @@
+{{- if .Values.twitch.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pedro-twitch
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: pedro-twitch
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: twitch
+spec:
+  replicas: {{ .Values.twitch.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pedro-twitch
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pedro-twitch
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: twitch
+      annotations:
+        pedro/prod-env-configmap: {{ .Values.secrets.prodEnvConfigMap | quote }}
+    spec:
+      containers:
+        - name: pedro-twitch
+          image: "{{ .Values.twitch.image.repository }}:{{ .Values.twitch.image.tag }}"
+          imagePullPolicy: {{ .Values.twitch.image.pullPolicy }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.twitch.metrics.port }}
+              protocol: TCP
+            - name: oauth
+              containerPort: {{ .Values.twitch.oauth.port }}
+              protocol: TCP
+          env:
+            - name: OP_SERVICE_ACCOUNT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.opServiceAccountSecret }}
+                  key: OP_SERVICE_ACCOUNT_TOKEN
+            - name: MODEL
+              value: {{ .Values.twitch.model | quote }}
+            - name: LLAMA_CPP_PATH
+              value: {{ .Values.twitch.llamaCppPath | quote }}
+            - name: TWITCH_ID
+              value: {{ .Values.twitch.twitchId | quote }}
+            {{- if .Values.twitch.oauthRedirectHost }}
+            - name: OAUTH_REDIRECT_HOST
+              value: {{ .Values.twitch.oauthRedirectHost | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: prod-env
+              mountPath: /app/prod.env
+              subPath: prod.env
+              readOnly: true
+          resources:
+            {{- toYaml .Values.twitch.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            failureThreshold: 3
+      volumes:
+        - name: prod-env
+          configMap:
+            name: {{ .Values.secrets.prodEnvConfigMap }}
+{{- end }}

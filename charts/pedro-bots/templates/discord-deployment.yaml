@@ -1,0 +1,58 @@
+{{- if .Values.discordBot.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pedro-bots.fullname" . }}-discord
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pedro-bots.labels" . | nindent 4 }}
+    app.kubernetes.io/component: discord
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "pedro-bots.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: discord
+  template:
+    metadata:
+      labels:
+        {{- include "pedro-bots.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: discord
+    spec:
+      containers:
+        - name: discord-bot
+          image: "{{ .Values.discordBot.image.repository }}:{{ .Values.discordBot.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 6060
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 6060
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          env:
+            {{- range .Values.discordBot.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ include "pedro-bots.fullname" . }}-secrets
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
