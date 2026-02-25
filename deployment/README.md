@@ -4,7 +4,7 @@ This guide covers deploying Pedro's Discord and Twitch bots with Prometheus moni
 
 ## Architecture
 
-- **k3s Cluster**: blue1 (control plane, `100.81.89.62`), blue2 (`100.70.90.12`), refurb (`100.125.196.1`)
+- **k3s Cluster**: blue1/control-plane (`100.81.89.62`), blue2 (`100.125.196.1`), refurb (`100.70.90.12`)
 - **ZOT Registry**: `100.81.89.62:5000` (HTTP, no auth) — runs on blue1
 - **LLM Service**: `http://100.121.229.114:8080` (llama.cpp)
 - **Namespace**: `chatbot`
@@ -94,29 +94,90 @@ Or use the deploy script:
 
 The Twitch bot uses a pre-stored token from 1Password (`TWITCH_TOKEN`). If the token expires:
 
-1. The Tailscale ingress for OAuth is available at:
+1. Ensure the OAuth redirect URL is registered in the [Twitch Developer Console](https://dev.twitch.tv/console/apps):
    ```
    https://chatbot-pedro-twitch-auth-ingress.tail6fbc5.ts.net/oauth/redirect
    ```
-2. Register this URL in the [Twitch Developer Console](https://dev.twitch.tv/console/apps) as the OAuth Redirect URL
-3. Run the bot without a token — it will print an OAuth URL to logs
-4. Visit the URL in a browser, authorize, and save the new token to 1Password:
+2. Deploy without a token to trigger the OAuth flow:
    ```bash
-   op item edit pedro TWITCH_TOKEN[password]="<new_token>"
+   # Create secrets file with empty twitchToken
+   cat > /tmp/pedro-secrets-notoken.yaml <<EOF
+   secrets:
+     twitchId: "$(op read 'op://pedro/TWITCH_ID/credential')"
+     twitchSecret: "$(op read 'op://pedro/TWITCH_SECRET/credential')"
+     twitchToken: ""
+     # ... rest of secrets ...
+   EOF
+   helm upgrade pedro ./charts/pedro-bots --namespace chatbot --values /tmp/pedro-secrets-notoken.yaml
+   kubectl rollout restart deployment pedro-twitch -n chatbot
    ```
-5. Re-run step 2 and 3 above to deploy with the new token
+3. Watch logs for the OAuth URL:
+   ```bash
+   kubectl logs -n chatbot -l app.kubernetes.io/component=twitch -f
+   # Look for: "Visit the URL for the auth dialog: https://id.twitch.tv/oauth2/authorize?..."
+   ```
+4. Open the URL in a browser while logged in as the **bot account** (not the streamer account). The page will go blank after redirect — that's success.
+5. The logs will print the new token:
+   ```
+   Token received: <token>
+   IMPORTANT: Save this token to 1Password as TWITCH_TOKEN...
+   ```
+6. Save the token to 1Password:
+   ```bash
+   op item edit "TWITCH_TOKEN" "credential=<token_from_logs>"
+   ```
+7. Redeploy with the new token (step 2-3 above with `twitchToken` populated).
 
-### 5. Check Status
+### 5. Viewing Logs
 
 ```bash
-kubectl get pods -n chatbot
+# Stream logs for all bots
 kubectl logs -n chatbot -l app.kubernetes.io/component=twitch -f
 kubectl logs -n chatbot -l app.kubernetes.io/component=discord -f
+kubectl logs -n chatbot -l app.kubernetes.io/component=keepalive -f
+
+# Previous pod logs (after a crash/restart)
+kubectl logs -n chatbot -l app.kubernetes.io/component=twitch --previous
+
+# All bots at once
+kubectl logs -n chatbot --selector 'app.kubernetes.io/name=pedro-bots' --max-log-requests=10 -f
+
+# Or via deploy script
+./deploy.sh logs twitch
+./deploy.sh logs discord
+./deploy.sh logs keepalive
+```
+
+### 6. Check Status
+
+```bash
+# Pod status (should show 3 Running pods)
+kubectl get pods -n chatbot -o wide
+
+# Check helm release history
+helm history pedro -n chatbot
+
+# All resources in the namespace
+kubectl get all -n chatbot
+
+# Describe a crashing pod
+kubectl describe pod -n chatbot <pod-name>
 
 # Or via deploy script
 ./deploy.sh status
-./deploy.sh logs twitch
-./deploy.sh logs discord
+```
+
+### 7. Rollback
+
+```bash
+# Roll back to previous helm revision
+helm rollback pedro -n chatbot
+
+# Roll back to a specific revision
+helm rollback pedro 5 -n chatbot
+
+# List revision history
+helm history pedro -n chatbot
 ```
 
 ### Cluster Infrastructure Notes
