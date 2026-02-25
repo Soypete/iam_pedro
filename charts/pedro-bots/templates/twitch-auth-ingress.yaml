@@ -1,7 +1,7 @@
 {{- if .Values.twitchBot.enabled }}
 {{- if .Values.twitchBot.tailscaleIngress }}
 # Tailscale ingress for Twitch OAuth redirect flow
-# URL: https://<hostname>.tail6fbc5.ts.net/oauth/redirect
+# URL: https://chatbot-pedro-twitch-auth-ingress.tail6fbc5.ts.net/oauth/redirect
 # Register this URL in the Twitch Developer Console as the redirect URI
 apiVersion: networking.k8s.io/v1
 kind: Ingress

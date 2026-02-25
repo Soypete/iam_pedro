@@ -28,7 +28,7 @@ twitchBot:
     - name: LLAMA_CPP_PATH
       value: "http://100.121.229.114:8080"
     - name: OAUTH_REDIRECT_HOST
-      value: "pedro-twitch-auth.tail6fbc5.ts.net"
+      value: "chatbot-pedro-twitch-auth-ingress.tail6fbc5.ts.net"
 
 keepalive:
   enabled: true
