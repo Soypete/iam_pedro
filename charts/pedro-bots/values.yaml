@@ -1,0 +1,78 @@
+fullnameOverride: "pedro"
+
+replicaCount: 1
+
+image:
+  pullPolicy: Always
+
+discordBot:
+  enabled: true
+  image:
+    repository: 100.81.89.62:5000/pedro-discord
+    tag: latest
+  env:
+    - name: MODEL
+      value: "unsloth/gpt-oss-20b-GGUF"
+    - name: LLAMA_CPP_PATH
+      value: "http://100.121.229.114:8080"
+
+twitchBot:
+  enabled: true
+  tailscaleIngress: true
+  image:
+    repository: 100.81.89.62:5000/pedro-twitch
+    tag: latest
+  env:
+    - name: MODEL
+      value: "unsloth/gpt-oss-20b-GGUF"
+    - name: LLAMA_CPP_PATH
+      value: "http://100.121.229.114:8080"
+    - name: OAUTH_REDIRECT_HOST
+      value: "pedro-twitch-auth.tail6fbc5.ts.net"
+
+keepalive:
+  enabled: true
+  image:
+    repository: 100.81.89.62:5000/pedro-keepalive
+    tag: latest
+  env:
+    - name: DISCORD_BOT_URL
+      value: "http://pedro-discord:6060/healthz"
+    - name: TWITCH_BOT_URL
+      value: "http://pedro-twitch:6060/healthz"
+    - name: TWITCH_BOT_AUTH_URL
+      value: "http://pedro-twitch:6060/healthz/auth"
+    - name: LLAMA_CPP_PATH
+      value: "http://100.121.229.114:8080"
+    - name: CHECK_INTERVAL
+      value: "60"
+    - name: ALERT_INTERVAL
+      value: "3600"
+
+# Secrets populated by deploy.sh via 1Password CLI
+secrets:
+  twitchId: ""
+  twitchSecret: ""
+  twitchToken: ""
+  postgresUrl: ""
+  postgresVectorUrl: ""
+  discordSecret: ""
+  discordClientId: ""
+  discordPublicKey: ""
+  discordPermission: ""
+  supabasePubKey: ""
+  supabasePrivKey: ""
+  supabaseUrl: ""
+  supabaseJwt: ""
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

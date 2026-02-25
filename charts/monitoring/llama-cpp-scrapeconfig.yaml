@@ -1,0 +1,37 @@
+# ScrapeConfig for llama.cpp running on pedrogpt (external to k8s cluster).
+#
+# llama-server must be started with the --metrics flag, which enables the
+# Prometheus endpoint at /metrics on the server port (default 8080).
+#
+# Apply to the monitoring namespace:
+#   kubectl apply -f charts/monitoring/llama-cpp-scrapeconfig.yaml
+#
+# The kube-prometheus-stack is configured with:
+#   serviceMonitorSelectorNilUsesHelmValues: false
+# so it will pick up ScrapeConfigs in any namespace.
+#
+# pedrogpt is reachable from the cluster via Tailscale IP:
+#   100.121.229.114  (use IP directly — cluster CoreDNS can't resolve ts.net)
+#
+# llama.cpp metrics documented at:
+#   https://github.com/ggml-org/llama.cpp/blob/master/docs/server.md#prometheus-compatible-metrics
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: llama-cpp-pedrogpt
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: llama-cpp
+    app.kubernetes.io/instance: pedrogpt
+    app.kubernetes.io/component: llm-server
+spec:
+  staticConfigs:
+    - targets:
+        - "100.121.229.114:8080"
+      labels:
+        job: llama-cpp
+        instance: pedrogpt
+  metricsPath: /metrics
+  scrapeInterval: 30s
+  scrapeTimeout: 15s

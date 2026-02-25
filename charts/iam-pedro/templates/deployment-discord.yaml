@@ -1,0 +1,68 @@
+{{- if .Values.discord.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pedro-discord
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: pedro-discord
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: discord
+spec:
+  replicas: {{ .Values.discord.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pedro-discord
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pedro-discord
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: discord
+      annotations:
+        # Force pod restart when the prod-env ConfigMap name changes
+        pedro/prod-env-configmap: {{ .Values.secrets.prodEnvConfigMap | quote }}
+    spec:
+      containers:
+        - name: pedro-discord
+          image: "{{ .Values.discord.image.repository }}:{{ .Values.discord.image.tag }}"
+          imagePullPolicy: {{ .Values.discord.image.pullPolicy }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.discord.metrics.port }}
+              protocol: TCP
+          env:
+            # 1Password service account token — lets op run resolve op:// refs
+            - name: OP_SERVICE_ACCOUNT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.opServiceAccountSecret }}
+                  key: OP_SERVICE_ACCOUNT_TOKEN
+            # Non-secret config
+            - name: MODEL
+              value: {{ .Values.discord.model | quote }}
+            - name: LLAMA_CPP_PATH
+              value: {{ .Values.discord.llamaCppPath | quote }}
+            - name: TWITCH_ID
+              value: {{ .Values.discord.twitchId | quote }}
+          volumeMounts:
+            # prod.env with op:// references — resolved at startup by `op run`
+            - name: prod-env
+              mountPath: /app/prod.env
+              subPath: prod.env
+              readOnly: true
+          resources:
+            {{- toYaml .Values.discord.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            failureThreshold: 3
+      volumes:
+        - name: prod-env
+          configMap:
+            name: {{ .Values.secrets.prodEnvConfigMap }}
+{{- end }}

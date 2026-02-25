@@ -1,0 +1,20 @@
+{{- if .Values.discordBot.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pedro-bots.fullname" . }}-discord
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pedro-bots.labels" . | nindent 4 }}
+    app.kubernetes.io/component: discord
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6060
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "pedro-bots.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: discord
+{{- end }}
