@@ -4,11 +4,129 @@ This guide covers deploying Pedro's Discord and Twitch bots with Prometheus moni
 
 ## Architecture
 
-- **Bot Host**: 100.81.89.62 (Discord + Twitch containers)
-- **Monitoring Host**: 100.125.196.1 (Prometheus)
-- **LLM Service**: pedro-gpu.tail6fbc5.ts.net (existing)
+- **k3s Cluster**: blue1 (control plane, `100.81.89.62`), blue2 (`100.70.90.12`), refurb (`100.125.196.1`)
+- **ZOT Registry**: `100.81.89.62:5000` (HTTP, no auth) — runs on blue1
+- **LLM Service**: `http://100.121.229.114:8080` (llama.cpp)
+- **Namespace**: `chatbot`
+- **Helm Release**: `pedro`
 
-## Deployment Methods
+## Kubernetes / Helm Deployment (Current)
+
+All bots run in the `chatbot` namespace on the k3s cluster, deployed via the Helm chart at `charts/pedro-bots/`.
+
+### Prerequisites
+
+- `kubectl` configured for the cluster
+- `helm` installed
+- `op` (1Password CLI) authenticated
+- `podman` for building images
+
+### 1. Build and Push Images
+
+```bash
+# Start podman machine if not running
+podman machine start
+
+# Build and push all three images
+TAG=$(git rev-parse --short HEAD)
+for SERVICE in discord twitch keepalive; do
+    podman build -f cli/${SERVICE}/${SERVICE}Bot.Dockerfile -t 100.81.89.62:5000/pedro-${SERVICE}:${TAG} .
+    podman push 100.81.89.62:5000/pedro-${SERVICE}:${TAG}
+    # Also tag as latest
+    podman tag 100.81.89.62:5000/pedro-${SERVICE}:${TAG} 100.81.89.62:5000/pedro-${SERVICE}:latest
+    podman push 100.81.89.62:5000/pedro-${SERVICE}:latest
+done
+```
+
+Or use the deploy script:
+
+```bash
+./deploy.sh build
+```
+
+### 2. Resolve Secrets from 1Password
+
+```bash
+cat > /tmp/pedro-secrets.yaml <<EOF
+secrets:
+  twitchId: "$(op read 'op://pedro/TWITCH_ID/credential')"
+  twitchSecret: "$(op read 'op://pedro/TWITCH_SECRET/credential')"
+  twitchToken: "$(op read 'op://pedro/TWITCH_TOKEN/credential')"
+  postgresUrl: "$(op read 'op://pedro/POSTGRES_URL/credential')"
+  postgresVectorUrl: "$(op read 'op://pedro/POSTGRES_VECTOR_URL/credential')"
+  discordSecret: "$(op read 'op://pedro/DISCORD_SECRET/credential')"
+  discordClientId: "$(op read 'op://pedro/DISCORD_CLIENT_ID/credential')"
+  discordPublicKey: "$(op read 'op://pedro/DISCORD_PUBLIC_KEY/credential')"
+  discordPermission: "$(op read 'op://pedro/DISCORD_PERMISSION/credential')"
+  supabasePubKey: "$(op read 'op://pedro/SUPABASE_PUB_KEY/credential')"
+  supabasePrivKey: "$(op read 'op://pedro/SUPABASE_PRIV_KEY/credential')"
+  supabaseUrl: "$(op read 'op://pedro/SUPABASE_URL/credential')"
+  supabaseJwt: "$(op read 'op://pedro/SUPABASE_JWT/credential')"
+EOF
+```
+
+### 3. Deploy with Helm
+
+**First install:**
+
+```bash
+kubectl create namespace chatbot --dry-run=client -o yaml | kubectl apply -f -
+helm install pedro ./charts/pedro-bots \
+  --namespace chatbot \
+  --values /tmp/pedro-secrets.yaml
+```
+
+**Upgrade (after code or config changes):**
+
+```bash
+helm upgrade pedro ./charts/pedro-bots \
+  --namespace chatbot \
+  --values /tmp/pedro-secrets.yaml
+```
+
+Or use the deploy script:
+
+```bash
+./deploy.sh deploy
+```
+
+### 4. Twitch OAuth Setup
+
+The Twitch bot uses a pre-stored token from 1Password (`TWITCH_TOKEN`). If the token expires:
+
+1. The Tailscale ingress for OAuth is available at:
+   ```
+   https://chatbot-pedro-twitch-auth-ingress.tail6fbc5.ts.net/oauth/redirect
+   ```
+2. Register this URL in the [Twitch Developer Console](https://dev.twitch.tv/console/apps) as the OAuth Redirect URL
+3. Run the bot without a token — it will print an OAuth URL to logs
+4. Visit the URL in a browser, authorize, and save the new token to 1Password:
+   ```bash
+   op item edit pedro TWITCH_TOKEN[password]="<new_token>"
+   ```
+5. Re-run step 2 and 3 above to deploy with the new token
+
+### 5. Check Status
+
+```bash
+kubectl get pods -n chatbot
+kubectl logs -n chatbot -l app.kubernetes.io/component=twitch -f
+kubectl logs -n chatbot -l app.kubernetes.io/component=discord -f
+
+# Or via deploy script
+./deploy.sh status
+./deploy.sh logs twitch
+./deploy.sh logs discord
+```
+
+### Cluster Infrastructure Notes
+
+- **ZOT registry** runs as a Docker container on blue1. Confirm it's up: `ssh 100.81.89.62 "docker ps | grep zot"`
+- **CoreDNS** is patched to forward to `8.8.8.8 1.1.1.1` directly (not `/etc/resolv.conf`) — required because the cluster's PowerDNS may be unavailable. Config is in `pedro-ops` repo at `scripts/k8s/coredns-configmap.yaml`
+- **k3s registries** on all nodes are configured to pull from the ZOT registry over HTTP. Config is in `pedro-ops` repo at `scripts/k8s/registries.yaml`
+- If you add a new node, run `pedro-ops/scripts/k8s/apply-cluster-config.sh` to apply these configs
+
+## Deployment Methods (Legacy - Docker/systemd)
 
 ### Method 1: Taildrop Package (Recommended)
 
