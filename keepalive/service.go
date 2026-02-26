@@ -312,15 +312,16 @@ func (kas *KeepAliveService) checkAuthHealth(ctx context.Context, state *Service
 		return
 	}
 
-	// Alert if token will expire within 12 hours
-	if authHealth.HoursUntilExpiry <= 12 && authHealth.HoursUntilExpiry > 0 {
+	// Alert if token will expire within 30 minutes
+	if authHealth.HoursUntilExpiry <= 0.5 && authHealth.HoursUntilExpiry > 0 {
 		state.mu.Lock()
-		// Only alert once per hour
+		// Only alert once per alertInterval
 		if time.Since(state.LastAuthAlertTime) >= kas.alertInterval {
 			state.mu.Unlock()
-			msg := fmt.Sprintf("⚠️ Auth token for %s will expire in %.1f hours (at %s). Please refresh the token.",
+			minutesUntilExpiry := authHealth.HoursUntilExpiry * 60
+			msg := fmt.Sprintf("⚠️ Auth token for %s will expire in %.0f minutes (at %s). Please refresh the token.",
 				state.Name,
-				authHealth.HoursUntilExpiry,
+				minutesUntilExpiry,
 				authHealth.ExpirationTime.Format(time.RFC3339))
 			go func() {
 				if err := kas.alerter.SendAlert(ctx, state.Name, msg); err != nil {
