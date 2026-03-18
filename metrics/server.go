@@ -23,6 +23,10 @@ var (
 	DiscordMessageSent         = expvar.NewInt("discord_message_sent")
 	WebSearchSuccessCount      = expvar.NewInt("web_search_success_count")
 	WebSearchFailCount         = expvar.NewInt("web_search_fail_count")
+	FAQCheckCount              = expvar.NewInt("faq_check_count")
+	FAQMatchCount              = expvar.NewInt("faq_match_count")
+	FAQResponseSentCount       = expvar.NewInt("faq_response_sent_count")
+	FAQCheckFailCount          = expvar.NewInt("faq_check_fail_count")
 
 	// Moderation metrics (expvar)
 	ModActionTotal    = expvar.NewInt("mod_action_total")
@@ -117,6 +121,10 @@ func SetupServer() *Server {
 	ModActionSuccess.Set(0)
 	ModActionFailed.Set(0)
 	ModActionNoAction.Set(0)
+	FAQCheckCount.Set(0)
+	FAQMatchCount.Set(0)
+	FAQResponseSentCount.Set(0)
+	FAQCheckFailCount.Set(0)
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(
@@ -139,6 +147,10 @@ func SetupServer() *Server {
 				"mod_action_success":            prometheus.NewDesc("mod_action_success", "number of successful moderation actions", nil, nil),
 				"mod_action_failed":             prometheus.NewDesc("mod_action_failed", "number of failed moderation actions", nil, nil),
 				"mod_action_no_action":          prometheus.NewDesc("mod_action_no_action", "number of no-action moderation decisions", nil, nil),
+				"faq_check_count":               prometheus.NewDesc("faq_check_count", "number of FAQ checks performed", nil, nil),
+				"faq_match_count":               prometheus.NewDesc("faq_match_count", "number of FAQ matches found", nil, nil),
+				"faq_response_sent_count":       prometheus.NewDesc("faq_response_sent_count", "number of FAQ responses sent", nil, nil),
+				"faq_check_fail_count":          prometheus.NewDesc("faq_check_fail_count", "number of FAQ check failures", nil, nil),
 			},
 		),
 		// Register Discord command metrics with labels

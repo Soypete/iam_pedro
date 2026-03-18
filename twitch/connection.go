@@ -11,6 +11,7 @@ import (
 	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/Soypete/twitch-llm-bot/twitch/helix"
+	"github.com/Soypete/twitch-llm-bot/twitch/messagequeue"
 	"github.com/Soypete/twitch-llm-bot/twitch/moderation"
 	"github.com/Soypete/twitch-llm-bot/types"
 	v2 "github.com/gempir/go-twitch-irc/v2"
@@ -43,6 +44,12 @@ type IRC struct {
 	helixClient   *helix.Client
 	broadcasterID string
 	moderatorID   string
+
+	// Message queue system
+	messageBroker *messagequeue.Broker
+
+	// FAQ processor
+	faqProcessor  *FAQProcessor
 }
 
 // SetupTwitchIRC sets up the IRC, configures oauth, and inits connection functions.
@@ -129,6 +136,19 @@ func (irc *IRC) setupModeration(ctx context.Context) error {
 	return nil
 }
 
+// SetFAQProcessor sets the FAQ processor for semantic FAQ matching
+// The FAQ processor runs in parallel with the main chat processing
+func (irc *IRC) SetFAQProcessor(processor *FAQProcessor) {
+	irc.faqProcessor = processor
+	irc.logger.Info("FAQ processor enabled")
+}
+
+// GetAsyncResponseChannel returns the channel for sending async responses to chat
+// Used by the FAQ processor to send FAQ responses
+func (irc *IRC) GetAsyncResponseChannel() chan<- types.TwitchMessage {
+	return irc.asyncResponseCh
+}
+
 // connectIRC gets the auth and connects to the twitch IRC server for channel.
 func (irc *IRC) ConnectIRC(ctx context.Context, wg *sync.WaitGroup) error {
 	irc.logger.Info("connecting to twitch IRC")
@@ -162,6 +182,18 @@ func (irc *IRC) ConnectIRC(ctx context.Context, wg *sync.WaitGroup) error {
 		}
 	}
 
+	// Initialize message broker for queue-based message distribution
+	irc.messageBroker = messagequeue.NewBroker(1000, irc.logger)
+
+	// Subscribe FAQ processor to message broker if configured
+	if irc.faqProcessor != nil {
+		irc.messageBroker.Subscribe(irc.faqProcessor)
+		irc.logger.Info("FAQ processor subscribed to message broker")
+	}
+
+	// Start the message broker
+	irc.messageBroker.Start(ctx, wg)
+
 	c.OnPrivateMessage(func(msg v2.PrivateMessage) {
 		metrics.TwitchMessageRecievedCount.Add(1)
 		irc.logger.Debug("received message", "user", msg.User.Name, "message", msg.Message)
@@ -175,7 +207,11 @@ func (irc *IRC) ConnectIRC(ctx context.Context, wg *sync.WaitGroup) error {
 			}
 		}
 
+		// Publish to message broker (distributes to all consumers)
+		irc.messageBroker.Publish(msg)
+
 		// Handle normal chat
+
 		irc.HandleChat(ctx, msg)
 	})
 
@@ -188,7 +224,7 @@ func (irc *IRC) ConnectIRC(ctx context.Context, wg *sync.WaitGroup) error {
 	return nil
 }
 
-// handleAsyncResponses listens for async responses (like web search results) and sends them to chat
+// handleAsyncResponses listens for async responses (like web search results and FAQ matches) and sends them to chat
 func (irc *IRC) handleAsyncResponses(ctx context.Context) {
 	for {
 		select {
@@ -196,16 +232,22 @@ func (irc *IRC) handleAsyncResponses(ctx context.Context) {
 			irc.logger.Info("shutting down async response handler")
 			return
 		case response := <-irc.asyncResponseCh:
-			irc.logger.Debug("received async response", "messageID", response.UUID, "responseLength", len(response.Text))
-			
-			// Store the response in the database
-			err := irc.db.InsertResponse(ctx, response, irc.modelName)
-			if err != nil {
-				irc.logger.Error("failed to insert async response into database", "error", err.Error(), "messageID", response.UUID)
+			irc.logger.Debug("received async response", "messageID", response.UUID, "username", response.Username, "responseLength", len(response.Text))
+
+			// FAQ responses are already stored by the FAQ service, skip database insert
+			// FAQ responses have Username = "Pedro_FAQ"
+			if response.Username != "Pedro_FAQ" {
+				// Store the response in the database (web search responses, etc.)
+				err := irc.db.InsertResponse(ctx, response, irc.modelName)
+				if err != nil {
+					irc.logger.Error("failed to insert async response into database", "error", err.Error(), "messageID", response.UUID)
+				} else {
+					irc.logger.Debug("async response stored in database", "messageID", response.UUID)
+				}
 			} else {
-				irc.logger.Debug("async web search response stored in database", "messageID", response.UUID)
+				irc.logger.Debug("FAQ response, skipping database insert")
 			}
-			
+
 			// Send the response to Twitch chat
 			irc.Client.Say(peteTwitchChannel, response.Text)
 			metrics.TwitchMessageSentCount.Add(1)

@@ -64,3 +64,8 @@ func (p Postgres) Close() {
 	p.logger.Info("closing postgres connection")
 	_ = p.connections.Close()
 }
+
+// DB returns the underlying sqlx.DB connection for direct database access
+func (p *Postgres) DB() *sqlx.DB {
+	return p.connections
+}

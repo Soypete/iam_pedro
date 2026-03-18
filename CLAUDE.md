@@ -83,28 +83,23 @@ docker run pedro-keepalive
 ```
 
 ### Deployment
+Both bots run as pods in a k3s (Kubernetes) cluster. Images are pushed to the ZOT registry
+at `100.81.89.62:5000`. K8s manifests live in the `pedro-ops` repo.
+
 ```bash
-# Build and deploy both services (uses current git commit as tag)
-./deployment/build-and-deploy.sh
+# Build image and push to ZOT registry
+podman build -f cli/twitch/twitchBot.Dockerfile -t 100.81.89.62:5000/pedro-twitch:<TAG> .
+podman push 100.81.89.62:5000/pedro-twitch:<TAG>
 
-# Build specific service with custom tag
-./deployment/build-and-deploy.sh v1.2.3 discord
-./deployment/build-and-deploy.sh v1.2.3 twitch
+# Apply k8s manifests (from pedro-ops repo)
+kubectl apply -f scripts/k8s/chatbot/
 
-# After building, copy to remote host
-scp pedro-discord-<TAG>.tar.gz deployment/deploy-*.sh remote-deploy.sh user@100.81.89.62:~/
-
-# On remote host, deploy the containers
-ssh user@100.81.89.62
-./remote-deploy.sh
-
-# Check service status
-sudo systemctl status pedro-discord
-sudo systemctl status pedro-twitch
+# Check pod status
+kubectl get pods -n chatbot
 
 # View logs
-sudo journalctl -u pedro-discord -f
-sudo journalctl -u pedro-twitch -f
+kubectl logs -n chatbot -l app=pedro-twitch -f
+kubectl logs -n chatbot -l app=pedro-discord -f
 ```
 
 ## Architecture
@@ -116,7 +111,7 @@ The project has two independent CLI applications in `cli/`:
 - **Discord bot** (`cli/discord/discord.go`): Handles Discord slash commands and interactions
 - **Twitch bot** (`cli/twitch/twitch.go`): Connects to Twitch IRC and responds to chat messages
 
-Each bot runs as a separate process with its own systemd service in production.
+Each bot runs as a separate pod in the k3s cluster in production.
 
 **AI Layer (`/ai/`)**
 - `chatter.go` - Core interface defining `Chatter` contract for all bot implementations
