@@ -1,0 +1,59 @@
+{{- if .Values.twitchBot.enabled }}
+{{- if .Values.twitchBot.tailscaleIngress }}
+# Tailscale ingress for Twitch OAuth redirect flow
+# URL: https://chatbot-pedro-twitch-auth-ingress.tail6fbc5.ts.net/oauth/redirect
+# Register this URL in the Twitch Developer Console as the redirect URI
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "pedro-bots.fullname" . }}-twitch-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pedro-bots.labels" . | nindent 4 }}
+    app.kubernetes.io/component: twitch-auth
+spec:
+  ingressClassName: tailscale
+  rules:
+    - http:
+        paths:
+          - path: /oauth/redirect
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "pedro-bots.fullname" . }}-twitch-auth
+                port:
+                  number: 3000
+          - path: /healthz
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "pedro-bots.fullname" . }}-twitch
+                port:
+                  number: 6060
+  tls:
+    - hosts: []
+{{- end }}
+{{- end }}
+---
+{{- if .Values.twitchBot.enabled }}
+{{- if .Values.twitchBot.tailscaleIngress }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pedro-bots.fullname" . }}-twitch-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pedro-bots.labels" . | nindent 4 }}
+    app.kubernetes.io/component: twitch
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      name: oauth
+  selector:
+    {{- include "pedro-bots.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: twitch
+{{- end }}
+{{- end }}

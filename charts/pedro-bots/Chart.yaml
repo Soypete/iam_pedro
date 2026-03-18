@@ -1,0 +1,6 @@
+apiVersion: v2
+name: pedro-bots
+description: Helm chart for IAM_PEDRO - Discord, Twitch, and Keepalive bots
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
