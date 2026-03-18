@@ -140,9 +140,6 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 	irc.tokenRefreshTime = time.Now()
 	fmt.Printf("Token received: %s\n", irc.tok.AccessToken)
 	fmt.Println("IMPORTANT: Save this token to 1Password as TWITCH_TOKEN to avoid OAuth flow on restart")
-	if irc.tok.RefreshToken != "" {
-		fmt.Printf("Refresh token received — save as TWITCH_REFRESH_TOKEN for automatic refresh\n")
-	}
 	return nil
 }
 
