@@ -14,7 +14,7 @@ echo "Service: $SERVICE"
 # Build Discord container
 if [[ "$SERVICE" == "discord" || "$SERVICE" == "both" ]]; then
     echo "Building Discord container..."
-    podman build -f cli/discord/discordBot.Dockerfile -t pedro-discord:$TAG .
+    podman build --platform linux/amd64 -f cli/discord/discordBot.Dockerfile -t pedro-discord:$TAG .
 
     echo "Saving Discord container to tarball..."
     podman save pedro-discord:$TAG | gzip > pedro-discord-$TAG.tar.gz
@@ -23,7 +23,7 @@ fi
 # Build Twitch container  
 if [[ "$SERVICE" == "twitch" || "$SERVICE" == "both" ]]; then
     echo "Building Twitch container..."
-    podman build -f cli/twitch/twitchBot.Dockerfile -t pedro-twitch:$TAG .
+    podman build --platform linux/amd64 -f cli/twitch/twitchBot.Dockerfile -t pedro-twitch:$TAG .
 
     echo "Saving Twitch container to tarball..."
     podman save pedro-twitch:$TAG | gzip > pedro-twitch-$TAG.tar.gz

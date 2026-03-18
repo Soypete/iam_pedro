@@ -57,11 +57,16 @@ goose -dir database/migrations create migration_name sql
 ```
 
 ### Docker / Podman
+**IMPORTANT**: Always build with `--platform linux/amd64`. The k3s cluster nodes are amd64.
+Building on an Apple Silicon Mac without this flag produces an arm64 image that crashes
+with `exec format error` on the cluster.
+
 ```bash
 # Build containers (use podman — docker context may point to colima which is not running)
-podman build -f cli/discord/discordBot.Dockerfile -t pedro-discord .
-podman build -f cli/twitch/twitchBot.Dockerfile -t pedro-twitch .
-podman build -f cli/keepalive/keepaliveBot.Dockerfile -t pedro-keepalive .
+# --platform linux/amd64 is REQUIRED when building on Apple Silicon for the k3s cluster
+podman build --platform linux/amd64 -f cli/discord/discordBot.Dockerfile -t pedro-discord .
+podman build --platform linux/amd64 -f cli/twitch/twitchBot.Dockerfile -t pedro-twitch .
+podman build --platform linux/amd64 -f cli/keepalive/keepaliveBot.Dockerfile -t pedro-keepalive .
 
 # Run with required environment variables
 podman run -e LLAMA_CPP_PATH="http://127.0.0.1:8080" \

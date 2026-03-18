@@ -30,7 +30,7 @@ podman machine start
 # Build and push all three images
 TAG=$(git rev-parse --short HEAD)
 for SERVICE in discord twitch keepalive; do
-    podman build -f cli/${SERVICE}/${SERVICE}Bot.Dockerfile -t 100.81.89.62:5000/pedro-${SERVICE}:${TAG} .
+    podman build --platform linux/amd64 -f cli/${SERVICE}/${SERVICE}Bot.Dockerfile -t 100.81.89.62:5000/pedro-${SERVICE}:${TAG} .
     podman push 100.81.89.62:5000/pedro-${SERVICE}:${TAG}
     # Also tag as latest
     podman tag 100.81.89.62:5000/pedro-${SERVICE}:${TAG} 100.81.89.62:5000/pedro-${SERVICE}:latest
