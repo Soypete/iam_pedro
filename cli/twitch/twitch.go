@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 
 	"github.com/Soypete/twitch-llm-bot/ai"
@@ -108,23 +109,38 @@ func main() {
 	server.RegisterAuthHealthHandler(irc.AuthHealthHandler())
 	logger.Debug("auth health endpoint registered at /healthz/auth")
 
-	logger.Info("starting twitch IRC connection")
-	// long running function
-	err = irc.ConnectIRC(ctx, wg)
-	if err != nil {
-		logger.Error("failed to connect to twitch IRC", "error", err.Error())
-		stop <- os.Interrupt
-	}
-
-	go func() {
-		err = irc.Client.Connect()
-		if err != nil {
-			logger.Error("twitch client connection failed", "error", err.Error())
-			stop <- os.Interrupt
-		}
-	}()
 	signal.Notify(stop, os.Interrupt)
 	logger.Info("Press Ctrl+C to exit")
+
+	logger.Info("starting twitch IRC connection")
+	go func() {
+		for {
+			if err := irc.ConnectIRC(ctx, wg); err != nil {
+				logger.Error("failed to connect to twitch IRC", "error", err.Error())
+				if authErr := irc.AuthTwitch(ctx); authErr != nil {
+					logger.Error("re-auth failed", "error", authErr)
+					stop <- os.Interrupt
+					return
+				}
+				continue
+			}
+			if err := irc.Client.Connect(); err != nil {
+				if strings.Contains(err.Error(), "login authentication failed") {
+					logger.Warn("auth failed, attempting refresh/re-auth")
+					if authErr := irc.AuthTwitch(ctx); authErr != nil {
+						logger.Error("re-auth failed", "error", authErr)
+						stop <- os.Interrupt
+						return
+					}
+					continue
+				}
+				logger.Error("twitch client connection failed", "error", err.Error())
+				stop <- os.Interrupt
+				return
+			}
+			return
+		}
+	}()
 	Shutdown(ctx, wg, irc, stop, logger)
 }
 

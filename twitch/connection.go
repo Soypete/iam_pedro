@@ -31,6 +31,9 @@ type IRC struct {
 	tokenRefreshTime time.Time // Time when the token was last refreshed
 	llm              ai.Chatter
 	authCode         string
+	oauthState       string
+	oauthConf        *oauth2.Config
+	handlerOnce      sync.Once
 	logger           *logging.Logger
 	asyncResponseCh  chan types.TwitchMessage
 

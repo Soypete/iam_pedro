@@ -1,0 +1,130 @@
+name: Twitch Token Refresh
+
+on:
+  schedule:
+    # Run daily at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  refresh-token:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v1
+
+      - name: Read current Twitch token from 1Password
+        id: read-token
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+        run: |
+          TWITCH_TOKEN=$(op read "op://pedro/TWITCH_TOKEN/credential")
+          echo "::add-mask::$TWITCH_TOKEN"
+          echo "twitch_token=$TWITCH_TOKEN" >> $GITHUB_OUTPUT
+
+          TWITCH_REFRESH_TOKEN=$(op read "op://pedro/TWITCH_REFRESH_TOKEN/credential" 2>/dev/null || echo "")
+          echo "::add-mask::$TWITCH_REFRESH_TOKEN"
+          echo "twitch_refresh_token=$TWITCH_REFRESH_TOKEN" >> $GITHUB_OUTPUT
+
+          TWITCH_CLIENT_ID=$(op read "op://pedro/TWITCH_ID/credential")
+          echo "::add-mask::$TWITCH_CLIENT_ID"
+          echo "twitch_client_id=$TWITCH_CLIENT_ID" >> $GITHUB_OUTPUT
+
+          TWITCH_CLIENT_SECRET=$(op read "op://pedro/TWITCH_SECRET/credential")
+          echo "::add-mask::$TWITCH_CLIENT_SECRET"
+          echo "twitch_client_secret=$TWITCH_CLIENT_SECRET" >> $GITHUB_OUTPUT
+
+      - name: Validate current token
+        id: validate
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: OAuth ${{ steps.read-token.outputs.twitch_token }}" \
+            https://id.twitch.tv/oauth2/validate)
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "Token validation status: $STATUS"
+
+      - name: Refresh token if expired
+        id: refresh
+        if: steps.validate.outputs.status == '401'
+        run: |
+          if [ -z "${{ steps.read-token.outputs.twitch_refresh_token }}" ]; then
+            echo "No refresh token available — manual OAuth required"
+            echo "refreshed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          RESPONSE=$(curl -s -X POST https://id.twitch.tv/oauth2/token \
+            -d "grant_type=refresh_token" \
+            -d "refresh_token=${{ steps.read-token.outputs.twitch_refresh_token }}" \
+            -d "client_id=${{ steps.read-token.outputs.twitch_client_id }}" \
+            -d "client_secret=${{ steps.read-token.outputs.twitch_client_secret }}")
+
+          echo "$RESPONSE"
+
+          NEW_ACCESS_TOKEN=$(echo "$RESPONSE" | jq -r '.access_token // empty')
+          NEW_REFRESH_TOKEN=$(echo "$RESPONSE" | jq -r '.refresh_token // empty')
+
+          if [ -z "$NEW_ACCESS_TOKEN" ]; then
+            echo "Token refresh failed — manual OAuth required"
+            echo "refreshed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "::add-mask::$NEW_ACCESS_TOKEN"
+          echo "::add-mask::$NEW_REFRESH_TOKEN"
+          echo "new_access_token=$NEW_ACCESS_TOKEN" >> $GITHUB_OUTPUT
+          echo "new_refresh_token=$NEW_REFRESH_TOKEN" >> $GITHUB_OUTPUT
+          echo "refreshed=true" >> $GITHUB_OUTPUT
+
+      - name: Update token in 1Password
+        if: steps.refresh.outputs.refreshed == 'true'
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+        run: |
+          op item edit pedro TWITCH_TOKEN[password]="${{ steps.refresh.outputs.new_access_token }}"
+          if [ -n "${{ steps.refresh.outputs.new_refresh_token }}" ]; then
+            op item edit pedro TWITCH_REFRESH_TOKEN[password]="${{ steps.refresh.outputs.new_refresh_token }}"
+          fi
+          echo "1Password updated with new tokens"
+
+      - name: Patch Kubernetes secret
+        if: steps.refresh.outputs.refreshed == 'true'
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_B64" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+          NEW_TOKEN_B64=$(echo -n "${{ steps.refresh.outputs.new_access_token }}" | base64 -w0)
+          kubectl patch secret pedro-secrets \
+            --type='json' \
+            -p="[{\"op\": \"replace\", \"path\": \"/data/TWITCH_TOKEN\", \"value\": \"$NEW_TOKEN_B64\"}]"
+
+          if [ -n "${{ steps.refresh.outputs.new_refresh_token }}" ]; then
+            NEW_REFRESH_B64=$(echo -n "${{ steps.refresh.outputs.new_refresh_token }}" | base64 -w0)
+            kubectl patch secret pedro-secrets \
+              --type='json' \
+              -p="[{\"op\": \"replace\", \"path\": \"/data/TWITCH_REFRESH_TOKEN\", \"value\": \"$NEW_REFRESH_B64\"}]"
+          fi
+          echo "Kubernetes secret patched"
+
+      - name: Alert on failure — manual OAuth needed
+        if: steps.validate.outputs.status == '401' && steps.refresh.outputs.refreshed != 'true'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "content": "🚨 **Pedro Twitch Token Alert**: The Twitch OAuth token has expired and automatic refresh failed. Manual re-authentication is required.\n\nRun `AuthTwitch` on the bot pod or restart the deployment after updating the token in 1Password.",
+              "username": "Pedro Alert"
+            }'
+
+      - name: Report success
+        if: steps.validate.outputs.status == '200'
+        run: echo "Token is valid — no refresh needed."
+
+      - name: Report refresh success
+        if: steps.refresh.outputs.refreshed == 'true'
+        run: echo "Token refreshed successfully and secrets updated."
