@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/bwmarrin/discordgo"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/twitch"
 )
@@ -125,6 +126,7 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 
 	url := irc.oauthConf.AuthCodeURL(state, oauth2.AccessTypeOffline)
 	fmt.Printf("Visit the URL for the auth dialog: %v\n", url)
+	notifyDiscord(url)
 
 	for irc.authCode == "" {
 		time.Sleep(1 * time.Second)
@@ -142,4 +144,40 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 		fmt.Printf("Refresh token received — save as TWITCH_REFRESH_TOKEN for automatic refresh\n")
 	}
 	return nil
+}
+
+// notifyDiscord sends the Twitch OAuth URL to the #pedrogpt Discord channel using
+// the same bot token and channel-lookup logic as the keepalive service.
+// Requires DISCORD_SECRET environment variable. Silently skips if unset.
+func notifyDiscord(authURL string) {
+	token := os.Getenv("DISCORD_SECRET")
+	if token == "" {
+		return
+	}
+	session, err := discordgo.New("Bot " + token)
+	if err != nil {
+		fmt.Printf("Discord notify failed to create session: %v\n", err)
+		return
+	}
+	if err := session.Open(); err != nil {
+		fmt.Printf("Discord notify failed to open session: %v\n", err)
+		return
+	}
+	defer session.Close()
+
+	msg := fmt.Sprintf("🔐 **Pedro needs Twitch auth!** Click to authorize (log in as the BOT account):\n%s", authURL)
+	for _, guild := range session.State.Guilds {
+		channels, err := session.GuildChannels(guild.ID)
+		if err != nil {
+			continue
+		}
+		for _, ch := range channels {
+			if ch.Name == "pedrogpt" {
+				_, _ = session.ChannelMessageSend(ch.ID, msg)
+				fmt.Println("OAuth URL sent to Discord #pedrogpt")
+				return
+			}
+		}
+	}
+	fmt.Println("Discord notify: #pedrogpt channel not found")
 }

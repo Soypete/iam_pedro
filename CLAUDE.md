@@ -56,20 +56,20 @@ goose -dir database/migrations postgres $POSTGRES_URL up
 goose -dir database/migrations create migration_name sql
 ```
 
-### Docker
+### Docker / Podman
 ```bash
-# Build containers
-docker build -f cli/discord/discordBot.Dockerfile -t pedro-discord .
-docker build -f cli/twitch/twitchBot.Dockerfile -t pedro-twitch .
-docker build -f cli/keepalive/keepaliveBot.Dockerfile -t pedro-keepalive .
+# Build containers (use podman — docker context may point to colima which is not running)
+podman build -f cli/discord/discordBot.Dockerfile -t pedro-discord .
+podman build -f cli/twitch/twitchBot.Dockerfile -t pedro-twitch .
+podman build -f cli/keepalive/keepaliveBot.Dockerfile -t pedro-keepalive .
 
 # Run with required environment variables
-docker run -e LLAMA_CPP_PATH="http://127.0.0.1:8080" \
+podman run -e LLAMA_CPP_PATH="http://127.0.0.1:8080" \
   -e POSTGRES_URL="" -e TWITCH_ID="" -e TWITCH_SECRET="" \
   -e POSTGRES_VECTOR_URL="" pedro-twitch
 
 # Run with stream config (mount configs directory)
-docker run \
+podman run \
   -v $(pwd)/configs:/app/configs:ro \
   -e LLAMA_CPP_PATH="http://127.0.0.1:8080" \
   -e POSTGRES_URL="" -e TWITCH_ID="" -e TWITCH_SECRET="" \
@@ -78,7 +78,7 @@ docker run \
   -streamConfig "/app/configs/streams/golang-nov-2025.yaml"
 
 # Run keepalive service (uses prod.env with 1Password)
-docker run pedro-keepalive
+podman run pedro-keepalive
 # Environment variables are loaded from prod.env via 1Password CLI
 ```
 
