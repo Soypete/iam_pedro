@@ -1,48 +1,52 @@
 # Pedro Deployment Guide
 
-This guide covers deploying Pedro's Discord and Twitch bots with Prometheus monitoring.
+Pedro's bots (Discord, Twitch, Keepalive) run as pods in a k3s cluster administered via the `foundry` CLI.
 
-## Architecture
+## Cluster Architecture
 
-- **k3s Cluster**: blue1/control-plane (`100.81.89.62`), blue2 (`100.125.196.1`), refurb (`100.70.90.12`)
-- **ZOT Registry**: `100.81.89.62:5000` (HTTP, no auth) — runs on blue1
-- **LLM Service**: `http://100.121.229.114:8080` (llama.cpp)
+| Node | Role | Tailscale IP |
+|------|------|-------------|
+| blue1 | control-plane + ZOT registry | `100.81.89.62` |
+| blue2 | worker + Prometheus | `100.125.196.1` |
+| refurb | worker | `100.70.90.12` |
+
+- **ZOT Registry**: `100.81.89.62:5000` (HTTP, no auth)
+- **LLM Service**: `http://100.121.229.114:8080` (llama.cpp / vLLM)
 - **Namespace**: `chatbot`
 - **Helm Release**: `pedro`
+- **Helm Chart**: `charts/pedro-bots/`
 
-## Kubernetes / Helm Deployment (Current)
-
-All bots run in the `chatbot` namespace on the k3s cluster, deployed via the Helm chart at `charts/pedro-bots/`.
-
-### Prerequisites
+## Prerequisites
 
 - `kubectl` configured for the cluster
 - `helm` installed
-- `op` (1Password CLI) authenticated
-- `podman` for building images
+- `op` (1Password CLI) authenticated (`op whoami`)
+- `podman` for building images (`podman machine start`)
+- `foundry` CLI for cluster administration
+
+## Deploying
 
 ### 1. Build and Push Images
 
-```bash
-# Start podman machine if not running
-podman machine start
+Migrations are embedded in the binary — a new migration requires a new image build.
 
-# Build and push all three images
+```bash
 TAG=$(git rev-parse --short HEAD)
+
 for SERVICE in discord twitch keepalive; do
-    podman build -f cli/${SERVICE}/${SERVICE}Bot.Dockerfile -t 100.81.89.62:5000/pedro-${SERVICE}:${TAG} .
-    podman push 100.81.89.62:5000/pedro-${SERVICE}:${TAG}
-    # Also tag as latest
-    podman tag 100.81.89.62:5000/pedro-${SERVICE}:${TAG} 100.81.89.62:5000/pedro-${SERVICE}:latest
-    podman push 100.81.89.62:5000/pedro-${SERVICE}:latest
+    podman build --platform linux/amd64 \
+        -f cli/${SERVICE}/${SERVICE}Bot.Dockerfile \
+        -t 100.81.89.62:5000/pedro-${SERVICE}:${TAG} .
+    podman push --tls-verify=false 100.81.89.62:5000/pedro-${SERVICE}:${TAG}
+
+    podman tag 100.81.89.62:5000/pedro-${SERVICE}:${TAG} \
+               100.81.89.62:5000/pedro-${SERVICE}:latest
+    podman push --tls-verify=false 100.81.89.62:5000/pedro-${SERVICE}:latest
 done
 ```
 
-Or use the deploy script:
-
-```bash
-./deploy.sh build
-```
+> **Note**: The ZOT registry must be running on blue1.
+> Verify: `ssh 100.81.89.62 "docker ps | grep zot"`
 
 ### 2. Resolve Secrets from 1Password
 
@@ -68,7 +72,6 @@ EOF
 ### 3. Deploy with Helm
 
 **First install:**
-
 ```bash
 kubectl create namespace chatbot --dry-run=client -o yaml | kubectl apply -f -
 helm install pedro ./charts/pedro-bots \
@@ -76,101 +79,53 @@ helm install pedro ./charts/pedro-bots \
   --values /tmp/pedro-secrets.yaml
 ```
 
-**Upgrade (after code or config changes):**
-
+**Upgrade (code changes, config changes, new image tags):**
 ```bash
 helm upgrade pedro ./charts/pedro-bots \
   --namespace chatbot \
   --values /tmp/pedro-secrets.yaml
 ```
 
-Or use the deploy script:
-
+After an upgrade, pods restart automatically. Monitor with:
 ```bash
-./deploy.sh deploy
+kubectl rollout status deployment -n chatbot
 ```
 
-### 4. Twitch OAuth Setup
-
-The Twitch bot uses a pre-stored token from 1Password (`TWITCH_TOKEN`). If the token expires:
-
-1. Ensure the OAuth redirect URL is registered in the [Twitch Developer Console](https://dev.twitch.tv/console/apps):
-   ```
-   https://chatbot-pedro-twitch-auth-ingress.tail6fbc5.ts.net/oauth/redirect
-   ```
-2. Deploy without a token to trigger the OAuth flow:
-   ```bash
-   # Create secrets file with empty twitchToken
-   cat > /tmp/pedro-secrets-notoken.yaml <<EOF
-   secrets:
-     twitchId: "$(op read 'op://pedro/TWITCH_ID/credential')"
-     twitchSecret: "$(op read 'op://pedro/TWITCH_SECRET/credential')"
-     twitchToken: ""
-     # ... rest of secrets ...
-   EOF
-   helm upgrade pedro ./charts/pedro-bots --namespace chatbot --values /tmp/pedro-secrets-notoken.yaml
-   kubectl rollout restart deployment pedro-twitch -n chatbot
-   ```
-3. Watch logs for the OAuth URL:
-   ```bash
-   kubectl logs -n chatbot -l app.kubernetes.io/component=twitch -f
-   # Look for: "Visit the URL for the auth dialog: https://id.twitch.tv/oauth2/authorize?..."
-   ```
-4. Open the URL in a browser while logged in as the **bot account** (not the streamer account). The page will go blank after redirect — that's success.
-5. The logs will print the new token:
-   ```
-   Token received: <token>
-   IMPORTANT: Save this token to 1Password as TWITCH_TOKEN...
-   ```
-6. Save the token to 1Password:
-   ```bash
-   op item edit "TWITCH_TOKEN" "credential=<token_from_logs>"
-   ```
-7. Redeploy with the new token (step 2-3 above with `twitchToken` populated).
-
-### 5. Viewing Logs
+## Cluster Status and Health
 
 ```bash
-# Stream logs for all bots
-kubectl logs -n chatbot -l app.kubernetes.io/component=twitch -f
+# Foundry cluster overview
+foundry status
+
+# Pod status in chatbot namespace
+kubectl get pods -n chatbot -o wide
+
+# All resources
+kubectl get all -n chatbot
+
+# Helm release history
+helm history pedro -n chatbot
+```
+
+## Viewing Logs
+
+```bash
+# Stream logs by component
 kubectl logs -n chatbot -l app.kubernetes.io/component=discord -f
+kubectl logs -n chatbot -l app.kubernetes.io/component=twitch -f
 kubectl logs -n chatbot -l app.kubernetes.io/component=keepalive -f
 
-# Previous pod logs (after a crash/restart)
+# Previous pod logs (after crash/restart)
 kubectl logs -n chatbot -l app.kubernetes.io/component=twitch --previous
 
 # All bots at once
 kubectl logs -n chatbot --selector 'app.kubernetes.io/name=pedro-bots' --max-log-requests=10 -f
-
-# Or via deploy script
-./deploy.sh logs twitch
-./deploy.sh logs discord
-./deploy.sh logs keepalive
 ```
 
-### 6. Check Status
+## Rollback
 
 ```bash
-# Pod status (should show 3 Running pods)
-kubectl get pods -n chatbot -o wide
-
-# Check helm release history
-helm history pedro -n chatbot
-
-# All resources in the namespace
-kubectl get all -n chatbot
-
-# Describe a crashing pod
-kubectl describe pod -n chatbot <pod-name>
-
-# Or via deploy script
-./deploy.sh status
-```
-
-### 7. Rollback
-
-```bash
-# Roll back to previous helm revision
+# Roll back to previous revision
 helm rollback pedro -n chatbot
 
 # Roll back to a specific revision
@@ -180,285 +135,103 @@ helm rollback pedro 5 -n chatbot
 helm history pedro -n chatbot
 ```
 
-### Cluster Infrastructure Notes
+## Twitch OAuth Token Renewal
 
-- **ZOT registry** runs as a Docker container on blue1. Confirm it's up: `ssh 100.81.89.62 "docker ps | grep zot"`
-- **CoreDNS** is patched to forward to `8.8.8.8 1.1.1.1` directly (not `/etc/resolv.conf`) — required because the cluster's PowerDNS may be unavailable. Config is in `pedro-ops` repo at `scripts/k8s/coredns-configmap.yaml`
-- **k3s registries** on all nodes are configured to pull from the ZOT registry over HTTP. Config is in `pedro-ops` repo at `scripts/k8s/registries.yaml`
-- If you add a new node, run `pedro-ops/scripts/k8s/apply-cluster-config.sh` to apply these configs
+The Twitch bot uses a pre-stored token from 1Password. When the keepalive service alerts that the token is expired:
 
-## Deployment Methods (Legacy - Docker/systemd)
+1. Deploy with an empty token to trigger the OAuth flow:
+    ```bash
+    cat > /tmp/pedro-secrets-notoken.yaml <<EOF
+    secrets:
+      twitchId: "$(op read 'op://pedro/TWITCH_ID/credential')"
+      twitchSecret: "$(op read 'op://pedro/TWITCH_SECRET/credential')"
+      twitchToken: ""
+      postgresUrl: "$(op read 'op://pedro/POSTGRES_URL/credential')"
+      postgresVectorUrl: "$(op read 'op://pedro/POSTGRES_VECTOR_URL/credential')"
+      discordSecret: "$(op read 'op://pedro/DISCORD_SECRET/credential')"
+      discordClientId: "$(op read 'op://pedro/DISCORD_CLIENT_ID/credential')"
+      discordPublicKey: "$(op read 'op://pedro/DISCORD_PUBLIC_KEY/credential')"
+      discordPermission: "$(op read 'op://pedro/DISCORD_PERMISSION/credential')"
+      supabasePubKey: "$(op read 'op://pedro/SUPABASE_PUB_KEY/credential')"
+      supabasePrivKey: "$(op read 'op://pedro/SUPABASE_PRIV_KEY/credential')"
+      supabaseUrl: "$(op read 'op://pedro/SUPABASE_URL/credential')"
+      supabaseJwt: "$(op read 'op://pedro/SUPABASE_JWT/credential')"
+    EOF
 
-### Method 1: Taildrop Package (Recommended)
+    helm upgrade pedro ./charts/pedro-bots \
+      --namespace chatbot \
+      --values /tmp/pedro-secrets-notoken.yaml
+    kubectl rollout restart deployment pedro-twitch -n chatbot
+    ```
 
-Package everything on your local machine and transfer via Taildrop:
+2. Watch logs for the OAuth URL:
+    ```bash
+    kubectl logs -n chatbot -l app.kubernetes.io/component=twitch -f
+    # Look for: "Visit the URL for the auth dialog: https://id.twitch.tv/oauth2/authorize?..."
+    ```
 
+3. Open the URL in a browser while logged in as the **bot account** (not the streamer account).
+
+4. The logs will print the new token:
+    ```
+    Token received: <token>
+    IMPORTANT: Save this token to 1Password as TWITCH_TOKEN...
+    ```
+
+5. Save to 1Password:
+    ```bash
+    op item edit "TWITCH_TOKEN" "credential=<token_from_logs>"
+    ```
+
+6. Redeploy with the new token (steps 2–3 above with `twitchToken` populated).
+
+## Debugging Common Issues
+
+### Pod not starting / CrashLoopBackOff
 ```bash
-# On your local machine
-./deployment/package-for-deploy.sh
-
-# Transfer pedro-deploy-<tag>.tar.gz via Taildrop to target machine
-
-# On target machine (100.81.89.62)
-tar xzf pedro-deploy-<tag>.tar.gz
-cd pedro-deploy-<tag>
-./setup.sh                    # Installs Docker/Podman
-./deploy-docker.sh discord    # Deploy Discord bot
-./deploy-docker.sh twitch     # Deploy Twitch bot
+kubectl describe pod -n chatbot <pod-name>
+kubectl logs -n chatbot <pod-name> --previous
 ```
 
-### Method 2: Direct Git Clone
-
-Clone directly on target machine:
-
-```bash
-# On target machine
-git clone https://github.com/Soypete/iam_pedro.git
-cd iam_pedro
-
-# Checkout branch
-git checkout deployment-automation
-
-# Deploy
-./deployment/deploy-docker.sh discord
-./deployment/deploy-docker.sh twitch
-```
-
-### Method 3: Prometheus Setup (Monitoring Host)
+### LLM model not found (400 error in logs)
+The model name in `charts/pedro-bots/values.yaml` must match the INI section name registered on the llama.cpp server (not the HuggingFace repo path).
 
 ```bash
-# Copy prometheus files to monitoring host
-scp -r prometheus/ soypete@100.125.196.1:~/
-
-# SSH to monitoring host and setup
-ssh soypete@100.125.196.1
-cd prometheus/
-chmod +x setup-prometheus.sh
-./setup-prometheus.sh
+# Check what model the server reports
+curl http://100.121.229.114:8080/v1/models
 ```
 
-## Environment Configuration
+Then update `values.yaml` and do a `helm upgrade`.
 
-The deployment uses two configuration files:
-1. **`/opt/pedro/service.env`** - Non-secret systemd environment variables
-2. **`/opt/pedro/prod.env`** - 1Password secret references (injected at container runtime)
-
-### Step 1: Create service.env (Non-Secrets)
-
-This file contains the 1Password service account token and non-secret values:
-
+### Database migration failure
+Migrations run automatically at pod startup (embedded via `go:embed`). If a migration fails:
 ```bash
-sudo mkdir -p /opt/pedro
-sudo tee /opt/pedro/service.env > /dev/null <<EOF
-# 1Password Service Account Token (required for op CLI in container)
-OP_SERVICE_ACCOUNT_TOKEN=ops_your_service_account_token_here
-
-# Twitch Client ID (not a secret, safe to store in plain text)
-TWITCH_ID=your_twitch_client_id
-
-# OAuth redirect host for remote authentication
-# Use Tailscale hostname for remote access, or IP address
-OAUTH_REDIRECT_HOST=100.81.89.62:3000
-EOF
-
-sudo chmod 600 /opt/pedro/service.env
+kubectl logs -n chatbot -l app.kubernetes.io/component=discord
+# Look for: "error running migrations"
 ```
 
-### Step 2: Create prod.env (1Password Secret References)
+Check the migration files in `database/migrations/` and the current DB state manually.
 
-This file uses 1Password secret references that will be injected at container runtime:
-
+### Image pull errors
+Verify the ZOT registry is running on blue1:
 ```bash
-sudo tee /opt/pedro/prod.env > /dev/null <<EOF
-# Discord Bot
-DISCORD_TOKEN=op://vault/discord-bot/token
-
-# Twitch Bot - use TWITCH_SECRET for OAuth flow
-TWITCH_SECRET=op://vault/twitch-bot/client-secret
-
-# Twitch Bot - OPTIONAL: use TWITCH_TOKEN to skip OAuth flow
-# If set, bot will use this token directly instead of running OAuth
-# TWITCH_TOKEN=op://vault/twitch-bot/access-token
-
-# Database
-DATABASE_URL=op://vault/postgres/connection-url
-
-# LLM Service
-LLAMA_CPP_PATH=https://pedro-gpu.tail6fbc5.ts.net
-EOF
-
-sudo chmod 600 /opt/pedro/prod.env
+ssh 100.81.89.62 "docker ps | grep zot"
 ```
 
-**Important Notes:**
-- The containers use `op run --env-file=/app/prod.env` to inject secrets at runtime
-- `OP_SERVICE_ACCOUNT_TOKEN` must be set in `service.env` for the container's `op` CLI to authenticate
-- `TWITCH_ID` is not a secret and can be stored as plain text
-- For Twitch: either use `TWITCH_SECRET` (requires OAuth) or `TWITCH_TOKEN` (pre-generated token)
-
-## Twitch OAuth Setup
-
-The Twitch bot supports two authentication methods:
-
-### Method 1: Pre-generated Token (Recommended for Production)
-
-If you have a `TWITCH_TOKEN` in your 1Password vault, the bot will use it directly and skip the OAuth flow. This is best for headless deployments.
-
-To get a token initially, use Method 2 once, then save the token to 1Password.
-
-### Method 2: Remote OAuth Flow (For Initial Setup)
-
-If `TWITCH_TOKEN` is not set, the bot will initiate an OAuth flow on startup.
-
-**Prerequisites:**
-1. Update Twitch Developer Portal with your redirect URL:
-   - Go to https://dev.twitch.tv/console/apps
-   - Edit your application
-   - Add OAuth Redirect URL: `http://100.81.89.62:3000/oauth/redirect` (or your Tailscale hostname)
-   - Save changes
-
-**During First Deployment:**
-1. Start the Twitch bot service
-2. Watch the logs for the OAuth URL:
-   ```bash
-   sudo journalctl -u pedro-twitch -f
-   ```
-3. You'll see output like:
-   ```
-   Visit the URL for the auth dialog: https://id.twitch.tv/oauth2/authorize?...
-   OAuth redirect configured for: http://100.81.89.62:3000/oauth/redirect
-   ```
-4. Open that URL in a browser (from any device on the network/Tailscale)
-5. Authorize the application
-6. The bot will receive the token and print:
-   ```
-   Token received: abc123...
-   IMPORTANT: Save this token to 1Password as TWITCH_TOKEN to avoid OAuth flow on restart
-   ```
-7. Save the token to 1Password:
-   ```bash
-   op item create --category=password --title="twitch-bot" \
-     --vault=vault \
-     access-token=<the_token_from_logs>
-   ```
-8. Update `/opt/pedro/prod.env` to uncomment `TWITCH_TOKEN`:
-   ```bash
-   TWITCH_TOKEN=op://vault/twitch-bot/access-token
-   ```
-9. Restart the container - it will now use the saved token:
-   ```bash
-   docker restart pedro-twitch
-   ```
-
-## Container Management
-
-Containers run with `--restart unless-stopped` which means they:
-- ✅ Auto-start on boot
-- ✅ Auto-restart on crashes
-- ✅ Stay stopped if you manually stop them
-- ❌ No systemd required!
-
-### Check Status
+Verify the image was pushed:
 ```bash
-# List running containers
-docker ps
-
-# List all containers (including stopped)
-docker ps -a
+curl http://100.81.89.62:5000/v2/pedro-discord/tags/list
+curl http://100.81.89.62:5000/v2/pedro-twitch/tags/list
 ```
 
-### View Logs
-```bash
-# Discord logs
-docker logs -f pedro-discord
+### Keepalive alerts flooding Discord
+The keepalive service checks bot health on `CHECK_INTERVAL` (default 60s) and alerts on `ALERT_INTERVAL` (default 3600s). If the underlying issue is resolved, pods will stop alerting once they restart and pass health checks.
 
-# Twitch logs
-docker logs -f pedro-twitch
+## Monitoring
 
-# View last 100 lines
-docker logs --tail 100 pedro-discord
-
-# Prometheus logs (if using systemd for Prometheus)
-sudo journalctl -u prometheus -f
-```
-
-### Manage Containers
-```bash
-# Stop containers
-docker stop pedro-discord
-docker stop pedro-twitch
-
-# Start containers
-docker start pedro-discord
-docker start pedro-twitch
-
-# Restart containers (after config changes)
-docker restart pedro-discord
-docker restart pedro-twitch
-
-# Remove containers (will be recreated on next deploy)
-docker stop pedro-discord && docker rm pedro-discord
-docker stop pedro-twitch && docker rm pedro-twitch
-```
-
-## Monitoring Endpoints
-
-| Service | Host | Port | URL |
-|---------|------|------|-----|
-| Discord Bot | 100.81.89.62 | 6060 | http://100.81.89.62:6060/metrics |
-| Twitch Bot | 100.81.89.62 | 6061 | http://100.81.89.62:6061/metrics |
-| Prometheus | 100.125.196.1 | 9090 | http://100.125.196.1:9090 |
-| LLM Service | pedro-gpu.tail6fbc5.ts.net | 443 | https://pedro-gpu.tail6fbc5.ts.net/metrics |
-
-## Available Metrics
-
-The bots expose these metrics:
-- `twitch_connection_count` - Twitch connections established
-- `twitch_message_recieved_count` - Messages received from Twitch
-- `twitch_message_sent_count` - Messages sent to Twitch  
-- `discord_message_recieved` - Messages received from Discord
-- `discord_message_sent` - Messages sent to Discord
-- `empty_llm_response_count` - Empty responses from LLM
-- `successful_llm_gen_count` - Successful LLM generations
-- `failed_llm_gen_count` - Failed LLM generations
-
-## Troubleshooting
-
-### Container Issues
-```bash
-# Check if containers are running
-docker ps
-
-# Check container logs
-docker logs pedro-discord
-docker logs pedro-twitch
-
-# Rebuild container
-./deployment/remote-build-deploy.sh new-tag discord
-```
-
-### Network Issues
-```bash
-# Test metrics endpoints
-curl http://localhost:6060/metrics
-curl http://localhost:6061/metrics
-
-# Check if ports are listening
-sudo netstat -tlnp | grep -E '(6060|6061|9090)'
-```
-
-### Environment Issues
-```bash
-# Verify environment file
-sudo cat /opt/pedro/prod.env
-
-# Test 1Password connection (if using)
-op whoami
-```
-
-## Security Notes
-
-- Ensure firewall rules allow access to required ports
-- Keep environment variables secure and never commit to version control
-- Use 1Password or similar secrets management for production
-- Consider setting up reverse proxy with TLS for external access
+| Service | Port | URL |
+|---------|------|-----|
+| Discord bot metrics | 6060 | `http://pedro-discord:6060/metrics` |
+| Twitch bot metrics | 6061 | `http://pedro-twitch:6061/metrics` |
+| Health check | — | `http://pedro-discord:6060/healthz` |
+| Prometheus | 9090 | `http://100.125.196.1:9090` |
