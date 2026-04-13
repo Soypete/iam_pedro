@@ -3,6 +3,7 @@ package twitchirc
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -38,6 +39,10 @@ type IRC struct {
 	logger           *logging.Logger
 	asyncResponseCh  chan types.TwitchMessage
 
+	// Palace session for memory management
+	sessionRegistry *SessionRegistry
+	palaceDataDir   string
+
 	// Moderation system
 	modMonitor    *moderation.Monitor
 	modConfig     *ai.ModerationConfig
@@ -49,16 +54,20 @@ type IRC struct {
 	messageBroker *messagequeue.Broker
 
 	// FAQ processor
-	faqProcessor  *FAQProcessor
+	faqProcessor *FAQProcessor
 }
 
 // SetupTwitchIRC sets up the IRC, configures oauth, and inits connection functions.
-func SetupTwitchIRC(wg *sync.WaitGroup, llm ai.Chatter, modelName string, db database.ChatResponseWriter, logger *logging.Logger) (*IRC, error) {
-	return SetupTwitchIRCWithModeration(wg, llm, modelName, db, nil, nil, logger)
+func SetupTwitchIRC(wg *sync.WaitGroup, llm ai.Chatter, modelName string, db database.ChatResponseWriter, logger *logging.Logger, palaceDataDir ...string) (*IRC, error) {
+	dir := "data"
+	if len(palaceDataDir) > 0 {
+		dir = palaceDataDir[0]
+	}
+	return SetupTwitchIRCWithModeration(wg, llm, modelName, db, nil, nil, logger, dir)
 }
 
 // SetupTwitchIRCWithModeration sets up the IRC with optional moderation support
-func SetupTwitchIRCWithModeration(wg *sync.WaitGroup, llm ai.Chatter, modelName string, db database.ChatResponseWriter, modDB database.ModActionWriter, modConfig *ai.ModerationConfig, logger *logging.Logger) (*IRC, error) {
+func SetupTwitchIRCWithModeration(wg *sync.WaitGroup, llm ai.Chatter, modelName string, db database.ChatResponseWriter, modDB database.ModActionWriter, modConfig *ai.ModerationConfig, logger *logging.Logger, palaceDataDir string) (*IRC, error) {
 	if logger == nil {
 		logger = logging.Default()
 	}
@@ -72,6 +81,16 @@ func SetupTwitchIRCWithModeration(wg *sync.WaitGroup, llm ai.Chatter, modelName 
 		logger:          logger,
 		asyncResponseCh: make(chan types.TwitchMessage, 10),
 		modConfig:       modConfig,
+		palaceDataDir:   palaceDataDir,
+	}
+
+	irc.sessionRegistry = NewSessionRegistry(palaceDataDir, logger)
+
+	absPath, absErr := filepath.Abs(palaceDataDir)
+	if absErr == nil {
+		irc.palaceDataDir = absPath
+	} else {
+		irc.palaceDataDir = palaceDataDir
 	}
 
 	// using a separate context here because it needs human interaction
@@ -253,4 +272,9 @@ func (irc *IRC) handleAsyncResponses(ctx context.Context) {
 			metrics.TwitchMessageSentCount.Add(1)
 		}
 	}
+}
+
+// GetSessionRegistry returns the palace session registry
+func (irc *IRC) GetSessionRegistry() *SessionRegistry {
+	return irc.sessionRegistry
 }

@@ -99,9 +99,9 @@ func main() {
 	var irc *twitchirc.IRC
 	// setup twitch IRC with optional moderation
 	if modConfig != nil && modConfig.Enabled {
-		irc, err = twitchirc.SetupTwitchIRCWithModeration(wg, twitchllm, model, db, db, modConfig, logger)
+		irc, err = twitchirc.SetupTwitchIRCWithModeration(wg, twitchllm, model, db, db, modConfig, logger, "data")
 	} else {
-		irc, err = twitchirc.SetupTwitchIRC(wg, twitchllm, model, db, logger)
+		irc, err = twitchirc.SetupTwitchIRC(wg, twitchllm, model, db, logger, "data")
 	}
 	if err != nil {
 		logger.Error("failed to setup twitch IRC", "error", err.Error())
@@ -200,6 +200,14 @@ func Shutdown(ctx context.Context, wg *sync.WaitGroup, irc *twitchirc.IRC, stop 
 		err := irc.Client.Disconnect()
 		if err != nil {
 			logger.Error("error disconnecting twitch client", "error", err.Error())
+		}
+
+		// Cleanup palace sessions
+		if irc.GetSessionRegistry() != nil {
+			if err := irc.GetSessionRegistry().EndAll(); err != nil {
+				logger.Error("error ending palace sessions", "error", err.Error())
+			}
+			logger.Info("palace sessions cleaned up")
 		}
 	}
 	// wg.Done()
