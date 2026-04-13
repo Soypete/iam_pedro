@@ -9,6 +9,7 @@ import (
 
 	"github.com/Soypete/twitch-llm-bot/ai"
 	"github.com/Soypete/twitch-llm-bot/database"
+	"github.com/Soypete/twitch-llm-bot/internal/mempalace"
 	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/Soypete/twitch-llm-bot/twitch/helix"
@@ -55,6 +56,9 @@ type IRC struct {
 
 	// FAQ processor
 	faqProcessor *FAQProcessor
+
+	// Mem Palace for chat history
+	memPalace *mempalace.MemPalace
 }
 
 // SetupTwitchIRC sets up the IRC, configures oauth, and inits connection functions.
@@ -277,4 +281,19 @@ func (irc *IRC) handleAsyncResponses(ctx context.Context) {
 // GetSessionRegistry returns the palace session registry
 func (irc *IRC) GetSessionRegistry() *SessionRegistry {
 	return irc.sessionRegistry
+}
+
+// SetMemPalace sets the Mem Palace instance for chat history
+func (irc *IRC) SetMemPalace(mp *mempalace.MemPalace) {
+	irc.memPalace = mp
+}
+
+// GetMemPalace returns the Mem Palace instance
+func (irc *IRC) GetMemPalace() *mempalace.MemPalace {
+	return irc.memPalace
+}
+
+// GetHelixClient returns the Helix client for API access
+func (irc *IRC) GetHelixClient() *helix.Client {
+	return irc.helixClient
 }

@@ -41,6 +41,12 @@ spec:
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
+          {{- if .Values.twitchBot.args }}
+          args:
+            {{- range .Values.twitchBot.args }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- end }}
           envFrom:
             - secretRef:
                 name: {{ include "pedro-bots.fullname" . }}-secrets

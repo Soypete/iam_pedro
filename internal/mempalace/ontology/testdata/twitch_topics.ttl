@@ -1,0 +1,163 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix sw: <http://soypete.tech/twitch/topics/> .
+
+# SKOS Thesaurus for Twitch Stream Topics
+# Extends L2WS ontology for stream-specific topics
+
+# --- Core Software Topics (from L2WS) ---
+
+sw:Go a skos:Concept ;
+    skos:prefLabel "Go"@en ;
+    skos:altLabel "Golang"@en ;
+    skos:altLabel "Gopher"@en ;
+    skos:definition "The Go programming language, also known as Golang"@en .
+
+sw:Python a skos:Concept ;
+    skos:prefLabel "Python"@en ;
+    skos:altLabel "Python3"@en ;
+    skos:definition "The Python programming language"@en .
+
+sw:Rust a skos:Concept ;
+    skos:prefLabel "Rust"@en ;
+    skos:altLabel "Rustlang"@en ;
+    skos:definition "The Rust programming language"@en .
+
+sw:JavaScript a skos:Concept ;
+    skos:prefLabel "JavaScript"@en ;
+    skos:altLabel "JS"@en ;
+    skos:altLabel "Node.js"@en ;
+    skos:definition "The JavaScript programming language and Node.js runtime"@en .
+
+sw:TypeScript a skos:Concept ;
+    skos:prefLabel "TypeScript"@en ;
+    skos:altLabel "TS"@en ;
+    skos:definition "The TypeScript programming language"@en .
+
+# --- AI / ML Topics ---
+
+sw:LLMEngineering a skos:Concept ;
+    skos:prefLabel "LLM Engineering"@en ;
+    skos:altLabel "LLM"@en ;
+    skos:altLabel "Large Language Model"@en ;
+    skos:altLabel "LLM Development"@en ;
+    skos:definition "Building applications with large language models"@en .
+
+sw:PromptEngineering a skos:Concept ;
+    skos:prefLabel "Prompt Engineering"@en ;
+    skos:altLabel "Prompts"@en ;
+    skos:altLabel "Prompt Design"@en ;
+    skos:definition "The practice of designing effective prompts for AI models"@en .
+
+sw:RAG a skos:Concept ;
+    skos:prefLabel "RAG"@en ;
+    skos:altLabel "Retrieval Augmented Generation"@en ;
+    skos:altLabel "Vector Database"@en ;
+    skos:definition "Retrieval-augmented generation for AI applications"@en .
+
+sw:MachineLearning a skos:Concept ;
+    skos:prefLabel "Machine Learning"@en ;
+    skos:altLabel "ML"@en ;
+    skos:definition "Machine learning algorithms and techniques"@en .
+
+sw:Embedding a skos:Concept ;
+    skos:prefLabel "Embeddings"@en ;
+    skos:altLabel "Text Embeddings"@en ;
+    skos:altLabel "Vector Embeddings"@en ;
+    skos:definition "Text and vector embeddings for semantic search"@en .
+
+# --- Infrastructure Topics ---
+
+sw:DevOps a skos:Concept ;
+    skos:prefLabel "DevOps"@en ;
+    skos:definition "DevOps practices and methodologies"@en .
+
+sw:Containerization a skos:Concept ;
+    skos:prefLabel "Containerization"@en ;
+    skos:altLabel "Containers"@en ;
+    skos:altLabel "Docker"@en ;
+    skos:altLabel "Podman"@en ;
+    skos:definition "Container technologies like Docker and Podman"@en .
+
+sw:Kubernetes a skos:Concept ;
+    skos:prefLabel "Kubernetes"@en ;
+    skos:altLabel "K8s"@en ;
+    skos:altLabel "K3s"@en ;
+    skos:definition "Kubernetes container orchestration"@en .
+
+sw:CICD a skos:Concept ;
+    skos:prefLabel "CI/CD"@en ;
+    skos:altLabel "Continuous Integration"@en ;
+    skos:altLabel "Continuous Deployment"@en ;
+    skos:definition "Continuous integration and deployment pipelines"@en .
+
+sw:CloudComputing a skos:Concept ;
+    skos:prefLabel "Cloud Computing"@en ;
+    skos:altLabel "AWS"@en ;
+    skos:altLabel "GCP"@en ;
+    skos:altLabel "Azure"@en ;
+    skos:definition "Cloud computing platforms and services"@en .
+
+sw:InfrastructureAsCode a skos:Concept ;
+    skos:prefLabel "Infrastructure as Code"@en ;
+    skos:altLabel "IaC"@en ;
+    skos:altLabel "Terraform"@en ;
+    skos:altLabel "Ansible"@en ;
+    skos:definition "Infrastructure as code tools and practices"@en .
+
+# --- Database Topics ---
+
+sw:PostgreSQL a skos:Concept ;
+    skos:prefLabel "PostgreSQL"@en ;
+    skos:altLabel "Postgres"@en ;
+    skos:definition "The PostgreSQL relational database"@en .
+
+sw:SQL a skos:Concept ;
+    skos:prefLabel "SQL"@en ;
+    skos:altLabel "Databases"@en ;
+    skos:altLabel "Relational Databases"@en ;
+    skos:definition "SQL and relational database concepts"@en .
+
+sw:NoSQL a skos:Concept ;
+    skos:prefLabel "NoSQL"@en ;
+    skos:altLabel "MongoDB"@en ;
+    skos:altLabel "Document Database"@en ;
+    skos:definition "NoSQL database systems"@en .
+
+# --- Twitch-Specific Topics ---
+
+sw:TwitchBots a skos:Concept ;
+    skos:prefLabel "Twitch Bots"@en ;
+    skos:altLabel "Bot Development"@en ;
+    skos:altLabel "IRC Bots"@en ;
+    skos:altLabel "Chat Bots"@en ;
+    skos:definition "Building bots for Twitch chat automation"@en .
+
+sw:OpenSource a skos:Concept ;
+    skos:prefLabel "Open Source"@en ;
+    skos:altLabel "OSS"@en ;
+    skos:altLabel "Free Software"@en ;
+    skos:definition "Open source software development and communities"@en .
+
+sw:Career a skos:Concept ;
+    skos:prefLabel "Career"@en ;
+    skos:altLabel "Jobs"@en ;
+    skos:altLabel "Interviewing"@en ;
+    skos:altLabel "Software Engineer Career"@en ;
+    skos:definition "Software engineering career development and advice"@en .
+
+sw:LearningResources a skos:Concept ;
+    skos:prefLabel "Learning Resources"@en ;
+    skos:altLabel "Tutorials"@en ;
+    skos:altLabel "Courses"@en ;
+    skos:altLabel "Books"@en ;
+    skos:definition "Learning materials and educational resources"@en .
+
+sw:Community a skos:Concept ;
+    skos:prefLabel "Community"@en ;
+    skos:altLabel "Meetups"@en ;
+    skos:altLabel "Conferences"@en ;
+    skos:altLabel "Discord"@en ;
+    skos:definition "Developer communities, meetups, and events"@en .

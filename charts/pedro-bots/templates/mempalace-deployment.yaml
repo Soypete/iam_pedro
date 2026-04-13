@@ -48,6 +48,8 @@ spec:
             requests:
               cpu: 250m
               memory: 256Mi
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
       volumes:
         - name: palace-data
           persistentVolumeClaim:

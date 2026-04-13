@@ -392,3 +392,49 @@ func (c *Client) GetUserIDByLogin(ctx context.Context, login string) (string, er
 
 	return resp.Data[0].ID, nil
 }
+
+// StreamStatus represents the live status of a stream
+type StreamStatus struct {
+	ID        string `json:"id"`
+	UserID    string `json:"user_id"`
+	UserLogin string `json:"user_login"`
+	UserName  string `json:"user_name"`
+	GameID    string `json:"game_id"`
+	GameName  string `json:"game_name"`
+	Type      string `json:"type"` // "live" or ""
+	Title     string `json:"title"`
+	StartedAt string `json:"started_at"`
+	IsMature  bool   `json:"is_mature"`
+}
+
+// StreamResponse represents the response from the Get Streams endpoint
+type StreamResponse struct {
+	Data []StreamStatus `json:"data"`
+}
+
+// GetStreamStatus retrieves the current stream status for a user
+func (c *Client) GetStreamStatus(ctx context.Context, userID string) (*StreamStatus, error) {
+	query := url.Values{}
+	query.Set("user_id", userID)
+
+	respBody, err := c.doRequest(ctx, http.MethodGet, "/streams", query, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stream status: %w", err)
+	}
+
+	var resp StreamResponse
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse stream response: %w", err)
+	}
+
+	if len(resp.Data) == 0 {
+		return nil, nil // Stream is offline
+	}
+
+	return &resp.Data[0], nil
+}
+
+// GetBroadcasterStreamStatus retrieves the current stream status for the configured broadcaster
+func (c *Client) GetBroadcasterStreamStatus(ctx context.Context) (*StreamStatus, error) {
+	return c.GetStreamStatus(ctx, c.broadcasterID)
+}

@@ -7,6 +7,7 @@ require (
 	github.com/gempir/go-twitch-irc/v2 v2.8.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9
+	github.com/mattn/go-sqlite3 v1.14.42
 	github.com/pkg/errors v0.9.1
 	github.com/pressly/goose/v3 v3.20.0
 	github.com/stretchr/testify v1.10.0

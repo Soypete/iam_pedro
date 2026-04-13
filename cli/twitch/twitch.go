@@ -12,6 +12,7 @@ import (
 	"github.com/Soypete/twitch-llm-bot/ai/twitchchat"
 	database "github.com/Soypete/twitch-llm-bot/database"
 	"github.com/Soypete/twitch-llm-bot/faq"
+	"github.com/Soypete/twitch-llm-bot/internal/mempalace"
 	"github.com/Soypete/twitch-llm-bot/logging"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	twitchirc "github.com/Soypete/twitch-llm-bot/twitch"
@@ -25,6 +26,9 @@ func main() {
 	var enableModeration bool
 	var dryRun bool
 	var faqConfig string
+	var enableMemPalace bool
+	var memPalaceActiveDir string
+	var memPalaceArchiveDir string
 
 	flag.StringVar(&model, "model", os.Getenv("MODEL"), "The model to use for the LLM")
 	flag.StringVar(&logLevel, "errorLevel", "info", "Log level (debug, info, warn, error)")
@@ -33,6 +37,9 @@ func main() {
 	flag.BoolVar(&enableModeration, "enableModeration", false, "Enable chat moderation system")
 	flag.BoolVar(&dryRun, "modDryRun", false, "Run moderation in dry-run mode (log actions without executing)")
 	flag.StringVar(&faqConfig, "faqConfig", "", "Path to FAQ config file for semantic FAQ responses (e.g., 'configs/faq/entries.yaml')")
+	flag.BoolVar(&enableMemPalace, "enableMemPalace", false, "Enable Mem Palace chat history system")
+	flag.StringVar(&memPalaceActiveDir, "memPalaceActiveDir", "/data/palaces/active", "Directory for active Mem Palace sessions")
+	flag.StringVar(&memPalaceArchiveDir, "memPalaceArchiveDir", "/data/palaces/archive", "Directory for archived Mem Palace sessions")
 	flag.Parse()
 
 	// Initialize logger
@@ -126,6 +133,31 @@ func main() {
 	// Register auth health endpoint
 	server.RegisterAuthHealthHandler(irc.AuthHealthHandler())
 	logger.Debug("auth health endpoint registered at /healthz/auth")
+
+	// Setup Mem Palace if enabled
+	if enableMemPalace {
+		logger.Info("setting up Mem Palace", "activeDir", memPalaceActiveDir, "archiveDir", memPalaceArchiveDir)
+		mpConfig := &mempalace.Config{
+			LLMPath:      llmPath,
+			ModelName:    model,
+			HelixClient:  irc.GetHelixClient(),
+			Logger:       logger,
+			PollInterval: 30,
+			ActiveDir:    memPalaceActiveDir,
+			ArchiveDir:   memPalaceArchiveDir,
+		}
+		mp, err := mempalace.New(mpConfig)
+		if err != nil {
+			logger.Error("failed to setup Mem Palace", "error", err.Error())
+		} else {
+			if err := mp.Start(ctx, wg); err != nil {
+				logger.Error("failed to start Mem Palace", "error", err.Error())
+			} else {
+				irc.SetMemPalace(mp)
+				logger.Info("Mem Palace enabled and attached to Twitch IRC")
+			}
+		}
+	}
 
 	signal.Notify(stop, os.Interrupt)
 	logger.Info("Press Ctrl+C to exit")
