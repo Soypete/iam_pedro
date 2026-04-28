@@ -36,7 +36,7 @@ func (l *Loader) LoadTTL(filepath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open ontology file: %w", err)
 	}
-	defer file.Close()
+	defer func() { file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	var currentURI string
@@ -136,6 +136,14 @@ func (l *Loader) GetSearchTerms() []string {
 		}
 	}
 	return terms
+}
+
+func ParseTTL(filepath string) ([]Class, error) {
+	loader := NewLoader()
+	if err := loader.LoadTTL(filepath); err != nil {
+		return nil, err
+	}
+	return loader.GetClasses(), nil
 }
 
 func (l *Loader) GetClassByLabel(label string) *Class {

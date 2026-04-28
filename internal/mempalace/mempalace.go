@@ -172,11 +172,11 @@ func (m *MemPalace) handleSessionEvent(ctx context.Context, event lifecycle.Sess
 		m.logger.Info("ending mempalace session", "streamID", event.StreamID)
 
 		if m.store != nil {
-			m.store.Close()
+			_ = m.store.Close()
 			m.store = nil
 		}
 
-		m.archiver.Archive(event.StreamID, m.lifecycle.GetStartedAt())
+		_ = m.archiver.Archive(event.StreamID, m.lifecycle.GetStartedAt())
 	}
 }
 
@@ -201,7 +201,7 @@ func (m *MemPalace) Stop() error {
 	}
 
 	if m.store != nil {
-		m.store.Close()
+		_ = m.store.Close()
 	}
 
 	m.active = false

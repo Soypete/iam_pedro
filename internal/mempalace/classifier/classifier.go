@@ -169,7 +169,7 @@ func parseClassificationResponse(toolCall llms.ToolCall) (*classificationResult,
 				if key == "topic" {
 					result.Topic = val
 				} else if key == "confidence" {
-					fmt.Sscanf(val, "%f", &result.Confidence)
+					_, _ = fmt.Sscanf(val, "%f", &result.Confidence)
 				}
 			}
 		}
