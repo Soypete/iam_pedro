@@ -128,6 +128,10 @@ func sanitizeTableName(name string) string {
 }
 
 func (s *Store) WriteMessage(ctx context.Context, msg Message) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	start := time.Now()
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -165,18 +169,26 @@ type QueryOpts struct {
 }
 
 func (s *Store) Query(ctx context.Context, opts QueryOpts) ([]Message, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var tableName string
-	if opts.Topic == "" || opts.Topic == "Unclassified" {
-		tableName = "messages_raw"
-	} else {
-		tableName = fmt.Sprintf("messages_%s", sanitizeTableName(opts.Topic))
-	}
+	var query string
+	var args []interface{}
 
-	query := fmt.Sprintf("SELECT id, stream_id, username, message, timestamp, topic, confidence FROM %s WHERE 1=1", tableName)
-	args := []interface{}{}
+	if opts.Topic != "" && opts.Topic != "Unclassified" && opts.QueryText == "" && opts.Username == "" {
+		tableName := fmt.Sprintf("messages_%s", sanitizeTableName(opts.Topic))
+		query = fmt.Sprintf("SELECT id, stream_id, username, message, timestamp, confidence FROM %s WHERE 1=1", tableName)
+	} else {
+		query = "SELECT id, stream_id, username, message, timestamp, topic, confidence FROM messages_raw WHERE 1=1"
+		if opts.Topic != "" && opts.Topic != "Unclassified" {
+			query += " AND topic = ?"
+			args = append(args, opts.Topic)
+		}
+	}
 
 	if opts.TimeStart != nil {
 		query += " AND timestamp >= ?"
@@ -209,17 +221,30 @@ func (s *Store) Query(ctx context.Context, opts QueryOpts) ([]Message, error) {
 	}
 	defer rows.Close()
 
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get columns: %w", err)
+	}
+
 	var messages []Message
 	for rows.Next() {
 		var msg Message
 		var timestampStr string
-		var topic string
-		err := rows.Scan(&msg.ID, &msg.StreamID, &msg.Username, &msg.Message, &timestampStr, &topic, &msg.Confidence)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
+
+		if len(cols) == 7 {
+			var topic string
+			err := rows.Scan(&msg.ID, &msg.StreamID, &msg.Username, &msg.Message, &timestampStr, &topic, &msg.Confidence)
+			if err != nil {
+				return nil, fmt.Errorf("failed to scan row: %w", err)
+			}
+			msg.Topic = topic
+		} else {
+			err := rows.Scan(&msg.ID, &msg.StreamID, &msg.Username, &msg.Message, &timestampStr, &msg.Confidence)
+			if err != nil {
+				return nil, fmt.Errorf("failed to scan row: %w", err)
+			}
 		}
 		msg.Timestamp, _ = time.Parse(time.RFC3339, timestampStr)
-		msg.Topic = topic
 		messages = append(messages, msg)
 	}
 

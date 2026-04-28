@@ -65,23 +65,21 @@ func New(config *Config) (*MemPalace, error) {
 		ontologyPath = "/app/internal/mempalace/ontology/testdata/twitch_topics.ttl"
 	}
 
-	loader := ontology.NewLoader()
-	if err := loader.LoadTTL(ontologyPath); err != nil {
-		return nil, fmt.Errorf("failed to load ontology: %w", err)
-	}
-
-	classes := loader.GetClasses()
-	searchTerms := loader.GetSearchTerms()
-
 	embedder, err := faq.NewEmbeddingService(config.LLMPath, config.ModelName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create embedder: %w", err)
 	}
 
-	index := ontology.NewIndex(embedder)
-	if err := index.Build(context.Background(), searchTerms); err != nil {
-		return nil, fmt.Errorf("failed to build ontology index: %w", err)
+	index, err := ontology.NewIndex(embedder)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ontology index: %w", err)
 	}
+
+	if err := index.LoadTTL(context.Background(), ontologyPath); err != nil {
+		return nil, fmt.Errorf("failed to load ontology: %w", err)
+	}
+
+	classes := index.GetClasses()
 
 	llm, err := openai.New([]openai.Option{
 		openai.WithBaseURL(config.LLMPath),

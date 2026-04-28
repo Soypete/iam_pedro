@@ -1,6 +1,6 @@
 module github.com/Soypete/twitch-llm-bot
 
-go 1.23.4
+go 1.26
 
 require (
 	github.com/bwmarrin/discordgo v0.28.1

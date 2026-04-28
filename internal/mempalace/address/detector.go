@@ -1,30 +1,19 @@
-// Package address detects when chat messages are directed at Pedro
-// using cosine similarity over address terms.
-//
-// It replaces the simpler string contains check (e.g., "pedro", "Pedro")
-// with semantic similarity matching. Address terms like "hey", "@pedro",
-// "question for", etc. are embedded and compared against incoming messages.
-//
-// Threshold: 0.75 cosine similarity - above this indicates addressing Pedro.
 package address
 
 import (
 	"context"
-
 	"math"
 
-	"github.com/Soypete/twitch-llm-bot/faq"
 	"github.com/Soypete/twitch-llm-bot/internal/mempalace/ontology"
 	"github.com/Soypete/twitch-llm-bot/metrics"
 )
 
 type Detector struct {
 	index     *ontology.Index
-	exemplars []string
 	threshold float32
 }
 
-func NewDetector(embedder *faq.EmbeddingService, threshold float32) (*Detector, error) {
+func NewDetector(embedder ontology.Embedder, threshold float32) (*Detector, error) {
 	if threshold == 0 {
 		threshold = 0.6
 	}
@@ -42,15 +31,18 @@ func NewDetector(embedder *faq.EmbeddingService, threshold float32) (*Detector, 
 		"ping pedro",
 	}
 
-	index := ontology.NewIndex(embedder)
-	err := index.Build(context.Background(), exemplars)
+	index, err := ontology.NewIndex(embedder)
+	if err != nil {
+		return nil, err
+	}
+
+	err = index.Build(context.Background(), exemplars)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Detector{
 		index:     index,
-		exemplars: exemplars,
 		threshold: threshold,
 	}, nil
 }
@@ -75,7 +67,7 @@ func (d *Detector) SetThreshold(threshold float32) {
 	d.threshold = threshold
 }
 
-func (d *Detector) CosineSimilarity(a, b []float32) float32 {
+func CosineSimilarity(a, b []float32) float32 {
 	if len(a) != len(b) {
 		return 0
 	}
