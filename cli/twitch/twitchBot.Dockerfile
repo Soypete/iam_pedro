@@ -1,4 +1,4 @@
-FROM alpine:3.19
+FROM golang:1.26-alpine
 
 RUN apk add --no-cache ca-certificates
 
