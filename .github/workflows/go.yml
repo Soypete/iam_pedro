@@ -49,6 +49,7 @@ jobs:
       with:
         only-new-issues: true
         skip-cache: true
+        version: latest
 
   test: 
     runs-on: ubuntu-latest
