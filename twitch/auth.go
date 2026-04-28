@@ -9,9 +9,60 @@ import (
 	"os"
 	"time"
 
+	"github.com/bwmarrin/discordgo"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/twitch"
 )
+
+const discordAuthChannel = "pedrogpt"
+
+// sendDiscordAuthURL sends the Twitch OAuth URL to the pedrogpt Discord channel.
+// Falls back to logging if Discord is unavailable.
+func (irc *IRC) sendDiscordAuthURL(authURL string) {
+	token := os.Getenv("DISCORD_SECRET")
+	if token == "" {
+		irc.logger.Warn("DISCORD_SECRET not set, OAuth URL only in logs", "url", authURL)
+		return
+	}
+
+	dg, err := discordgo.New("Bot " + token)
+	if err != nil {
+		irc.logger.Error("failed to create discord session for auth notification", "error", err.Error())
+		return
+	}
+	if err := dg.Open(); err != nil {
+		irc.logger.Error("failed to open discord session for auth notification", "error", err.Error())
+		return
+	}
+	defer func() { _ = dg.Close() }()
+
+	var channelID string
+	for _, guild := range dg.State.Guilds {
+		channels, err := dg.GuildChannels(guild.ID)
+		if err != nil {
+			continue
+		}
+		for _, ch := range channels {
+			if ch.Name == discordAuthChannel {
+				channelID = ch.ID
+				break
+			}
+		}
+		if channelID != "" {
+			break
+		}
+	}
+
+	if channelID == "" {
+		irc.logger.Error("could not find discord channel for auth notification", "channel", discordAuthChannel)
+		return
+	}
+
+	msg := fmt.Sprintf("🔒 **Pedro needs Twitch auth!** Click to authorize (log in as the BOT account):\n%s", authURL)
+	if _, err := dg.ChannelMessageSend(channelID, msg); err != nil {
+		irc.logger.Error("failed to send auth URL to discord", "error", err.Error())
+	}
+}
 
 // generateStateString generates a secure random string for OAuth2 state parameter.
 func generateStateString() (string, error) {
@@ -25,13 +76,13 @@ func generateStateString() (string, error) {
 func (irc *IRC) parseAuthCode(w http.ResponseWriter, req *http.Request) {
 	err := req.ParseForm()
 	if err != nil {
-		fmt.Printf("could not parse query: %v", err)
+		irc.logger.Error("could not parse oauth query", "error", err.Error())
 		http.Error(w, "could not parse query", http.StatusBadRequest)
 		return
 	}
 	receivedState := req.FormValue("state")
 	if receivedState != irc.oauthState {
-		fmt.Printf("invalid oauth state, expected '%s' got '%s'\n", irc.oauthState, receivedState)
+		irc.logger.Error("invalid oauth state", "expected", irc.oauthState, "got", receivedState)
 		http.Error(w, "Invalid OAuth state", http.StatusBadRequest)
 		return
 	}
@@ -50,7 +101,7 @@ func (irc *IRC) tryRefreshToken(ctx context.Context) error {
 	}
 	irc.tok = newTok
 	irc.tokenRefreshTime = time.Now()
-	fmt.Printf("Token refreshed silently. New token received.\n")
+	irc.logger.Info("token refreshed silently")
 	return nil
 }
 
@@ -78,33 +129,43 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 	tokenStr := os.Getenv("TWITCH_TOKEN")
 	refreshStr := os.Getenv("TWITCH_REFRESH_TOKEN")
 
-	// If a refresh token is available, try silent refresh first.
-	// This handles both initial startup and re-auth after expiry.
-	if refreshStr != "" {
-		fmt.Println("Attempting silent token refresh using TWITCH_REFRESH_TOKEN")
-		irc.tok = &oauth2.Token{
-			AccessToken:  tokenStr,
-			RefreshToken: refreshStr,
-		}
+	// If we already have a token, this is a re-auth call (e.g. after "login authentication failed").
+	// Skip env var paths — they'd just load the same expired token again.
+	// Try silent refresh first; if that fails, fall through to interactive OAuth.
+	if irc.tok != nil {
+		irc.logger.Info("re-auth: existing token invalid, attempting silent refresh")
 		if err := irc.tryRefreshToken(ctx); err == nil {
 			return nil
 		}
-		fmt.Println("Silent refresh failed, falling back to other auth methods")
-	}
-
-	// Fall back to direct access token from environment.
-	if tokenStr != "" {
-		fmt.Println("Using TWITCH_TOKEN from environment")
-		irc.tok = &oauth2.Token{
-			AccessToken: tokenStr,
+		irc.logger.Warn("silent refresh failed, falling through to interactive OAuth")
+	} else {
+		// First-time auth: try env vars.
+		// If a refresh token is available, try silent refresh first.
+		if refreshStr != "" {
+			irc.logger.Info("attempting silent token refresh using TWITCH_REFRESH_TOKEN")
+			irc.tok = &oauth2.Token{
+				AccessToken:  tokenStr,
+				RefreshToken: refreshStr,
+			}
+			if err := irc.tryRefreshToken(ctx); err == nil {
+				return nil
+			}
+			irc.logger.Warn("silent refresh failed, falling back to other auth methods")
 		}
-		irc.tokenRefreshTime = time.Now()
-		return nil
+
+		// Fall back to direct access token from environment.
+		if tokenStr != "" {
+			irc.logger.Info("using TWITCH_TOKEN from environment")
+			irc.tok = &oauth2.Token{
+				AccessToken: tokenStr,
+			}
+			irc.tokenRefreshTime = time.Now()
+			return nil
+		}
 	}
 
 	// No env-based token available — run interactive OAuth flow.
-	fmt.Println("TWITCH_TOKEN not found, initiating OAuth flow...")
-	fmt.Printf("OAuth redirect configured for: https://%s/oauth/redirect\n", redirectHost)
+	irc.logger.Info("initiating interactive OAuth flow", "redirect_host", redirectHost)
 
 	// Register the redirect handler exactly once across all AuthTwitch calls.
 	irc.handlerOnce.Do(func() {
@@ -123,23 +184,19 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 	// Reset authCode so a stale value from a previous flow doesn't skip the wait.
 	irc.authCode = ""
 
-	url := irc.oauthConf.AuthCodeURL(state, oauth2.AccessTypeOffline)
-	fmt.Printf("Visit the URL for the auth dialog: %v\n", url)
+	authURL := irc.oauthConf.AuthCodeURL(state, oauth2.AccessTypeOffline)
+	irc.sendDiscordAuthURL(authURL)
 
 	for irc.authCode == "" {
 		time.Sleep(1 * time.Second)
 	}
 
-	fmt.Println("auth code received")
+	irc.logger.Info("auth code received, exchanging for token")
 	irc.tok, err = irc.oauthConf.Exchange(ctx, irc.authCode)
 	if err != nil {
 		return fmt.Errorf("failed to get token with auth code: %w", err)
 	}
 	irc.tokenRefreshTime = time.Now()
-	fmt.Printf("Token received: %s\n", irc.tok.AccessToken)
-	fmt.Println("IMPORTANT: Save this token to 1Password as TWITCH_TOKEN to avoid OAuth flow on restart")
-	if irc.tok.RefreshToken != "" {
-		fmt.Printf("Refresh token received — save as TWITCH_REFRESH_TOKEN for automatic refresh\n")
-	}
+	irc.logger.Info("token received successfully")
 	return nil
 }
