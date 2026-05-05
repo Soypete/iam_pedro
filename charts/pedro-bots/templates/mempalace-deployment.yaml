@@ -36,11 +36,6 @@ spec:
           env:
             - name: MEMPALACE_WRAPPER_ADDR
               value: ":8082"
-            - name: MEMPALACE_DATA_DIR
-              value: "/data/palaces"
-          volumeMounts:
-            - name: palace-data
-              mountPath: /data/palaces
           resources:
             limits:
               cpu: 500m
@@ -50,22 +45,6 @@ spec:
               memory: 256Mi
       nodeSelector:
         node-role.kubernetes.io/control-plane: "true"
-      volumes:
-        - name: palace-data
-          persistentVolumeClaim:
-            claimName: {{ include "pedro-bots.fullname" . }}-palaces
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ include "pedro-bots.fullname" . }}-palaces
-  namespace: {{ .Release.Namespace }}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: {{ .Values.mempalace.volume.storageSize | default "1Gi" }}
 ---
 apiVersion: v1
 kind: Service
