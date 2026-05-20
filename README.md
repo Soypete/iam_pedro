@@ -296,8 +296,6 @@ Web Search Failures:
 rate(web_search_fail_count[5m]) > 0.5
 ```
 
-For complete PromQL query examples and advanced metrics configuration, see the [GoWest 2025 talk materials](gowest-2025/).
-
 **Loki** (Log Aggregation) - TODO
 
 Log aggregation with Loki + Promtail will be set up once the k8s cluster is deployed. This will enable centralized logging for both Discord and Twitch bots with full-text search and log streaming in Grafana.
