@@ -157,6 +157,42 @@ Refresh token received — save as TWITCH_REFRESH_TOKEN for automatic refresh
 
 Note: The OAuth URL currently only appears in logs, not in Discord. This is a known limitation.
 
+### Mempalace (Chat Memory)
+
+Mempalace is a separate service that provides long-term chat memory for the Twitch bot. It runs as a separate deployment and communicates via HTTP API.
+
+**Architecture:**
+- Go HTTP wrapper (`cmd/mempalace-wrapper/`) calls the Python `mempalace` CLI
+- Service runs on port 8082 in the pod
+- Data stored in `/data/palaces` volume (PVC)
+
+**Building the image:**
+```bash
+# Build the Go wrapper
+GOOS=linux GOARCH=amd64 go build -o cmd/mempalace-wrapper/mempalace-wrapper ./cmd/mempalace-wrapper
+
+# Create temp build context with wrapper binary
+mkdir -p /tmp/mempalace-build
+cp cmd/mempalace-wrapper/Dockerfile /tmp/mempalace-build/
+cp cmd/mempalace-wrapper/mempalace-wrapper /tmp/mempalace-build/
+
+# Build and push (uses PyPI version of mempalace)
+podman build -t 100.81.89.62:5000/pedro-mempalace:<tag> /tmp/mempalace-build
+podman push 100.81.89.62:5000/pedro-mempalace:<tag>
+```
+
+**Using local mempalace source:**
+The current Dockerfile pulls from PyPI. To use local source from `~/code/opensource/mempalace`, modify the Dockerfile to:
+1. Copy the local source instead of installing from PyPI
+2. Ensure `pyproject.toml`, `README.md`, and other required files are present
+
+**API Endpoints:**
+- `GET /healthz` - Health check
+- `POST /mine` - Process messages into memory
+- `POST /search` - Query chat history
+- `POST /route/register` - Register entity location
+- `GET /route/resolve` - Resolve entity location
+
 ### Manual Build and Deploy (Recommended)
 
 Build and deploy Pedro containers to production servers with monitoring:
