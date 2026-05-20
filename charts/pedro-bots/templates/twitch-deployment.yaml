@@ -18,20 +18,6 @@ spec:
       labels:
         {{- include "pedro-bots.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: twitch
-      annotations:
-        vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/role: "pedro"
-        vault.hashicorp.com/agent-inject-secret-twitch: "secret/apps/twitch"
-        vault.hashicorp.com/agent-inject-template-twitch: |
-          {{`{{- with secret "secret/apps/twitch" -}}`}}
-          {{`export TWITCH_ID="{{ .Data.data.client_id }}"`}}
-          {{`export TWITCH_SECRET="{{ .Data.data.client_secret }}"`}}
-          {{`{{- end }}`}}
-        vault.hashicorp.com/agent-inject-secret-postgres: "secret/apps/postgres"
-        vault.hashicorp.com/agent-inject-template-postgres: |
-          {{`{{- with secret "secret/apps/postgres" -}}`}}
-          {{`export POSTGRES_URL="{{ .Data.data.url }}"`}}
-          {{`{{- end }}`}}
     spec:
       serviceAccountName: pedro-twitch
       containers:
@@ -53,8 +39,29 @@ spec:
             periodSeconds: 30
           command: ["/bin/sh", "-c"]
           args:
-            - ". /vault/secrets/twitch && . /vault/secrets/postgres && exec /app/twitch"
+            - "exec /app/main"
           env:
+            - name: TWITCH_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pedro-bots.fullname" . }}-secrets
+                  key: twitchId
+            - name: TWITCH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pedro-bots.fullname" . }}-secrets
+                  key: twitchSecret
+            - name: TWITCH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pedro-bots.fullname" . }}-secrets
+                  key: twitchToken
+                  optional: true
+            - name: POSTGRES_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pedro-bots.fullname" . }}-secrets
+                  key: postgresUrl
             {{- range .Values.twitchBot.env }}
             - name: {{ .name }}
               value: {{ .value | quote }}

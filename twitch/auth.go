@@ -154,7 +154,7 @@ func (irc *IRC) AuthTwitch(ctx context.Context) error {
 		}
 
 		// Fall back to direct access token from environment.
-		if tokenStr != "" {
+		if tokenStr != "" && tokenStr != "null" && tokenStr != "placeholder" {
 			irc.logger.Info("using TWITCH_TOKEN from environment")
 			irc.tok = &oauth2.Token{
 				AccessToken: tokenStr,

@@ -132,6 +132,31 @@ Make Pedro more than a chatbot — make it a visible, understandable, and semi-r
 
 ## Production Deployment
 
+### Twitch OAuth Authentication
+
+Twitch tokens expire periodically. The bot supports an interactive OAuth flow for first-time authentication or when the token expires.
+
+**To authenticate (when token is missing or expired):**
+
+1. Ensure no `TWITCH_TOKEN` is set in helm values (leave empty)
+2. Restart the pod: `kubectl delete pod -l app=pedro-twitch -n chatbot`
+3. Check pod logs for OAuth URL: `kubectl logs -l app=pedro-twitch -n chatbot`
+4. Visit the URL in the logs, authorize as the bot account
+5. The bot will receive the token and connect automatically
+
+**Token is logged:**
+```
+Token received: <token>
+IMPORTANT: Save this token to 1Password as TWITCH_TOKEN to avoid OAuth flow on restart
+Refresh token received — save as TWITCH_REFRESH_TOKEN for automatic refresh
+```
+
+**To persist the token** (optional - avoids OAuth on every restart):
+- Save the token to 1Password as `TWITCH_TOKEN`
+- Update helm: `helm upgrade pedro charts/pedro-bots --set secrets.twitchToken=<token>`
+
+Note: The OAuth URL currently only appears in logs, not in Discord. This is a known limitation.
+
 ### Manual Build and Deploy (Recommended)
 
 Build and deploy Pedro containers to production servers with monitoring:

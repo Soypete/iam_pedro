@@ -60,7 +60,6 @@ keepalive:
 secrets:
   twitchId: ""
   twitchSecret: ""
-  twitchToken: ""
   postgresUrl: ""
   postgresVectorUrl: ""
   discordSecret: ""
