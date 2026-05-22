@@ -18,34 +18,28 @@ spec:
       labels:
         {{- include "pedro-bots.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: keepalive
-      {{- if .Values.keepalive.openbaoInjection }}
-      annotations:
-        vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/role: "pedro"
-        vault.hashicorp.com/agent-inject-secret-discord: "secret/apps/discord"
-        vault.hashicorp.com/agent-inject-template-discord: |
-          {{`{{- with secret "secret/apps/discord" -}}`}}
-          {{`export DISCORD_BOT_URL="{{ .Data.data.client_id }}"`}}
-          {{`{{- end }}`}}
-        vault.hashicorp.com/agent-inject-secret-twitch: "secret/apps/twitch"
-        vault.hashicorp.com/agent-inject-template-twitch: |
-          {{`{{- with secret "secret/apps/twitch" -}}`}}
-          {{`export TWITCH_BOT_URL="{{ .Data.data.client_id }}"`}}
-          {{`{{- end }}`}}
-      {{- end }}
+      
     spec:
       containers:
         - name: keepalive
           image: "{{ .Values.keepalive.image.repository }}:{{ .Values.keepalive.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/bin/sh", "-c"]
-          args:
-            - ". /vault/secrets/discord && . /vault/secrets/twitch && exec /app/keepalive"
+          command: ["/app/keepalive-service"]
           env:
             {{- range .Values.keepalive.env }}
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
+            - name: DISCORD_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pedro-bots.fullname" . }}-secrets
+                  key: DISCORD_SECRET
+            - name: DISCORD_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pedro-bots.fullname" . }}-secrets
+                  key: DISCORD_CLIENT_ID
           envFrom:
             - secretRef:
                 name: {{ include "pedro-bots.fullname" . }}-secrets

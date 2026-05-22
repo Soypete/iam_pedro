@@ -9,10 +9,10 @@ discordBot:
   enabled: true
   image:
     repository: 100.81.89.62:5000/pedro-discord
-    tag: latest
+    tag: df12033
   env:
     - name: MODEL
-      value: "gpt-oss-20b"
+      value: "qwen3.6-27b"
     - name: LLAMA_CPP_PATH
       value: "http://100.121.229.114:8080"
 
@@ -21,10 +21,10 @@ twitchBot:
   tailscaleIngress: true
   image:
     repository: 100.81.89.62:5000/pedro-twitch
-    tag: mem-palace
+    tag: df12033
   env:
     - name: MODEL
-      value: "gpt-oss-20b"
+      value: "qwen3.6-27b"
     - name: LLAMA_CPP_PATH
       value: "http://100.121.229.114:8080"
     - name: OAUTH_REDIRECT_HOST
@@ -41,7 +41,7 @@ keepalive:
   openbaoInjection: false
   image:
     repository: 100.81.89.62:5000/pedro-keepalive
-    tag: latest
+    tag: df12033
   env:
     - name: DISCORD_BOT_URL
       value: "http://pedro-discord:6060/healthz"

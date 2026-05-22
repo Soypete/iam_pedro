@@ -1,14 +1,11 @@
-FROM golang:1.26-alpine
+FROM alpine:3.19
 
-RUN apk add --no-cache git
+RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
-COPY go.* ./
-RUN go mod download
 
 EXPOSE 6060
 
-COPY . ./
-RUN go build -v -o main ./cli/discord
+COPY bin/discord /app/main
 
 CMD ["/app/main"]
