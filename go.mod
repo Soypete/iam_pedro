@@ -1,6 +1,6 @@
 module github.com/Soypete/twitch-llm-bot
 
-go 1.23.4
+go 1.25.0
 
 require (
 	github.com/bwmarrin/discordgo v0.28.1
@@ -11,7 +11,7 @@ require (
 	github.com/pressly/goose/v3 v3.20.0
 	github.com/stretchr/testify v1.10.0
 	github.com/tmc/langchaingo v0.1.12
-	golang.org/x/oauth2 v0.27.0
+	golang.org/x/oauth2 v0.36.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -25,8 +25,8 @@ require (
 	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	go.starlark.net v0.0.0-20230302034142-4b1e35fe2254 // indirect
-	golang.org/x/crypto v0.35.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
 
