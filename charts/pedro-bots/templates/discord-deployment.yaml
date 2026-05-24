@@ -19,6 +19,18 @@ spec:
         {{- include "pedro-bots.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: discord
       annotations:
+        {{- if .Values.discordBot.openbaoInjection }}
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "pedro"
+        vault.hashicorp.com/agent-inject-secret-discord: "secret/apps/discord"
+        vault.hashicorp.com/agent-inject-template-discord: |
+          {{`{{- with secret "secret/apps/discord" -}}`}}
+          {{`export DISCORD_SECRET="{{ .Data.data.client_secret }}"`}}
+          {{`export DISCORD_CLIENT_ID="{{ .Data.data.client_id }}"`}}
+          {{`export DISCORD_PUBLIC_KEY="{{ .Data.data.public_key }}"`}}
+          {{`export DISCORD_PERMISSION="{{ .Data.data.permission }}"`}}
+          {{`{{- end }}`}}
+        {{- end }}
     spec:
       serviceAccountName: pedro-discord
       containers:
@@ -35,7 +47,14 @@ spec:
               port: 6060
             initialDelaySeconds: 10
             periodSeconds: 30
-          command: ["/app/main"]
+          command: ["/bin/sh", "-c"]
+          args:
+            {{- if .Values.discordBot.openbaoInjection }}
+            - ". /vault/secrets/discord && /app/main"
+            {{- else }}
+            - "/app/main"
+            {{- end }}
+          {{- if not .Values.discordBot.openbaoInjection }}
           env:
             - name: DISCORD_SECRET
               valueFrom:
@@ -52,10 +71,6 @@ spec:
                 secretKeyRef:
                   name: {{ include "pedro-bots.fullname" . }}-secrets
                   key: DISCORD_PUBLIC_KEY
-            - name: MODEL
-              value: "qwen3.6-27b"
-            - name: LLAMA_CPP_PATH
-              value: "http://100.121.229.114:8080"
             - name: POSTGRES_URL
               valueFrom:
                 secretKeyRef:
@@ -64,6 +79,12 @@ spec:
           envFrom:
             - secretRef:
                 name: {{ include "pedro-bots.fullname" . }}-secrets
+          {{- end }}
+          env:
+            - name: MODEL
+              value: "qwen3.6-27b"
+            - name: LLAMA_CPP_PATH
+              value: "http://100.121.229.114:8080"
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

@@ -7,6 +7,7 @@ image:
 
 discordBot:
   enabled: true
+  openbaoInjection: true
   image:
     repository: 100.81.89.62:5000/pedro-discord
     tag: df12033
@@ -19,6 +20,7 @@ discordBot:
 twitchBot:
   enabled: true
   tailscaleIngress: true
+  openbaoInjection: true
   image:
     repository: 100.81.89.62:5000/pedro-twitch
     tag: df12033
@@ -32,13 +34,14 @@ twitchBot:
 
 mempalace:
   enabled: true
+  openbaoInjection: true
   image:
     repository: 100.81.89.62:5000/pedro-mempalace
     tag: dbca760
 
 keepalive:
   enabled: true
-  openbaoInjection: false
+  openbaoInjection: true
   image:
     repository: 100.81.89.62:5000/pedro-keepalive
     tag: df12033

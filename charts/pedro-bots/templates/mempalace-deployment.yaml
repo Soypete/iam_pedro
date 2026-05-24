@@ -18,6 +18,16 @@ spec:
       labels:
         {{- include "pedro-bots.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: mempalace
+      annotations:
+        {{- if .Values.mempalace.openbaoInjection }}
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "pedro"
+        vault.hashicorp.com/agent-inject-secret-pedrocli: "secret/apps/pedrocli"
+        vault.hashicorp.com/agent-inject-template-pedrocli: |
+          {{`{{- with secret "secret/apps/pedrocli" -}}`}}
+          {{`export POSTGRES_URL="{{ .Data.data.database_url }}"`}}
+          {{`{{- end }}`}}
+        {{- end }}
     spec:
       containers:
         - name: mempalace
@@ -33,6 +43,14 @@ spec:
               port: 8082
             initialDelaySeconds: 10
             periodSeconds: 30
+          command: ["/bin/sh", "-c"]
+          {{- if .Values.mempalace.openbaoInjection }}
+          args:
+            - ". /vault/secrets/pedrocli && /app/main"
+          {{- else }}
+          args:
+            - "/app/main"
+          {{- end }}
           env:
             - name: MEMPALACE_WRAPPER_ADDR
               value: ":8082"

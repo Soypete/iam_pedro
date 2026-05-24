@@ -18,6 +18,17 @@ spec:
       labels:
         {{- include "pedro-bots.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: twitch
+      annotations:
+        {{- if .Values.twitchBot.openbaoInjection }}
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "pedro"
+        vault.hashicorp.com/agent-inject-secret-twitch: "secret/apps/twitch"
+        vault.hashicorp.com/agent-inject-template-twitch: |
+          {{`{{- with secret "secret/apps/twitch" -}}`}}
+          {{`export TWITCH_ID="{{ .Data.data.client_id }}"`}}
+          {{`export TWITCH_SECRET="{{ .Data.data.client_secret }}"`}}
+          {{`{{- end }}`}}
+        {{- end }}
     spec:
       serviceAccountName: pedro-twitch
       containers:
@@ -39,8 +50,13 @@ spec:
             periodSeconds: 30
           command: ["/bin/sh", "-c"]
           args:
+            {{- if .Values.twitchBot.openbaoInjection }}
+            - ". /vault/secrets/twitch && exec /app/main"
+            {{- else }}
             - "exec /app/main"
+            {{- end }}
           env:
+            {{- if not .Values.twitchBot.openbaoInjection }}
             - name: TWITCH_ID
               valueFrom:
                 secretKeyRef:
@@ -62,6 +78,7 @@ spec:
                 secretKeyRef:
                   name: {{ include "pedro-bots.fullname" . }}-secrets
                   key: postgresUrl
+            {{- end }}
             {{- range .Values.twitchBot.env }}
             - name: {{ .name }}
               value: {{ .value | quote }}
