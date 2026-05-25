@@ -29,6 +29,7 @@ spec:
           {{`export DISCORD_CLIENT_ID="{{ .Data.data.client_id }}"`}}
           {{`export DISCORD_PUBLIC_KEY="{{ .Data.data.public_key }}"`}}
           {{`export DISCORD_PERMISSION="{{ .Data.data.permission }}"`}}
+          {{`export POSTGRES_URL="{{ .Data.data.postgresUrl }}"`}}
           {{`{{- end }}`}}
         {{- end }}
     spec:

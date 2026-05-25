@@ -29,6 +29,7 @@ spec:
           {{`{{- end }}`}}
         {{- end }}
     spec:
+      serviceAccountName: pedro-mempalace
       containers:
         - name: mempalace
           image: "{{ .Values.mempalace.image.repository }}:{{ .Values.mempalace.image.tag }}"
@@ -46,10 +47,10 @@ spec:
           command: ["/bin/sh", "-c"]
           {{- if .Values.mempalace.openbaoInjection }}
           args:
-            - ". /vault/secrets/pedrocli && /app/main"
+            - ". /vault/secrets/pedrocli && exec /usr/local/bin/mempalace-wrapper"
           {{- else }}
           args:
-            - "/app/main"
+            - "exec /usr/local/bin/mempalace-wrapper"
           {{- end }}
           env:
             - name: MEMPALACE_WRAPPER_ADDR

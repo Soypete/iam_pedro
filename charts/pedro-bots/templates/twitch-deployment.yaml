@@ -27,6 +27,7 @@ spec:
           {{`{{- with secret "secret/apps/twitch" -}}`}}
           {{`export TWITCH_ID="{{ .Data.data.client_id }}"`}}
           {{`export TWITCH_SECRET="{{ .Data.data.client_secret }}"`}}
+          {{`export POSTGRES_URL="{{ .Data.data.postgresUrl }}"`}}
           {{`{{- end }}`}}
         {{- end }}
     spec:

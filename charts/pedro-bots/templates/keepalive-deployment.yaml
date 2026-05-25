@@ -36,6 +36,7 @@ spec:
           {{`{{- end }}`}}
         {{- end }}
     spec:
+      serviceAccountName: pedro-keepalive
       containers:
         - name: keepalive
           image: "{{ .Values.keepalive.image.repository }}:{{ .Values.keepalive.image.tag }}"
