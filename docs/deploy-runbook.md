@@ -35,7 +35,8 @@ export KUBECONFIG=~/.foundry/kubeconfig
 1. Login to OpenBAO:
    ```bash
    export VAULT_ADDR=http://100.81.89.62:8200
-   export VAULT_TOKEN=s.8sy7M9skEVO47Gsn12BtBjgO
+   # Token from 1Password or `vault login`
+   export VAULT_TOKEN=<your-token>
    ```
 
 2. Enable KV secrets engine if needed:
