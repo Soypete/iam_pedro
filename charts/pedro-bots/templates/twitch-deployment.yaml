@@ -18,7 +18,20 @@ spec:
       labels:
         {{- include "pedro-bots.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: twitch
+      annotations:
+        {{- if .Values.twitchBot.openbaoInjection }}
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "pedro"
+        vault.hashicorp.com/agent-inject-secret-twitch: "secret/apps/twitch"
+        vault.hashicorp.com/agent-inject-template-twitch: |
+          {{`{{- with secret "secret/apps/twitch" -}}`}}
+          {{`export TWITCH_ID="{{ .Data.data.client_id }}"`}}
+          {{`export TWITCH_SECRET="{{ .Data.data.client_secret }}"`}}
+          {{`export POSTGRES_URL="{{ .Data.data.postgresUrl }}"`}}
+          {{`{{- end }}`}}
+        {{- end }}
     spec:
+      serviceAccountName: pedro-twitch
       containers:
         - name: twitch-bot
           image: "{{ .Values.twitchBot.image.repository }}:{{ .Values.twitchBot.image.tag }}"
@@ -36,14 +49,47 @@ spec:
               port: 6060
             initialDelaySeconds: 10
             periodSeconds: 30
+          command: ["/bin/sh", "-c"]
+          args:
+            {{- if .Values.twitchBot.openbaoInjection }}
+            - ". /vault/secrets/twitch && exec /app/main"
+            {{- else }}
+            - "exec /app/main"
+            {{- end }}
           env:
+            {{- if not .Values.twitchBot.openbaoInjection }}
+            - name: TWITCH_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pedro-bots.fullname" . }}-secrets
+                  key: twitchId
+            - name: TWITCH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pedro-bots.fullname" . }}-secrets
+                  key: twitchSecret
+            - name: TWITCH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pedro-bots.fullname" . }}-secrets
+                  key: twitchToken
+                  optional: true
+            - name: POSTGRES_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pedro-bots.fullname" . }}-secrets
+                  key: postgresUrl
+            {{- end }}
             {{- range .Values.twitchBot.env }}
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
-          envFrom:
-            - secretRef:
-                name: {{ include "pedro-bots.fullname" . }}-secrets
+          {{- if .Values.twitchBot.args }}
+          args:
+            {{- range .Values.twitchBot.args }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
