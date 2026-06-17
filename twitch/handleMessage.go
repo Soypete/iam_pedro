@@ -66,9 +66,29 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 		go irc.faqProcessor.ProcessMessageFromPrivate(ctx, msg)
 	}
 
+	// Get or create palace session for this stream
+	session, err := irc.sessionRegistry.GetOrCreateSession(peteTwitchChannel)
+	if err != nil {
+		irc.logger.Error("failed to get palace session", "error", err.Error())
+	}
+
 	// TODO: replace nitbot commands with a classifier model that prompts the LLM
 	if strings.Contains(chat.Text, "Pedro") || strings.Contains(chat.Text, "pedro") || strings.Contains(chat.Text, "soy_llm_bot") {
 		irc.logger.Debug("processing message that mentions bot")
+
+		// Get relevant context from palace
+		var palaceContext string
+		if session != nil {
+			palaceContext, err = session.GetContext(chat.Text)
+			if err != nil {
+				irc.logger.Error("failed to get palace context", "error", err.Error())
+			}
+		}
+
+		// Inject palace context into chat message for LLM
+		if palaceContext != "" {
+			chat.PalaceContext = palaceContext
+		}
 
 		messageID, err := irc.db.InsertMessage(ctx, chat)
 		if err != nil {
@@ -113,5 +133,14 @@ func (irc *IRC) HandleChat(ctx context.Context, msg v2.PrivateMessage) {
 		irc.logger.Debug("sending response to Twitch", "messageID", resp.UUID, "responseLength", len(resp.Text))
 		irc.Client.Say(peteTwitchChannel, resp.Text)
 		metrics.TwitchMessageSentCount.Add(1)
+	} else {
+		// Non-trigger message: index to palace asynchronously
+		if session != nil {
+			go func() {
+				if err := session.IndexMessage(chat.Username, chat.Text); err != nil {
+					irc.logger.Error("failed to index message to palace", "error", err.Error())
+				}
+			}()
+		}
 	}
 }

@@ -19,6 +19,7 @@ spec:
         {{- include "pedro-bots.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: discord
       annotations:
+<<<<<<< HEAD
         {{- if .Values.discordBot.openbaoInjection }}
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "pedro"
@@ -32,6 +33,8 @@ spec:
           {{`export POSTGRES_URL="{{ .Data.data.postgresUrl }}"`}}
           {{`{{- end }}`}}
         {{- end }}
+=======
+>>>>>>> bd8afa8 (Fix deployment: use explicit env vars instead of vault/envFrom)
     spec:
       serviceAccountName: pedro-discord
       containers:
@@ -48,14 +51,14 @@ spec:
               port: 6060
             initialDelaySeconds: 10
             periodSeconds: 30
-          command: ["/bin/sh", "-c"]
+<<<<<<< HEAD
+command: ["/bin/sh", "-c"]
           args:
             {{- if .Values.discordBot.openbaoInjection }}
             - ". /vault/secrets/discord && /app/main"
             {{- else }}
             - "/app/main"
             {{- end }}
-          {{- if not .Values.discordBot.openbaoInjection }}
           env:
             - name: DISCORD_SECRET
               valueFrom:
@@ -72,6 +75,13 @@ spec:
                 secretKeyRef:
                   name: {{ include "pedro-bots.fullname" . }}-secrets
                   key: DISCORD_PUBLIC_KEY
+<<<<<<< HEAD
+=======
+            - name: MODEL
+              value: "qwen3.6-27b"
+            - name: LLAMA_CPP_PATH
+              value: "http://100.121.229.114:8080"
+>>>>>>> bd8afa8 (Fix deployment: use explicit env vars instead of vault/envFrom)
             - name: POSTGRES_URL
               valueFrom:
                 secretKeyRef:
@@ -80,12 +90,19 @@ spec:
           envFrom:
             - secretRef:
                 name: {{ include "pedro-bots.fullname" . }}-secrets
+<<<<<<< HEAD
           {{- end }}
           env:
             - name: MODEL
               value: "qwen3.6-27b"
             - name: LLAMA_CPP_PATH
               value: "http://100.121.229.114:8080"
+            {{- range .Values.discordBot.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+=======
+>>>>>>> bd8afa8 (Fix deployment: use explicit env vars instead of vault/envFrom)
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

@@ -91,6 +91,69 @@ var (
 			Buckets: prometheus.DefBuckets,
 		},
 	)
+
+	// Mempalace metrics
+	MempalaceSessionActive = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "mempalace_session_active",
+			Help: "Whether a Mem Palace session is currently active (1 = active, 0 = inactive)",
+		},
+	)
+
+	MempalaceMessagesClassifiedTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "mempalace_messages_classified_total",
+			Help: "Total number of messages classified by topic class",
+		},
+		[]string{"topic_class"},
+	)
+
+	MempalaceClassificationLatency = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "mempalace_classification_latency_seconds",
+			Help:    "Duration of message classification in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+	)
+
+	MempalaceClassificationUnclassifiedTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "mempalace_classification_unclassified_total",
+			Help: "Total number of messages that could not be classified",
+		},
+	)
+
+	MempalaceSQLiteWriteLatency = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "mempalace_sqlite_write_latency_seconds",
+			Help:    "Duration of SQLite write operations in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+	)
+
+	MempalaceToolCallsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "mempalace_tool_calls_total",
+			Help: "Total number of Mem Palace tool calls by result",
+		},
+		[]string{"tool", "result"},
+	)
+
+	MempalacePedroAddressScore = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "mempalace_pedro_address_score",
+			Help:    "Score distribution for Pedro address detection",
+			Buckets: prometheus.DefBuckets,
+		},
+	)
+
+	MempalaceArchiveFailuresTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "mempalace_archive_failures_total",
+			Help: "Total number of archive failures by reason",
+		},
+		[]string{"reason"},
+	)
 )
 
 type Server struct {
@@ -162,6 +225,15 @@ func SetupServer() *Server {
 		ModerationActionsTotal,
 		ModerationEvaluationsTotal,
 		ModerationDecisionDuration,
+		// Register Mempalace metrics
+		MempalaceSessionActive,
+		MempalaceMessagesClassifiedTotal,
+		MempalaceClassificationLatency,
+		MempalaceClassificationUnclassifiedTotal,
+		MempalaceSQLiteWriteLatency,
+		MempalaceToolCallsTotal,
+		MempalacePedroAddressScore,
+		MempalaceArchiveFailuresTotal,
 	)
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
