@@ -36,7 +36,7 @@ func (l *Loader) LoadTTL(filepath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open ontology file: %w", err)
 	}
-	defer func() { file.Close() }()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	var currentURI string
@@ -227,18 +227,6 @@ func (i *Index) LoadTTL(ctx context.Context, filepath string) error {
 	return nil
 }
 
-func (i *Index) resolvePrefix(uri string) string {
-	prefixes := map[string]string{
-		"sw:": "http://soypete.tech/twitch/topics/",
-	}
-	for prefix, ns := range prefixes {
-		if strings.HasPrefix(uri, prefix) {
-			return ns + strings.TrimPrefix(uri, prefix)
-		}
-	}
-	return uri
-}
-
 func (i *Index) Search(ctx context.Context, query string, topK int) ([]SearchResult, error) {
 	queryVec, err := i.embedder.Generate(ctx, query)
 	if err != nil {
@@ -323,21 +311,4 @@ func (i *Index) ClassLabels() []string {
 		}
 	}
 	return labels
-}
-
-func shortURI(uri string) string {
-	if idx := strings.LastIndex(uri, "#"); idx != -1 {
-		return uri[idx+1:]
-	}
-	if idx := strings.LastIndex(uri, "/"); idx != -1 {
-		return uri[idx+1:]
-	}
-	return uri
-}
-
-func stripLanguageTag(s string) string {
-	if idx := strings.Index(s, "@"); idx != -1 {
-		return s[:idx]
-	}
-	return s
 }

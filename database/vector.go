@@ -85,7 +85,7 @@ func arrayToString(arr []float32) string {
 		if i > 0 {
 			builder.WriteString(",")
 		}
-		builder.WriteString(fmt.Sprintf("%f", v))
+		fmt.Fprintf(&builder, "%f", v)
 	}
 	builder.WriteString("]")
 	return builder.String()
