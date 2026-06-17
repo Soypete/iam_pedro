@@ -1,0 +1,85 @@
+{{- if .Values.mempalace.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pedro-bots.fullname" . }}-mempalace
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pedro-bots.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mempalace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "pedro-bots.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mempalace
+  template:
+    metadata:
+      labels:
+        {{- include "pedro-bots.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: mempalace
+      annotations:
+        {{- if .Values.mempalace.openbaoInjection }}
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "pedro"
+        vault.hashicorp.com/agent-inject-secret-pedrocli: "secret/apps/pedrocli"
+        vault.hashicorp.com/agent-inject-template-pedrocli: |
+          {{`{{- with secret "secret/apps/pedrocli" -}}`}}
+          {{`export POSTGRES_URL="{{ .Data.data.database_url }}"`}}
+          {{`{{- end }}`}}
+        {{- end }}
+    spec:
+      serviceAccountName: pedro-mempalace
+      containers:
+        - name: mempalace
+          image: "{{ .Values.mempalace.image.repository }}:{{ .Values.mempalace.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8082
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8082
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          command: ["/bin/sh", "-c"]
+          {{- if .Values.mempalace.openbaoInjection }}
+          args:
+            - ". /vault/secrets/pedrocli && exec /usr/local/bin/mempalace-wrapper"
+          {{- else }}
+          args:
+            - "exec /usr/local/bin/mempalace-wrapper"
+          {{- end }}
+          env:
+            - name: MEMPALACE_WRAPPER_ADDR
+              value: ":8082"
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pedro-bots.fullname" . }}-mempalace
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pedro-bots.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mempalace
+spec:
+  ports:
+    - name: http
+      port: 8082
+      targetPort: 8082
+      protocol: TCP
+  selector:
+    {{- include "pedro-bots.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: mempalace
+{{- end }}
