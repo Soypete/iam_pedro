@@ -1,12 +1,9 @@
-FROM golang:1.25-alpine
+FROM alpine:3.19
 
-RUN apk add --no-cache git ca-certificates
+RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
-COPY go.* ./
-RUN go mod download
 
-COPY . ./
-RUN go build -v -o keepalive-service ./cli/keepalive
+COPY bin/keepalive /app/keepalive-service
 
 CMD ["/app/keepalive-service"]

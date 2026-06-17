@@ -30,3 +30,7 @@ remote-deploy.sh
 
 # Crush config
 .crush.json
+
+# Palace session data (per-stream memory)
+data/
+palaces/

@@ -18,6 +18,7 @@ spec:
       labels:
         {{- include "pedro-bots.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: keepalive
+<<<<<<< HEAD
       annotations:
         {{- if .Values.keepalive.openbaoInjection }}
         vault.hashicorp.com/agent-inject: "true"
@@ -35,6 +36,9 @@ spec:
           {{`export TWITCH_SECRET="{{ .Data.data.client_secret }}"`}}
           {{`{{- end }}`}}
         {{- end }}
+=======
+      
+>>>>>>> bd8afa8 (Fix deployment: use explicit env vars instead of vault/envFrom)
     spec:
       serviceAccountName: pedro-keepalive
       containers:
@@ -44,7 +48,7 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             {{- if .Values.keepalive.openbaoInjection }}
-            - ". /vault/secrets/discord && . /vault/secrets/twitch && /app/keepalive-service"
+            - ". /vault/secrets/discord && . /vault/secrets/twitch && exec /app/keepalive"
             {{- else }}
             - "/app/keepalive-service"
             {{- end }}

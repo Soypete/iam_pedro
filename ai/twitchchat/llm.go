@@ -66,7 +66,14 @@ func (c *Client) callLLM(ctx context.Context, injection []string, messageID uuid
 func (c *Client) SingleMessageResponse(ctx context.Context, msg types.TwitchMessage, messageID uuid.UUID) (types.TwitchMessage, error) {
 	c.logger.Debug("processing single message response", "messageID", messageID)
 
-	resp, err := c.callLLM(ctx, []string{fmt.Sprintf("%s: %s", msg.Username, msg.Text)}, messageID)
+	// Build user message with palace context if available
+	userMessage := fmt.Sprintf("%s: %s", msg.Username, msg.Text)
+	if msg.PalaceContext != "" {
+		userMessage = fmt.Sprintf("Relevant conversation context from this stream:\n%s\n\n%s", msg.PalaceContext, userMessage)
+		c.logger.Debug("injected palace context into prompt", "contextLength", len(msg.PalaceContext))
+	}
+
+	resp, err := c.callLLM(ctx, []string{userMessage}, messageID)
 	if err != nil {
 		c.logger.Error("failed to generate response", "error", err.Error(), "messageID", messageID)
 		metrics.FailedLLMGenCount.Add(1)
@@ -152,7 +159,7 @@ func (c *Client) ExecuteWebSearch(ctx context.Context, request *types.WebSearchR
 		}
 		return
 	}
-	
+
 	metrics.WebSearchSuccessCount.Add(1)
 	c.logger.Debug("web search successful", "query", request.Query, "messageID", request.OriginalMsg.UUID)
 
