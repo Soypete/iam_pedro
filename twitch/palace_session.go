@@ -422,9 +422,7 @@ func (s *PalaceSession) End() error {
 }
 
 func outputLines(s string) []string {
-	var lines []string
-	lines = append(lines, splitLines(s)...)
-	return lines
+	return splitLines(s)
 }
 
 func splitLines(s string) []string {

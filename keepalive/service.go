@@ -14,8 +14,8 @@ import (
 
 // ServiceConfig represents configuration for a service to monitor
 type ServiceConfig struct {
-	Name         string
-	HealthURL    string
+	Name          string
+	HealthURL     string
 	AuthHealthURL string // Optional: URL to check auth token health (e.g., /healthz/auth)
 }
 
@@ -295,9 +295,35 @@ func (kas *KeepAliveService) checkAuthHealth(ctx context.Context, state *Service
 		// Only alert once per hour
 		if time.Since(state.LastAuthAlertTime) >= kas.alertInterval {
 			state.mu.Unlock()
+
+			// Get OAuth refresh URL
+			oauthURL := ""
+			refreshURL := state.AuthHealthURL + "/trigger-refresh"
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, refreshURL, nil)
+			if err == nil {
+				resp, err := kas.httpClient.Do(req)
+				if err == nil {
+					defer func() { _ = resp.Body.Close() }()
+					if resp.StatusCode == http.StatusOK {
+						var triggerResp struct {
+							OAuthURL string `json:"oauth_url"`
+						}
+						if err := json.NewDecoder(resp.Body).Decode(&triggerResp); err == nil {
+							oauthURL = triggerResp.OAuthURL
+						}
+					}
+				}
+			}
+
 			msg := fmt.Sprintf("⚠️ Auth token for %s has EXPIRED! Last refreshed: %s",
 				state.Name,
 				authHealth.LastRefreshTime.Format(time.RFC3339))
+			if oauthURL != "" {
+				msg += fmt.Sprintf("\n\n🔗 Click here to refresh: %s", oauthURL)
+			} else {
+				msg += fmt.Sprintf("\n\nManually trigger refresh at: %s", refreshURL)
+			}
+
 			go func() {
 				if err := kas.alerter.SendAlert(ctx, state.Name, msg); err != nil {
 					kas.logger.Error("failed to send auth expiry alert", "error", err.Error())
@@ -318,10 +344,36 @@ func (kas *KeepAliveService) checkAuthHealth(ctx context.Context, state *Service
 		// Only alert once per hour
 		if time.Since(state.LastAuthAlertTime) >= kas.alertInterval {
 			state.mu.Unlock()
+
+			// Get OAuth refresh URL
+			oauthURL := ""
+			refreshURL := state.AuthHealthURL + "/trigger-refresh"
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, state.AuthHealthURL+"/trigger-refresh", nil)
+			if err == nil {
+				resp, err := kas.httpClient.Do(req)
+				if err == nil {
+					defer func() { _ = resp.Body.Close() }()
+					if resp.StatusCode == http.StatusOK {
+						var triggerResp struct {
+							OAuthURL string `json:"oauth_url"`
+						}
+						if err := json.NewDecoder(resp.Body).Decode(&triggerResp); err == nil {
+							oauthURL = triggerResp.OAuthURL
+						}
+					}
+				}
+			}
+
 			msg := fmt.Sprintf("⚠️ Auth token for %s will expire in %.1f hours (at %s). Please refresh the token.",
 				state.Name,
 				authHealth.HoursUntilExpiry,
 				authHealth.ExpirationTime.Format(time.RFC3339))
+			if oauthURL != "" {
+				msg += fmt.Sprintf("\n\n🔗 Click here to refresh: %s", oauthURL)
+			} else {
+				msg += fmt.Sprintf("\n\nManually trigger refresh at: %s", refreshURL)
+			}
+
 			go func() {
 				if err := kas.alerter.SendAlert(ctx, state.Name, msg); err != nil {
 					kas.logger.Error("failed to send auth expiry warning", "error", err.Error())

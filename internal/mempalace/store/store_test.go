@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -12,16 +11,14 @@ import (
 
 func TestStore_Init(t *testing.T) {
 	tmpDir := t.TempDir()
-	_ = os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
-	defer func() { _ = os.Unsetenv("MEMPALACE_DATA_DIR") }()
+	t.Setenv("MEMPALACE_DATA_DIR", tmpDir)
 
 	s := NewStore()
-	classes, err := ontology.ParseTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
-	if err != nil {
-		t.Fatalf("failed to parse TTL: %v", err)
-	}
+	loader := ontology.NewLoader()
+	_ = loader.LoadTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
+	classes := loader.GetClasses()
 
-	err = s.Init("test-stream-123", classes)
+	err := s.Init("test-stream-123", classes)
 	if err != nil {
 		t.Fatalf("failed to init store: %v", err)
 	}
@@ -34,16 +31,14 @@ func TestStore_Init(t *testing.T) {
 
 func TestStore_WriteMessage(t *testing.T) {
 	tmpDir := t.TempDir()
-	_ = os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
-	defer func() { _ = os.Unsetenv("MEMPALACE_DATA_DIR") }()
+	t.Setenv("MEMPALACE_DATA_DIR", tmpDir)
 
 	s := NewStore()
-	classes, err := ontology.ParseTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
-	if err != nil {
-		t.Fatalf("failed to parse TTL: %v", err)
-	}
+	loader := ontology.NewLoader()
+	_ = loader.LoadTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
+	classes := loader.GetClasses()
 
-	err = s.Init("test-stream-123", classes)
+	err := s.Init("test-stream-123", classes)
 	if err != nil {
 		t.Fatalf("failed to init store: %v", err)
 	}
@@ -67,16 +62,14 @@ func TestStore_WriteMessage(t *testing.T) {
 
 func TestStore_Query(t *testing.T) {
 	tmpDir := t.TempDir()
-	_ = os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
-	defer func() { _ = os.Unsetenv("MEMPALACE_DATA_DIR") }()
+	t.Setenv("MEMPALACE_DATA_DIR", tmpDir)
 
 	s := NewStore()
-	classes, err := ontology.ParseTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
-	if err != nil {
-		t.Fatalf("failed to parse TTL: %v", err)
-	}
+	loader := ontology.NewLoader()
+	_ = loader.LoadTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
+	classes := loader.GetClasses()
 
-	err = s.Init("test-stream-123", classes)
+	err := s.Init("test-stream-123", classes)
 	if err != nil {
 		t.Fatalf("failed to init store: %v", err)
 	}
@@ -116,16 +109,14 @@ func TestStore_Query(t *testing.T) {
 
 func TestStore_QueryByText(t *testing.T) {
 	tmpDir := t.TempDir()
-	_ = os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
-	defer func() { _ = os.Unsetenv("MEMPALACE_DATA_DIR") }()
+	t.Setenv("MEMPALACE_DATA_DIR", tmpDir)
 
 	s := NewStore()
-	classes, err := ontology.ParseTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
-	if err != nil {
-		t.Fatalf("failed to parse TTL: %v", err)
-	}
+	loader := ontology.NewLoader()
+	_ = loader.LoadTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
+	classes := loader.GetClasses()
 
-	err = s.Init("test-stream-123", classes)
+	err := s.Init("test-stream-123", classes)
 	if err != nil {
 		t.Fatalf("failed to init store: %v", err)
 	}

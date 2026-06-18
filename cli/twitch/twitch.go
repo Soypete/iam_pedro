@@ -134,6 +134,10 @@ func main() {
 	server.RegisterAuthHealthHandler(irc.AuthHealthHandler())
 	logger.Debug("auth health endpoint registered at /healthz/auth")
 
+	// Register trigger refresh endpoint
+	server.RegisterHandlerAtPath("/healthz/auth/trigger-refresh", irc.TriggerRefreshHandler())
+	logger.Debug("trigger refresh endpoint registered at /healthz/auth/trigger-refresh")
+
 	// Setup Mem Palace if enabled
 	if enableMemPalace {
 		logger.Info("setting up Mem Palace", "activeDir", memPalaceActiveDir, "archiveDir", memPalaceArchiveDir)

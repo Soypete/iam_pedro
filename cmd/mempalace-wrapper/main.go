@@ -110,7 +110,7 @@ func (p *PalaceWrapper) handleMine(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	args := []string{"mine", tempDir, "--palace", req.Palace}
+	args := []string{"--palace", req.Palace, "mine", tempDir}
 	if req.Wing != "" {
 		args = append(args, "--wing", req.Wing)
 	}
@@ -167,7 +167,7 @@ func (p *PalaceWrapper) handleSearch(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	args := []string{"search", req.Query, "--palace", req.Palace, "--results", fmt.Sprintf("%d", req.Results)}
+	args := []string{"--palace", req.Palace, "search", req.Query, "--results", fmt.Sprintf("%d", req.Results)}
 	if req.Wing != "" {
 		args = append(args, "--wing", req.Wing)
 	}
@@ -213,7 +213,7 @@ func (p *PalaceWrapper) handleRouteRegister(w http.ResponseWriter, r *http.Reque
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	args := []string{"route", "register", "--palace", req.Palace, "--entity", req.EntityPath, "--location", req.Location}
+	args := []string{"--palace", req.Palace, "route", "register", "--entity", req.EntityPath, "--location", req.Location}
 
 	p.logger.Printf("Running: mempalace %s", strings.Join(args, " "))
 
@@ -251,7 +251,7 @@ func (p *PalaceWrapper) handleRouteResolve(w http.ResponseWriter, r *http.Reques
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	args := []string{"route", "resolve", "--palace", palace, "--entity", entityPath}
+	args := []string{"--palace", palace, "route", "resolve", "--entity", entityPath}
 
 	p.logger.Printf("Running: mempalace %s", strings.Join(args, " "))
 

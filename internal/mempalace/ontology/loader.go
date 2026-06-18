@@ -1,17 +1,20 @@
+// Package ontology provides SKOS thesaurus parsing and cosine-similarity
+// indexing for topic classification.
+//
+// It loads TTL (Turtle) files containing skos:Concept definitions with
+// prefLabel, altLabel, and definition. The loader builds an in-memory
+// index of all labels (including alternatives) for fast cosine-similarity
+// matching against chat messages.
+//
+// Default ontology: testdata/twitch_topics.ttl (~25 programming/tech topics)
 package ontology
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"os"
 	"strings"
 )
-
-type Embedder interface {
-	Generate(ctx context.Context, text string) ([]float32, error)
-	GenerateBatch(ctx context.Context, texts []string) ([][]float32, error)
-}
 
 type Class struct {
 	URI        string
@@ -84,10 +87,15 @@ func (l *Loader) LoadTTL(filepath string) error {
 				l.classes[currentURI] = currentClass
 			}
 			currentURI = ""
+			currentClass = Class{}
 		}
 	}
 
-	return scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error scanning ontology file: %w", err)
+	}
+
+	return nil
 }
 
 func (l *Loader) extractLabel(line string) string {
@@ -104,10 +112,15 @@ func (l *Loader) extractLabel(line string) string {
 
 func (l *Loader) extractURI(line string) string {
 	parts := strings.Fields(line)
-	for _, p := range parts {
-		if strings.HasPrefix(p, "http://") || strings.HasPrefix(p, "https://") || strings.HasPrefix(p, "sw:") {
-			return strings.TrimSuffix(p, " .")
+	for _, part := range parts {
+		part = strings.TrimSuffix(part, ";")
+		part = strings.TrimSuffix(part, ".")
+		if strings.HasPrefix(part, "sw:") || strings.HasPrefix(part, "schema:") {
+			return part
 		}
+	}
+	if len(parts) >= 3 {
+		return parts[2]
 	}
 	return ""
 }
@@ -121,8 +134,9 @@ func (l *Loader) GetClasses() []Class {
 }
 
 func (l *Loader) GetSearchTerms() []string {
-	terms := make([]string, 0)
+	var terms []string
 	seen := make(map[string]bool)
+
 	for _, c := range l.classes {
 		if c.Label != "" && !seen[c.Label] {
 			terms = append(terms, c.Label)
@@ -135,6 +149,7 @@ func (l *Loader) GetSearchTerms() []string {
 			}
 		}
 	}
+
 	return terms
 }
 
@@ -153,162 +168,4 @@ func (l *Loader) GetClassByLabel(label string) *Class {
 		}
 	}
 	return nil
-}
-
-type Index struct {
-	terms     []string
-	vectors   [][]float32
-	dimension int
-	embedder  Embedder
-	classes   map[string]Class
-}
-
-func NewIndex(embedder Embedder) (*Index, error) {
-	if embedder == nil {
-		return nil, fmt.Errorf("embedder cannot be nil")
-	}
-	return &Index{
-		embedder: embedder,
-		classes:  make(map[string]Class),
-	}, nil
-}
-
-func (i *Index) Build(ctx context.Context, terms []string) error {
-	if len(terms) == 0 {
-		return nil
-	}
-
-	vectors, err := i.embedder.GenerateBatch(ctx, terms)
-	if err != nil {
-		return err
-	}
-
-	i.terms = terms
-	i.vectors = vectors
-	i.dimension = len(vectors[0])
-
-	return nil
-}
-
-func (i *Index) LoadTTL(ctx context.Context, filepath string) error {
-	loader := NewLoader()
-	if err := loader.LoadTTL(filepath); err != nil {
-		return fmt.Errorf("failed to load ontology: %w", err)
-	}
-
-	for _, c := range loader.classes {
-		i.classes[c.URI] = c
-	}
-
-	var terms []string
-	seen := make(map[string]bool)
-	for _, c := range i.classes {
-		if c.Label != "" && !seen[c.Label] {
-			terms = append(terms, c.Label)
-			seen[c.Label] = true
-		}
-		for _, alt := range c.AltLabels {
-			if !seen[alt] {
-				terms = append(terms, alt)
-				seen[alt] = true
-			}
-		}
-	}
-
-	vectors, err := i.embedder.GenerateBatch(ctx, terms)
-	if err != nil {
-		return fmt.Errorf("failed to generate embeddings: %w", err)
-	}
-
-	i.terms = terms
-	i.vectors = vectors
-	i.dimension = len(vectors[0])
-
-	return nil
-}
-
-func (i *Index) Search(ctx context.Context, query string, topK int) ([]SearchResult, error) {
-	queryVec, err := i.embedder.Generate(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-
-	type scoredTerm struct {
-		term  string
-		score float32
-	}
-
-	var scores []scoredTerm
-	for j := range i.terms {
-		sim := cosineSimilarity(queryVec, i.vectors[j])
-		scores = append(scores, scoredTerm{term: i.terms[j], score: sim})
-	}
-
-	for j := 0; j < len(scores)-1; j++ {
-		for k := j + 1; k < len(scores); k++ {
-			if scores[k].score > scores[j].score {
-				scores[j], scores[k] = scores[k], scores[j]
-			}
-		}
-	}
-
-	if topK > len(scores) {
-		topK = len(scores)
-	}
-
-	results := make([]SearchResult, topK)
-	for j := 0; j < topK; j++ {
-		results[j] = SearchResult{
-			Term:  scores[j].term,
-			Score: float64(scores[j].score),
-		}
-	}
-
-	return results, nil
-}
-
-func cosineSimilarity(a, b []float32) float32 {
-	if len(a) != len(b) {
-		return 0
-	}
-
-	var dotProduct, normA, normB float64
-	for i := range a {
-		dotProduct += float64(a[i] * b[i])
-		normA += float64(a[i] * a[i])
-		normB += float64(b[i] * b[i])
-	}
-
-	if normA == 0 || normB == 0 {
-		return 0
-	}
-
-	return float32(dotProduct / (normA * normB))
-}
-
-type SearchResult struct {
-	Term  string
-	Score float64
-}
-
-func (i *Index) TermCount() int {
-	return len(i.terms)
-}
-
-func (i *Index) GetClasses() []Class {
-	classes := make([]Class, 0, len(i.classes))
-	for _, c := range i.classes {
-		classes = append(classes, c)
-	}
-	return classes
-}
-
-func (i *Index) ClassLabels() []string {
-	labels := make([]string, 0, len(i.classes))
-	for _, c := range i.classes {
-		if c.Label != "" {
-			labels = append(labels, c.Label)
-		}
-	}
-	return labels
 }

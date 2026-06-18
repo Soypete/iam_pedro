@@ -18,18 +18,7 @@ spec:
       labels:
         {{- include "pedro-bots.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: mempalace
-      annotations:
-        {{- if .Values.mempalace.openbaoInjection }}
-        vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/role: "pedro"
-        vault.hashicorp.com/agent-inject-secret-pedrocli: "secret/apps/pedrocli"
-        vault.hashicorp.com/agent-inject-template-pedrocli: |
-          {{`{{- with secret "secret/apps/pedrocli" -}}`}}
-          {{`export POSTGRES_URL="{{ .Data.data.database_url }}"`}}
-          {{`{{- end }}`}}
-        {{- end }}
     spec:
-      serviceAccountName: pedro-mempalace
       containers:
         - name: mempalace
           image: "{{ .Values.mempalace.image.repository }}:{{ .Values.mempalace.image.tag }}"
@@ -44,22 +33,9 @@ spec:
               port: 8082
             initialDelaySeconds: 10
             periodSeconds: 30
-          command: ["/bin/sh", "-c"]
-          {{- if .Values.mempalace.openbaoInjection }}
-          args:
-            - ". /vault/secrets/pedrocli && exec /usr/local/bin/mempalace-wrapper"
-          {{- else }}
-          args:
-            - "exec /usr/local/bin/mempalace-wrapper"
-          {{- end }}
           env:
             - name: MEMPALACE_WRAPPER_ADDR
               value: ":8082"
-            - name: MEMPALACE_DATA_DIR
-              value: "/data/palaces"
-          volumeMounts:
-            - name: palace-data
-              mountPath: /data/palaces
           resources:
             limits:
               cpu: 500m
@@ -67,22 +43,8 @@ spec:
             requests:
               cpu: 250m
               memory: 256Mi
-      volumes:
-        - name: palace-data
-          persistentVolumeClaim:
-            claimName: {{ include "pedro-bots.fullname" . }}-palaces
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ include "pedro-bots.fullname" . }}-palaces
-  namespace: {{ .Release.Namespace }}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: {{ .Values.mempalace.volume.storageSize | default "1Gi" }}
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
 ---
 apiVersion: v1
 kind: Service
