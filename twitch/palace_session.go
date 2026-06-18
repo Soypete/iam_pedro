@@ -176,7 +176,7 @@ func (s *PalaceSession) determineRoom(username, message string) string {
 		s.logger.Debug("route resolve failed, using keyword detection", "error", err.Error())
 		return s.keywordRoom(message)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result httpResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -364,7 +364,7 @@ func (s *PalaceSession) GetContext(query string) (string, error) {
 			s.logger.Debug("search room failed", "room", room, "error", err.Error())
 			continue
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		var result httpResponse
 		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
