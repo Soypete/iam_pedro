@@ -55,11 +55,6 @@ type searchRequest struct {
 	Results int    `json:"results"`
 }
 
-type routeResolveRequest struct {
-	EntityPath string `json:"entity_path"`
-	Palace     string `json:"palace"`
-}
-
 type httpResponse struct {
 	Success bool   `json:"success"`
 	Output  string `json:"output"`
@@ -158,7 +153,7 @@ func (s *PalaceSession) registerDefaultRoutes() error {
 			s.logger.Debug("failed to register route", "entity", route.entity, "error", err.Error())
 			continue
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 
 	return nil
@@ -270,7 +265,7 @@ func (s *PalaceSession) flush() {
 	s.messageBuf = make([]string, 0)
 	s.mu.Unlock()
 
-	s.writeAndMine(buf)
+	_ = s.writeAndMine(buf)
 }
 
 func (s *PalaceSession) writeAndMine(messages []string) error {
@@ -315,10 +310,10 @@ func (s *PalaceSession) writeAndMine(messages []string) error {
 			s.logger.Error("failed to mine messages", "room", room, "error", err.Error())
 			continue
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		var result httpResponse
-		json.NewDecoder(resp.Body).Decode(&result)
+		_ = json.NewDecoder(resp.Body).Decode(&result)
 
 		s.logger.Debug("indexed messages to palace", "room", room, "count", len(msgs))
 	}
@@ -427,11 +422,7 @@ func (s *PalaceSession) End() error {
 }
 
 func outputLines(s string) []string {
-	var lines []string
-	for _, line := range splitLines(s) {
-		lines = append(lines, line)
-	}
-	return lines
+	return splitLines(s)
 }
 
 func splitLines(s string) []string {

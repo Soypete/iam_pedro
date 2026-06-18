@@ -25,6 +25,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Build Discord
+        run: go build -o bin/discord ./cli/discord
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -69,6 +77,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Build Twitch
+        run: go build -o bin/twitch ./cli/twitch
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4

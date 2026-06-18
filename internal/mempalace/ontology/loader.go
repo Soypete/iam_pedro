@@ -39,7 +39,7 @@ func (l *Loader) LoadTTL(filepath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open ontology file: %w", err)
 	}
-	defer func() { file.Close() }()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	var currentURI string

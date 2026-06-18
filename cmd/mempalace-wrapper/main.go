@@ -97,7 +97,7 @@ func (p *PalaceWrapper) handleMine(w http.ResponseWriter, r *http.Request) {
 		p.respondError(w, http.StatusInternalServerError, fmt.Sprintf("failed to create temp dir: %v", err))
 		return
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	for i, msg := range req.Messages {
 		filename := filepath.Join(tempDir, fmt.Sprintf("chat_%d.txt", i))
@@ -285,7 +285,7 @@ func (p *PalaceWrapper) respondError(w http.ResponseWriter, code int, msg string
 	p.logger.Printf("error: %s", msg)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
 func getEnv(key, defaultValue string) string {

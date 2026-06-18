@@ -169,13 +169,21 @@ func (s *Store) Query(ctx context.Context, opts QueryOpts) ([]Message, error) {
 	defer s.mu.Unlock()
 
 	var tableName string
+	var selectTopic bool
 	if opts.Topic == "" || opts.Topic == "Unclassified" {
 		tableName = "messages_raw"
+		selectTopic = true
 	} else {
 		tableName = fmt.Sprintf("messages_%s", sanitizeTableName(opts.Topic))
+		selectTopic = false
 	}
 
-	query := fmt.Sprintf("SELECT id, stream_id, username, message, timestamp, topic, confidence FROM %s WHERE 1=1", tableName)
+	var query string
+	if selectTopic {
+		query = fmt.Sprintf("SELECT id, stream_id, username, message, timestamp, topic, confidence FROM %s WHERE 1=1", tableName)
+	} else {
+		query = fmt.Sprintf("SELECT id, stream_id, username, message, timestamp, confidence FROM %s WHERE 1=1", tableName)
+	}
 	args := []interface{}{}
 
 	if opts.TimeStart != nil {
@@ -207,19 +215,27 @@ func (s *Store) Query(ctx context.Context, opts QueryOpts) ([]Message, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query messages: %w", err)
 	}
-	defer func() { rows.Close() }()
+	defer func() { _ = rows.Close() }()
 
 	var messages []Message
 	for rows.Next() {
 		var msg Message
 		var timestampStr string
-		var topic string
-		err := rows.Scan(&msg.ID, &msg.StreamID, &msg.Username, &msg.Message, &timestampStr, &topic, &msg.Confidence)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
+		if selectTopic {
+			var topic string
+			err := rows.Scan(&msg.ID, &msg.StreamID, &msg.Username, &msg.Message, &timestampStr, &topic, &msg.Confidence)
+			if err != nil {
+				return nil, fmt.Errorf("failed to scan row: %w", err)
+			}
+			msg.Topic = topic
+		} else {
+			err := rows.Scan(&msg.ID, &msg.StreamID, &msg.Username, &msg.Message, &timestampStr, &msg.Confidence)
+			if err != nil {
+				return nil, fmt.Errorf("failed to scan row: %w", err)
+			}
+			msg.Topic = opts.Topic
 		}
 		msg.Timestamp, _ = time.Parse(time.RFC3339, timestampStr)
-		msg.Topic = topic
 		messages = append(messages, msg)
 	}
 
