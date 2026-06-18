@@ -2,6 +2,5 @@
 .github
 .gitignore
 *.md
-bin/
 coverage.out
 *.test
