@@ -241,9 +241,14 @@ func SetupServer() *Server {
 	return &Server{server}
 }
 
-// RegisterAuthHealthHandler registers the auth health check endpoint
+// RegisterAuthHealthHandler registers the auth health check endpoint at /healthz/auth
 func (s *Server) RegisterAuthHealthHandler(handler http.HandlerFunc) {
 	http.HandleFunc("/healthz/auth", handler)
+}
+
+// RegisterHandlerAtPath registers a handler at a specific path
+func (s *Server) RegisterHandlerAtPath(path string, handler http.HandlerFunc) {
+	http.HandleFunc(path, handler)
 }
 
 // healthzHandler returns a simple health check response

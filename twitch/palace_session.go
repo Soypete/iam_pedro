@@ -55,6 +55,11 @@ type searchRequest struct {
 	Results int    `json:"results"`
 }
 
+type routeResolveRequest struct {
+	EntityPath string `json:"entity_path"`
+	Palace     string `json:"palace"`
+}
+
 type httpResponse struct {
 	Success bool   `json:"success"`
 	Output  string `json:"output"`
@@ -153,7 +158,7 @@ func (s *PalaceSession) registerDefaultRoutes() error {
 			s.logger.Debug("failed to register route", "entity", route.entity, "error", err.Error())
 			continue
 		}
-		_ = resp.Body.Close()
+		resp.Body.Close()
 	}
 
 	return nil
@@ -176,7 +181,7 @@ func (s *PalaceSession) determineRoom(username, message string) string {
 		s.logger.Debug("route resolve failed, using keyword detection", "error", err.Error())
 		return s.keywordRoom(message)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	var result httpResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -265,7 +270,7 @@ func (s *PalaceSession) flush() {
 	s.messageBuf = make([]string, 0)
 	s.mu.Unlock()
 
-	_ = s.writeAndMine(buf)
+	s.writeAndMine(buf)
 }
 
 func (s *PalaceSession) writeAndMine(messages []string) error {
@@ -310,10 +315,10 @@ func (s *PalaceSession) writeAndMine(messages []string) error {
 			s.logger.Error("failed to mine messages", "room", room, "error", err.Error())
 			continue
 		}
-		defer func() { _ = resp.Body.Close() }()
+		defer resp.Body.Close()
 
 		var result httpResponse
-		_ = json.NewDecoder(resp.Body).Decode(&result)
+		json.NewDecoder(resp.Body).Decode(&result)
 
 		s.logger.Debug("indexed messages to palace", "room", room, "count", len(msgs))
 	}
@@ -364,7 +369,7 @@ func (s *PalaceSession) GetContext(query string) (string, error) {
 			s.logger.Debug("search room failed", "room", room, "error", err.Error())
 			continue
 		}
-		defer func() { _ = resp.Body.Close() }()
+		defer resp.Body.Close()
 
 		var result httpResponse
 		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -423,7 +428,9 @@ func (s *PalaceSession) End() error {
 
 func outputLines(s string) []string {
 	var lines []string
-	lines = append(lines, splitLines(s)...)
+	for _, line := range splitLines(s) {
+		lines = append(lines, line)
+	}
 	return lines
 }
 

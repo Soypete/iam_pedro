@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,20 +11,19 @@ import (
 
 func TestStore_Init(t *testing.T) {
 	tmpDir := t.TempDir()
-	_ = os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
-	defer func() { _ = os.Unsetenv("MEMPALACE_DATA_DIR") }()
+	os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
+	defer os.Unsetenv("MEMPALACE_DATA_DIR")
 
 	s := NewStore()
-	classes, err := ontology.ParseTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
-	if err != nil {
-		t.Fatalf("failed to parse TTL: %v", err)
-	}
+	loader := ontology.NewLoader()
+	loader.LoadTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
+	classes := loader.GetClasses()
 
-	err = s.Init("test-stream-123", classes)
+	err := s.Init("test-stream-123", classes)
 	if err != nil {
 		t.Fatalf("failed to init store: %v", err)
 	}
-	defer func() { _ = s.Close() }()
+	defer s.Close()
 
 	if s.streamID != "test-stream-123" {
 		t.Errorf("expected streamID 'test-stream-123', got '%s'", s.streamID)
@@ -34,20 +32,19 @@ func TestStore_Init(t *testing.T) {
 
 func TestStore_WriteMessage(t *testing.T) {
 	tmpDir := t.TempDir()
-	_ = os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
-	defer func() { _ = os.Unsetenv("MEMPALACE_DATA_DIR") }()
+	os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
+	defer os.Unsetenv("MEMPALACE_DATA_DIR")
 
 	s := NewStore()
-	classes, err := ontology.ParseTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
-	if err != nil {
-		t.Fatalf("failed to parse TTL: %v", err)
-	}
+	loader := ontology.NewLoader()
+	loader.LoadTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
+	classes := loader.GetClasses()
 
-	err = s.Init("test-stream-123", classes)
+	err := s.Init("test-stream-123", classes)
 	if err != nil {
 		t.Fatalf("failed to init store: %v", err)
 	}
-	defer func() { _ = s.Close() }()
+	defer s.Close()
 
 	msg := Message{
 		ID:         "msg-123",
@@ -59,7 +56,7 @@ func TestStore_WriteMessage(t *testing.T) {
 		Confidence: 0.9,
 	}
 
-	err = s.WriteMessage(context.TODO(), msg)
+	err = s.WriteMessage(nil, msg)
 	if err != nil {
 		t.Fatalf("failed to write message: %v", err)
 	}
@@ -67,20 +64,19 @@ func TestStore_WriteMessage(t *testing.T) {
 
 func TestStore_Query(t *testing.T) {
 	tmpDir := t.TempDir()
-	_ = os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
-	defer func() { _ = os.Unsetenv("MEMPALACE_DATA_DIR") }()
+	os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
+	defer os.Unsetenv("MEMPALACE_DATA_DIR")
 
 	s := NewStore()
-	classes, err := ontology.ParseTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
-	if err != nil {
-		t.Fatalf("failed to parse TTL: %v", err)
-	}
+	loader := ontology.NewLoader()
+	loader.LoadTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
+	classes := loader.GetClasses()
 
-	err = s.Init("test-stream-123", classes)
+	err := s.Init("test-stream-123", classes)
 	if err != nil {
 		t.Fatalf("failed to init store: %v", err)
 	}
-	defer func() { _ = s.Close() }()
+	defer s.Close()
 
 	msg := Message{
 		ID:         "msg-456",
@@ -92,12 +88,12 @@ func TestStore_Query(t *testing.T) {
 		Confidence: 0.85,
 	}
 
-	err = s.WriteMessage(context.TODO(), msg)
+	err = s.WriteMessage(nil, msg)
 	if err != nil {
 		t.Fatalf("failed to write message: %v", err)
 	}
 
-	results, err := s.Query(context.TODO(), QueryOpts{
+	results, err := s.Query(nil, QueryOpts{
 		Topic: "Go",
 		Limit: 10,
 	})
@@ -116,20 +112,19 @@ func TestStore_Query(t *testing.T) {
 
 func TestStore_QueryByText(t *testing.T) {
 	tmpDir := t.TempDir()
-	_ = os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
-	defer func() { _ = os.Unsetenv("MEMPALACE_DATA_DIR") }()
+	os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
+	defer os.Unsetenv("MEMPALACE_DATA_DIR")
 
 	s := NewStore()
-	classes, err := ontology.ParseTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
-	if err != nil {
-		t.Fatalf("failed to parse TTL: %v", err)
-	}
+	loader := ontology.NewLoader()
+	loader.LoadTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
+	classes := loader.GetClasses()
 
-	err = s.Init("test-stream-123", classes)
+	err := s.Init("test-stream-123", classes)
 	if err != nil {
 		t.Fatalf("failed to init store: %v", err)
 	}
-	defer func() { _ = s.Close() }()
+	defer s.Close()
 
 	msg := Message{
 		ID:         "msg-789",
@@ -141,12 +136,12 @@ func TestStore_QueryByText(t *testing.T) {
 		Confidence: 0.9,
 	}
 
-	err = s.WriteMessage(context.TODO(), msg)
+	err = s.WriteMessage(nil, msg)
 	if err != nil {
 		t.Fatalf("failed to write message: %v", err)
 	}
 
-	results, err := s.Query(context.TODO(), QueryOpts{
+	results, err := s.Query(nil, QueryOpts{
 		QueryText: "variadic",
 		Limit:     10,
 	})

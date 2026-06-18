@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/Soypete/twitch-llm-bot/faq"
 	"github.com/Soypete/twitch-llm-bot/internal/mempalace/address"
@@ -66,21 +65,23 @@ func New(config *Config) (*MemPalace, error) {
 		ontologyPath = "/app/internal/mempalace/ontology/testdata/twitch_topics.ttl"
 	}
 
+	loader := ontology.NewLoader()
+	if err := loader.LoadTTL(ontologyPath); err != nil {
+		return nil, fmt.Errorf("failed to load ontology: %w", err)
+	}
+
+	classes := loader.GetClasses()
+	searchTerms := loader.GetSearchTerms()
+
 	embedder, err := faq.NewEmbeddingService(config.LLMPath, config.ModelName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create embedder: %w", err)
 	}
 
-	index, err := ontology.NewIndex(embedder)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create ontology index: %w", err)
+	index := ontology.NewIndex(embedder)
+	if err := index.Build(context.Background(), searchTerms); err != nil {
+		return nil, fmt.Errorf("failed to build ontology index: %w", err)
 	}
-
-	if err := index.LoadTTL(context.Background(), ontologyPath); err != nil {
-		return nil, fmt.Errorf("failed to load ontology: %w", err)
-	}
-
-	classes := index.GetClasses()
 
 	llm, err := openai.New([]openai.Option{
 		openai.WithBaseURL(config.LLMPath),
@@ -108,12 +109,12 @@ func New(config *Config) (*MemPalace, error) {
 
 	archiver := archive.NewArchiver(activeDir, archiveDir)
 
-	pollInterval := time.Duration(config.PollInterval)
+	pollInterval := config.PollInterval
 	if pollInterval == 0 {
-		pollInterval = 30 * time.Second
+		pollInterval = 30
 	}
 
-	lc := lifecycle.NewController(config.HelixClient, pollInterval)
+	lc := lifecycle.NewController(config.HelixClient, 0)
 
 	wr := writer.NewWriter(classifr, lc, logger)
 

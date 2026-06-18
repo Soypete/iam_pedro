@@ -166,10 +166,9 @@ func parseClassificationResponse(toolCall llms.ToolCall) (*classificationResult,
 			if len(kv) == 2 {
 				key := strings.Trim(kv[0], `" `)
 				val := strings.Trim(kv[1], `" `)
-				switch key {
-				case "topic":
+				if key == "topic" {
 					result.Topic = val
-				case "confidence":
+				} else if key == "confidence" {
 					_, _ = fmt.Sscanf(val, "%f", &result.Confidence)
 				}
 			}
