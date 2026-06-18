@@ -23,7 +23,7 @@ twitchBot:
   openbaoInjection: true
   image:
     repository: 100.81.89.62:5000/pedro-twitch
-    tag: df12033
+    tag: mem-palace
   env:
     - name: MODEL
       value: "qwen3.6-27b"
@@ -31,6 +31,19 @@ twitchBot:
       value: "http://100.121.229.114:8080"
     - name: OAUTH_REDIRECT_HOST
       value: "chatbot-pedro-twitch-auth-ingress.tail6fbc5.ts.net"
+    - name: MEMPALACE_DATA_DIR
+      value: "/data/palaces"
+  args:
+    - "-enableMemPalace"
+    - "-memPalaceActiveDir"
+    - "/data/palaces/active"
+    - "-memPalaceArchiveDir"
+    - "/data/palaces/archive"
+  volumes:
+    - name: palace-data
+      mountPath: /data/palaces
+      readOnly: false
+      claimName: pedro-palaces
 
 mempalace:
   enabled: true
@@ -82,6 +95,7 @@ resources:
     cpu: 250m
     memory: 256Mi
 
-nodeSelector: {}
+nodeSelector:
+  node-role.kubernetes.io/control-plane: "true"
 tolerations: []
 affinity: {}

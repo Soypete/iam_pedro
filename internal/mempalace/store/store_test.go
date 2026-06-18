@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,8 +12,8 @@ import (
 
 func TestStore_Init(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
-	defer os.Unsetenv("MEMPALACE_DATA_DIR")
+	_ = os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
+	defer func() { _ = os.Unsetenv("MEMPALACE_DATA_DIR") }()
 
 	s := NewStore()
 	classes, err := ontology.ParseTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
@@ -24,7 +25,7 @@ func TestStore_Init(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to init store: %v", err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	if s.streamID != "test-stream-123" {
 		t.Errorf("expected streamID 'test-stream-123', got '%s'", s.streamID)
@@ -33,8 +34,8 @@ func TestStore_Init(t *testing.T) {
 
 func TestStore_WriteMessage(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
-	defer os.Unsetenv("MEMPALACE_DATA_DIR")
+	_ = os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
+	defer func() { _ = os.Unsetenv("MEMPALACE_DATA_DIR") }()
 
 	s := NewStore()
 	classes, err := ontology.ParseTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
@@ -46,7 +47,7 @@ func TestStore_WriteMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to init store: %v", err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	msg := Message{
 		ID:         "msg-123",
@@ -58,7 +59,7 @@ func TestStore_WriteMessage(t *testing.T) {
 		Confidence: 0.9,
 	}
 
-	err = s.WriteMessage(nil, msg)
+	err = s.WriteMessage(context.TODO(), msg)
 	if err != nil {
 		t.Fatalf("failed to write message: %v", err)
 	}
@@ -66,8 +67,8 @@ func TestStore_WriteMessage(t *testing.T) {
 
 func TestStore_Query(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
-	defer os.Unsetenv("MEMPALACE_DATA_DIR")
+	_ = os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
+	defer func() { _ = os.Unsetenv("MEMPALACE_DATA_DIR") }()
 
 	s := NewStore()
 	classes, err := ontology.ParseTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
@@ -79,7 +80,7 @@ func TestStore_Query(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to init store: %v", err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	msg := Message{
 		ID:         "msg-456",
@@ -91,12 +92,12 @@ func TestStore_Query(t *testing.T) {
 		Confidence: 0.85,
 	}
 
-	err = s.WriteMessage(nil, msg)
+	err = s.WriteMessage(context.TODO(), msg)
 	if err != nil {
 		t.Fatalf("failed to write message: %v", err)
 	}
 
-	results, err := s.Query(nil, QueryOpts{
+	results, err := s.Query(context.TODO(), QueryOpts{
 		Topic: "Go",
 		Limit: 10,
 	})
@@ -115,8 +116,8 @@ func TestStore_Query(t *testing.T) {
 
 func TestStore_QueryByText(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
-	defer os.Unsetenv("MEMPALACE_DATA_DIR")
+	_ = os.Setenv("MEMPALACE_DATA_DIR", tmpDir)
+	defer func() { _ = os.Unsetenv("MEMPALACE_DATA_DIR") }()
 
 	s := NewStore()
 	classes, err := ontology.ParseTTL(filepath.Join("..", "ontology", "testdata", "twitch_topics.ttl"))
@@ -128,7 +129,7 @@ func TestStore_QueryByText(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to init store: %v", err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	msg := Message{
 		ID:         "msg-789",
@@ -140,12 +141,12 @@ func TestStore_QueryByText(t *testing.T) {
 		Confidence: 0.9,
 	}
 
-	err = s.WriteMessage(nil, msg)
+	err = s.WriteMessage(context.TODO(), msg)
 	if err != nil {
 		t.Fatalf("failed to write message: %v", err)
 	}
 
-	results, err := s.Query(nil, QueryOpts{
+	results, err := s.Query(context.TODO(), QueryOpts{
 		QueryText: "variadic",
 		Limit:     10,
 	})

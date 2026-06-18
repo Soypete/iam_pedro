@@ -1,3 +1,14 @@
+FROM golang:1.26-alpine AS builder
+
+WORKDIR /build
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -o discord ./cli/discord
+
 FROM alpine:3.19
 
 RUN apk add --no-cache ca-certificates
@@ -6,6 +17,6 @@ WORKDIR /app
 
 EXPOSE 6060
 
-COPY bin/discord /app/main
+COPY --from=builder /build/discord /app/main
 
 CMD ["/app/main"]

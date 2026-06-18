@@ -12,14 +12,14 @@ import (
 
 // MeetupConfig represents the full configuration for a meetup event
 type MeetupConfig struct {
-	Metadata  MeetupMetadata  `yaml:"metadata"`
-	EventInfo EventInfo       `yaml:"event_info"`
-	Location  Location        `yaml:"location"`
-	Links     Links           `yaml:"links"`
-	Schedule  []ScheduleItem  `yaml:"schedule"`
-	Speakers  []Speaker       `yaml:"speakers"`
-	Hosts     []Host          `yaml:"hosts"`
-	ForgeInfo ForgeInfo       `yaml:"forge_info"`
+	Metadata        MeetupMetadata  `yaml:"metadata"`
+	EventInfo       EventInfo       `yaml:"event_info"`
+	Location        Location        `yaml:"location"`
+	Links           Links           `yaml:"links"`
+	Schedule        []ScheduleItem  `yaml:"schedule"`
+	Speakers        []Speaker       `yaml:"speakers"`
+	Hosts           []Host          `yaml:"hosts"`
+	ForgeInfo       ForgeInfo       `yaml:"forge_info"`
 	BotInstructions BotInstructions `yaml:"bot_instructions"`
 }
 
@@ -45,10 +45,10 @@ type Location struct {
 }
 
 type Links struct {
-	Registration       string `yaml:"registration"`
-	VideoCall          string `yaml:"video_call"`
-	DialIn             string `yaml:"dial_in"`
-	MorePhoneNumbers   string `yaml:"more_phone_numbers"`
+	Registration     string `yaml:"registration"`
+	VideoCall        string `yaml:"video_call"`
+	DialIn           string `yaml:"dial_in"`
+	MorePhoneNumbers string `yaml:"more_phone_numbers"`
 }
 
 type ScheduleItem struct {
@@ -59,13 +59,13 @@ type ScheduleItem struct {
 }
 
 type Speaker struct {
-	Name            string        `yaml:"name"`
-	Title           string        `yaml:"title"`
-	Handle          string        `yaml:"handle"`
-	Bio             string        `yaml:"bio"`
-	TalkTitle       string        `yaml:"talk_title"`
-	TalkDescription string        `yaml:"talk_description"`
-	Social          SocialLinks   `yaml:"social"`
+	Name            string      `yaml:"name"`
+	Title           string      `yaml:"title"`
+	Handle          string      `yaml:"handle"`
+	Bio             string      `yaml:"bio"`
+	TalkTitle       string      `yaml:"talk_title"`
+	TalkDescription string      `yaml:"talk_description"`
+	Social          SocialLinks `yaml:"social"`
 }
 
 type SocialLinks struct {
@@ -173,17 +173,17 @@ func GenerateMeetupAddendum(config *MeetupConfig) string {
 	dateStr := config.Metadata.Date.Format("Monday, January 2, 2006 at 3:04 PM MST")
 
 	sb.WriteString("\n\n")
-	sb.WriteString(fmt.Sprintf("SPECIAL EVENT - %s (%s):\n", config.EventInfo.Title, dateStr))
-	sb.WriteString(fmt.Sprintf("We're streaming/discussing the %s meetup!\n\n", config.Metadata.Name))
+	fmt.Fprintf(&sb, "SPECIAL EVENT - %s (%s):\n", config.EventInfo.Title, dateStr)
+	fmt.Fprintf(&sb, "We're streaming/discussing the %s meetup!\n\n", config.Metadata.Name)
 
 	// Event details
-	sb.WriteString(fmt.Sprintf("Event: %s\n", config.EventInfo.Title))
+	fmt.Fprintf(&sb, "Event: %s\n", config.EventInfo.Title)
 	if len(config.Speakers) > 0 {
 		speaker := config.Speakers[0]
-		sb.WriteString(fmt.Sprintf("Speaker: %s - %s\n", speaker.Name, speaker.TalkTitle))
+		fmt.Fprintf(&sb, "Speaker: %s - %s\n", speaker.Name, speaker.TalkTitle)
 	}
-	sb.WriteString(fmt.Sprintf("When: %s\n", dateStr))
-	sb.WriteString(fmt.Sprintf("Where: %s", config.Location.Venue))
+	fmt.Fprintf(&sb, "When: %s\n", dateStr)
+	fmt.Fprintf(&sb, "Where: %s", config.Location.Venue)
 	if config.Location.Type == "virtual" {
 		sb.WriteString(" (Virtual Event)")
 	}
@@ -191,10 +191,10 @@ func GenerateMeetupAddendum(config *MeetupConfig) string {
 
 	// Links
 	if config.Links.VideoCall != "" {
-		sb.WriteString(fmt.Sprintf("Join: %s\n", config.Links.VideoCall))
+		fmt.Fprintf(&sb, "Join: %s\n", config.Links.VideoCall)
 	}
 	if config.Links.Registration != "" {
-		sb.WriteString(fmt.Sprintf("Register: %s\n", config.Links.Registration))
+		fmt.Fprintf(&sb, "Register: %s\n", config.Links.Registration)
 	}
 
 	// Schedule
@@ -202,9 +202,9 @@ func GenerateMeetupAddendum(config *MeetupConfig) string {
 		sb.WriteString("\nSchedule:\n")
 		for _, item := range config.Schedule {
 			if item.Speaker != "" {
-				sb.WriteString(fmt.Sprintf("%s - %s (Speaker: %s)\n", item.Time, item.Event, item.Speaker))
+				fmt.Fprintf(&sb, "%s - %s (Speaker: %s)\n", item.Time, item.Event, item.Speaker)
 			} else {
-				sb.WriteString(fmt.Sprintf("%s - %s\n", item.Time, item.Event))
+				fmt.Fprintf(&sb, "%s - %s\n", item.Time, item.Event)
 			}
 		}
 	}
@@ -213,29 +213,29 @@ func GenerateMeetupAddendum(config *MeetupConfig) string {
 	if len(config.Speakers) > 0 {
 		speaker := config.Speakers[0]
 		sb.WriteString("\nAbout the Speaker:\n")
-		sb.WriteString(fmt.Sprintf("%s\n", speaker.Bio))
+		fmt.Fprintf(&sb, "%s\n", speaker.Bio)
 	}
 
 	// Forge Utah info
 	if config.ForgeInfo.IsForgeEvent {
 		sb.WriteString("\nForge Utah Foundation:\n")
-		sb.WriteString(fmt.Sprintf("%s\n", config.ForgeInfo.About))
+		fmt.Fprintf(&sb, "%s\n", config.ForgeInfo.About)
 		if config.ForgeInfo.Mission != "" {
-			sb.WriteString(fmt.Sprintf("Mission: %s\n", config.ForgeInfo.Mission))
+			fmt.Fprintf(&sb, "Mission: %s\n", config.ForgeInfo.Mission)
 		}
 		if len(config.ForgeInfo.OtherMeetups) > 0 {
-			sb.WriteString(fmt.Sprintf("We also run: %s\n", strings.Join(config.ForgeInfo.OtherMeetups, ", ")))
+			fmt.Fprintf(&sb, "We also run: %s\n", strings.Join(config.ForgeInfo.OtherMeetups, ", "))
 		}
 
 		sb.WriteString("\nHow to Get Involved:\n")
 		if config.ForgeInfo.HowToJoin != "" {
-			sb.WriteString(fmt.Sprintf("- Participate: %s\n", config.ForgeInfo.HowToJoin))
+			fmt.Fprintf(&sb, "- Participate: %s\n", config.ForgeInfo.HowToJoin)
 		}
 		if config.ForgeInfo.HowToSpeak != "" {
-			sb.WriteString(fmt.Sprintf("- Speak: %s\n", config.ForgeInfo.HowToSpeak))
+			fmt.Fprintf(&sb, "- Speak: %s\n", config.ForgeInfo.HowToSpeak)
 		}
 		if config.ForgeInfo.Sponsorship != "" {
-			sb.WriteString(fmt.Sprintf("- Sponsor: %s\n", config.ForgeInfo.Sponsorship))
+			fmt.Fprintf(&sb, "- Sponsor: %s\n", config.ForgeInfo.Sponsorship)
 		}
 	}
 
@@ -254,7 +254,7 @@ func GenerateMeetupAddendum(config *MeetupConfig) string {
 	if len(config.BotInstructions.Encourage) > 0 {
 		sb.WriteString("\nBe encouraging:\n")
 		for _, msg := range config.BotInstructions.Encourage {
-			sb.WriteString(fmt.Sprintf("- %s\n", msg))
+			fmt.Fprintf(&sb, "- %s\n", msg)
 		}
 	}
 

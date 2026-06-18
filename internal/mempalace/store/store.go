@@ -219,7 +219,7 @@ func (s *Store) Query(ctx context.Context, opts QueryOpts) ([]Message, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query messages: %w", err)
 	}
-	defer func() { rows.Close() }()
+	defer func() { _ = rows.Close() }()
 
 	cols, err := rows.Columns()
 	if err != nil {

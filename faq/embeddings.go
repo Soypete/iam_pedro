@@ -115,7 +115,7 @@ func VectorToString(vector []float32) string {
 		if i > 0 {
 			sb.WriteString(",")
 		}
-		sb.WriteString(fmt.Sprintf("%f", v))
+		fmt.Fprintf(&sb, "%f", v)
 	}
 	sb.WriteString("]")
 	return sb.String()

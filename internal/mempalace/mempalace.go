@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/Soypete/twitch-llm-bot/faq"
 	"github.com/Soypete/twitch-llm-bot/internal/mempalace/address"
@@ -107,12 +108,12 @@ func New(config *Config) (*MemPalace, error) {
 
 	archiver := archive.NewArchiver(activeDir, archiveDir)
 
-	pollInterval := config.PollInterval
+	pollInterval := time.Duration(config.PollInterval)
 	if pollInterval == 0 {
-		pollInterval = 30
+		pollInterval = 30 * time.Second
 	}
 
-	lc := lifecycle.NewController(config.HelixClient, 0)
+	lc := lifecycle.NewController(config.HelixClient, pollInterval)
 
 	wr := writer.NewWriter(classifr, lc, logger)
 

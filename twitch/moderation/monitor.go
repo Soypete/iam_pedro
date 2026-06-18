@@ -16,8 +16,8 @@ import (
 	"github.com/Soypete/twitch-llm-bot/metrics"
 	"github.com/Soypete/twitch-llm-bot/twitch/helix"
 	"github.com/Soypete/twitch-llm-bot/types"
-	"github.com/google/uuid"
 	v2 "github.com/gempir/go-twitch-irc/v2"
+	"github.com/google/uuid"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
 )
@@ -39,9 +39,9 @@ type Monitor struct {
 	ircClient     *v2.Client
 
 	// Rate limiting
-	actionCount    int
-	actionCountMu  sync.Mutex
-	lastResetTime  time.Time
+	actionCount   int
+	actionCountMu sync.Mutex
+	lastResetTime time.Time
 }
 
 // NewMonitor creates a new moderation monitor
@@ -223,7 +223,7 @@ func (m *Monitor) needsEvaluation(message string) bool {
 	// Keywords that might indicate problematic content
 	problematicPatterns := []string{
 		"http://", "https://", // Links might be spam
-		"@everyone", "@here",  // Mass mentions
+		"@everyone", "@here", // Mass mentions
 	}
 
 	lowerMsg := strings.ToLower(message)
@@ -306,7 +306,7 @@ func (m *Monitor) evaluateWithLLM(ctx context.Context, modContext types.Moderati
 	var recentContext strings.Builder
 	recentContext.WriteString("Recent chat messages:\n")
 	for _, msg := range modContext.RecentMessages {
-		recentContext.WriteString(fmt.Sprintf("[%s]: %s\n", msg.Username, msg.Text))
+		fmt.Fprintf(&recentContext, "[%s]: %s\n", msg.Username, msg.Text)
 	}
 
 	userMessage := fmt.Sprintf(`%s
