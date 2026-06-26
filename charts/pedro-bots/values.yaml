@@ -13,7 +13,7 @@ discordBot:
     tag: df12033
   env:
     - name: MODEL
-      value: "qwen3.6-27b"
+      value: "qwen3.6-27b-mtp"
     - name: LLAMA_CPP_PATH
       value: "http://100.121.229.114:8080"
 
@@ -26,7 +26,7 @@ twitchBot:
     tag: mem-palace
   env:
     - name: MODEL
-      value: "qwen3.6-27b"
+      value: "qwen3.6-27b-mtp"
     - name: LLAMA_CPP_PATH
       value: "http://100.121.229.114:8080"
     - name: OAUTH_REDIRECT_HOST
