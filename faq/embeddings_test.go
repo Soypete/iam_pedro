@@ -43,6 +43,6 @@ func TestVectorToString(t *testing.T) {
 }
 
 func TestEmbeddingDimension(t *testing.T) {
-	// Verify the constant is set correctly for text-embedding-3-small
-	assert.Equal(t, 1536, EmbeddingDimension)
+	// Verify the constant matches nomic-embed-text-v1.5 (the embeddings sidecar model)
+	assert.Equal(t, 768, EmbeddingDimension)
 }

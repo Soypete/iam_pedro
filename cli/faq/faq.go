@@ -41,13 +41,23 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Error: LLAMA_CPP_PATH environment variable is required")
 		os.Exit(1)
 	}
+	// Embeddings run on a dedicated server (chat server runs MTP, no embeddings).
+	// Fall back to LLAMA_CPP_PATH for backwards compatibility.
+	embeddingsPath := os.Getenv("EMBEDDINGS_PATH")
+	if embeddingsPath == "" {
+		embeddingsPath = llmPath
+	}
+	embeddingsModel := os.Getenv("EMBEDDINGS_MODEL")
+	if embeddingsModel == "" {
+		embeddingsModel = "nomic-embed-text"
+	}
 
 	switch os.Args[1] {
 	case "sync":
 		syncCmd.StringVar(&configPath, "config", "configs/faq/entries.yaml", "Path to FAQ config file")
 		syncCmd.StringVar(&logLevel, "logLevel", "info", "Log level")
 		_ = syncCmd.Parse(os.Args[2:])
-		runSync(configPath, llmPath, logLevel)
+		runSync(configPath, embeddingsPath, embeddingsModel, logLevel)
 
 	case "list":
 		listCmd.StringVar(&logLevel, "logLevel", "info", "Log level")
@@ -64,7 +74,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Usage: faq test [options] \"your message here\"")
 			os.Exit(1)
 		}
-		runTest(testCmd.Arg(0), threshold, llmPath, logLevel)
+		runTest(testCmd.Arg(0), threshold, embeddingsPath, embeddingsModel, logLevel)
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
@@ -99,7 +109,7 @@ Examples:
   faq test --threshold 0.75 "where can I watch your videos"`)
 }
 
-func runSync(configPath, llmPath, logLevel string) {
+func runSync(configPath, embeddingsPath, embeddingsModel, logLevel string) {
 	logger := logging.NewLogger(logging.LogLevel(logLevel), os.Stdout)
 	ctx := context.Background()
 
@@ -126,8 +136,8 @@ func runSync(configPath, llmPath, logLevel string) {
 	}
 	defer db.Close()
 
-	// Create embedding service
-	embeddingService, err := faq.NewEmbeddingService(llmPath, config.EmbeddingModel)
+	// Create embedding service (dedicated embeddings server, not the chat server)
+	embeddingService, err := faq.NewEmbeddingService(embeddingsPath, embeddingsModel)
 	if err != nil {
 		logger.Error("failed to create embedding service", "error", err.Error())
 		os.Exit(1)
@@ -217,7 +227,7 @@ func runList(logLevel string) {
 	}
 }
 
-func runTest(message string, threshold float64, llmPath, logLevel string) {
+func runTest(message string, threshold float64, embeddingsPath, embeddingsModel, logLevel string) {
 	logger := logging.NewLogger(logging.LogLevel(logLevel), os.Stdout)
 	ctx := context.Background()
 
@@ -231,8 +241,8 @@ func runTest(message string, threshold float64, llmPath, logLevel string) {
 	}
 	defer db.Close()
 
-	// Create embedding service (use default model)
-	embeddingService, err := faq.NewEmbeddingService(llmPath, "text-embedding-3-small")
+	// Create embedding service (dedicated embeddings server, not the chat server)
+	embeddingService, err := faq.NewEmbeddingService(embeddingsPath, embeddingsModel)
 	if err != nil {
 		logger.Error("failed to create embedding service", "error", err.Error())
 		os.Exit(1)
