@@ -41,8 +41,16 @@ type MemPalace struct {
 }
 
 type Config struct {
-	LLMPath      string
-	ModelName    string
+	// LLMPath / ModelName are the chat server (used by the classifier LLM).
+	LLMPath   string
+	ModelName string
+
+	// EmbeddingsPath / EmbeddingsModel are the dedicated embeddings server. The
+	// chat server runs MTP, which is incompatible with the embeddings graph, so
+	// embeddings live on a separate server (e.g. a sidecar on localhost:8081).
+	EmbeddingsPath  string
+	EmbeddingsModel string
+
 	HelixClient  *helix.Client
 	Logger       *logging.Logger
 	PollInterval int
@@ -66,7 +74,17 @@ func New(config *Config) (*MemPalace, error) {
 		ontologyPath = "/app/internal/mempalace/ontology/testdata/twitch_topics.ttl"
 	}
 
-	embedder, err := faq.NewEmbeddingService(config.LLMPath, config.ModelName)
+	// Embeddings run on a dedicated server, not the MTP chat server. Require it
+	// explicitly — reusing the chat path would hit a server that no longer serves
+	// /v1/embeddings and fail at runtime instead of startup.
+	if config.EmbeddingsPath == "" {
+		return nil, fmt.Errorf("EmbeddingsPath is required (set EMBEDDINGS_PATH); the chat server does not serve embeddings")
+	}
+	embeddingsModel := config.EmbeddingsModel
+	if embeddingsModel == "" {
+		embeddingsModel = "nomic-embed-text"
+	}
+	embedder, err := faq.NewEmbeddingService(config.EmbeddingsPath, embeddingsModel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create embedder: %w", err)
 	}
