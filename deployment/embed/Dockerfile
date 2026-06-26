@@ -24,9 +24,11 @@ FROM ubuntu:24.04 AS model
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /models
-# nomic-embed-text-v1.5 GGUF (Q8_0, ~140MB). Pin the file; override REPO/FILE at build time if needed.
+# nomic-embed-text-v1.5 GGUF, Q8_0 (verified: GGUF magic, 146,146,432 bytes ≈ 139MB).
+# Override MODEL_URL at build time to use a different quant/repo.
 ARG MODEL_URL=https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q8_0.gguf
-RUN curl -fSL "$MODEL_URL" -o nomic-embed-text.gguf
+RUN curl -fSL "$MODEL_URL" -o nomic-embed-text.gguf \
+    && test "$(head -c 4 nomic-embed-text.gguf)" = "GGUF" || (echo "ERROR: not a GGUF file" && exit 1)
 
 # ---- runtime ----
 FROM ubuntu:24.04
