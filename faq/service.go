@@ -26,8 +26,13 @@ type Service struct {
 
 // ServiceConfig configures the FAQ service
 type ServiceConfig struct {
-	// LLMPath is the base URL for the LLM/embedding API
+	// LLMPath is the base URL for the chat/response LLM API
 	LLMPath string
+
+	// EmbeddingsPath is the base URL for the embeddings API. Embeddings run on a
+	// separate server from chat (the chat server runs MTP, which is incompatible
+	// with the embeddings graph). Falls back to LLMPath if empty.
+	EmbeddingsPath string
 
 	// EmbeddingModel is the model name for generating embeddings
 	EmbeddingModel string
@@ -59,8 +64,13 @@ func NewService(db *sqlx.DB, config ServiceConfig) (*Service, error) {
 		logger = logging.Default()
 	}
 
-	// Create embedding service
-	embeddingService, err := NewEmbeddingService(config.LLMPath, config.EmbeddingModel)
+	// Create embedding service — embeddings run on a dedicated server, not the chat
+	// server. Fall back to LLMPath for backwards compatibility if unset.
+	embeddingsPath := config.EmbeddingsPath
+	if embeddingsPath == "" {
+		embeddingsPath = config.LLMPath
+	}
+	embeddingService, err := NewEmbeddingService(embeddingsPath, config.EmbeddingModel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create embedding service: %w", err)
 	}

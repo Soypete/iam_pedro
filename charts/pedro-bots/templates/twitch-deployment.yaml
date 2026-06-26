@@ -75,6 +75,31 @@ spec:
             {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+        {{- if .Values.twitchBot.embedSidecar.enabled }}
+        # Embeddings sidecar: CPU llama.cpp serving nomic-embed-text on :8081.
+        # mem-palace / FAQ reach it via http://localhost:8081 (EMBEDDINGS_PATH).
+        - name: embed
+          image: "{{ .Values.twitchBot.embedSidecar.image.repository }}:{{ .Values.twitchBot.embedSidecar.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: embed
+              containerPort: 8081
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.twitchBot.embedSidecar.resources | nindent 12 }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

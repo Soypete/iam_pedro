@@ -66,6 +66,13 @@ func main() {
 	//  we are not actually connecting to openai, but we are using their api spec to connect to our own model via llama.cpp
 	_ = os.Setenv("OPENAI_API_KEY", "test")
 	llmPath := os.Getenv("LLAMA_CPP_PATH")
+	// Embeddings run on a dedicated server (the chat server runs MTP, which is
+	// incompatible with the embeddings graph). Defaults suit the in-pod sidecar.
+	embeddingsPath := os.Getenv("EMBEDDINGS_PATH")
+	embeddingsModel := os.Getenv("EMBEDDINGS_MODEL")
+	if embeddingsModel == "" {
+		embeddingsModel = "nomic-embed-text"
+	}
 	twitchllm, err := twitchchat.SetupWithStreamConfig(llmPath, model, streamConfig, logger)
 	if err != nil {
 		logger.Error("failed to setup twitch LLM", "error", err.Error())
@@ -118,7 +125,7 @@ func main() {
 	// Setup FAQ service if config is provided
 	if faqConfig != "" {
 		logger.Info("setting up FAQ service", "config", faqConfig)
-		faqService, err := setupFAQService(db, llmPath, model, faqConfig, logger)
+		faqService, err := setupFAQService(db, llmPath, embeddingsPath, embeddingsModel, model, faqConfig, logger)
 		if err != nil {
 			logger.Error("failed to setup FAQ service", "error", err.Error())
 			// Continue without FAQ - it's optional
@@ -138,13 +145,15 @@ func main() {
 	if enableMemPalace {
 		logger.Info("setting up Mem Palace", "activeDir", memPalaceActiveDir, "archiveDir", memPalaceArchiveDir)
 		mpConfig := &mempalace.Config{
-			LLMPath:      llmPath,
-			ModelName:    model,
-			HelixClient:  irc.GetHelixClient(),
-			Logger:       logger,
-			PollInterval: 30,
-			ActiveDir:    memPalaceActiveDir,
-			ArchiveDir:   memPalaceArchiveDir,
+			LLMPath:         llmPath,
+			ModelName:       model,
+			EmbeddingsPath:  embeddingsPath,
+			EmbeddingsModel: embeddingsModel,
+			HelixClient:     irc.GetHelixClient(),
+			Logger:          logger,
+			PollInterval:    30,
+			ActiveDir:       memPalaceActiveDir,
+			ArchiveDir:      memPalaceArchiveDir,
 		}
 		mp, err := mempalace.New(mpConfig)
 		if err != nil {
@@ -194,24 +203,35 @@ func main() {
 	Shutdown(ctx, wg, irc, stop, logger)
 }
 
-// setupFAQService initializes the FAQ service from a config file
-func setupFAQService(db *database.Postgres, llmPath, chatModel, configPath string, logger *logging.Logger) (*faq.Service, error) {
+// setupFAQService initializes the FAQ service from a config file.
+// Chat/responses use llmPath+chatModel (pedrogpt); embeddings use the dedicated
+// embeddingsPath+embeddingsModel (the sidecar), since the chat server runs MTP and
+// no longer serves /v1/embeddings.
+func setupFAQService(db *database.Postgres, llmPath, embeddingsPath, embeddingsModel, chatModel, configPath string, logger *logging.Logger) (*faq.Service, error) {
 	// Load FAQ config
 	config, err := faq.LoadConfig(configPath)
 	if err != nil {
 		return nil, err
 	}
 
+	// Prefer the dedicated embeddings model name over the FAQ config's, so all
+	// embeddings on this deployment target the same sidecar model.
+	embeddingModel := config.EmbeddingModel
+	if embeddingsModel != "" {
+		embeddingModel = embeddingsModel
+	}
+
 	logger.Info("loaded FAQ config",
 		"entries", len(config.Entries),
-		"embeddingModel", config.EmbeddingModel,
+		"embeddingModel", embeddingModel,
 		"threshold", config.SimilarityThreshold,
 	)
 
 	// Create FAQ service
 	serviceConfig := faq.ServiceConfig{
 		LLMPath:             llmPath,
-		EmbeddingModel:      config.EmbeddingModel,
+		EmbeddingsPath:      embeddingsPath,
+		EmbeddingModel:      embeddingModel,
 		ChatModel:           chatModel,
 		SimilarityThreshold: config.SimilarityThreshold,
 		UsePerUserCooldown:  true, // Enable per-user cooldowns
