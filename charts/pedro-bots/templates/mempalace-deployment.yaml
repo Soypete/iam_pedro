@@ -82,7 +82,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: {{ .Values.mempalace.volume.storageSize | default "1Gi" }}
+      storage: {{ (.Values.mempalace.volume).storageSize | default "1Gi" }}
 ---
 apiVersion: v1
 kind: Service

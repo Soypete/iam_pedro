@@ -70,6 +70,9 @@ mempalace:
   image:
     repository: 100.81.89.62:5000/pedro-mempalace
     tag: dbca760
+  volume:
+    # PVC size for the mem-palace data (defaults to 1Gi if omitted).
+    storageSize: 1Gi
 
 keepalive:
   enabled: true
