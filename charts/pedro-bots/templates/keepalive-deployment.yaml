@@ -25,7 +25,7 @@ spec:
         vault.hashicorp.com/agent-inject-secret-discord: "secret/apps/discord"
         vault.hashicorp.com/agent-inject-template-discord: |
           {{`{{- with secret "secret/apps/discord" -}}`}}
-          {{`export DISCORD_BOT_URL="{{ .Data.data.client_id }}"`}}
+          {{`export DISCORD_SECRET="{{ .Data.data.client_secret }}"`}}
           {{`{{- end }}`}}
         vault.hashicorp.com/agent-inject-secret-twitch: "secret/apps/twitch"
         vault.hashicorp.com/agent-inject-template-twitch: |

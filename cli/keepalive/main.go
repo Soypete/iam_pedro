@@ -31,10 +31,9 @@ func getEnvInt(key string, defaultValue int) int {
 
 func main() {
 	// Read configuration from environment variables
-	discordBotURL := getEnv("DISCORD_BOT_URL", "http://localhost:6060/healthz")
 	twitchBotURL := getEnv("TWITCH_BOT_URL", "http://localhost:6061/healthz")
 	discordToken := getEnv("DISCORD_SECRET", "")
-	discordUserID := getEnv("DISCORD_ALERT_USER_ID", "soypete_tech") // Discord user ID for mentions
+	discordUserID := getEnv("DISCORD_ALERT_USER_ID", "soypete_tech")
 	logLevel := getEnv("LOG_LEVEL", "info")
 	checkInterval := getEnvInt("CHECK_INTERVAL", 60)
 	alertInterval := getEnvInt("ALERT_INTERVAL", 3600)
@@ -43,13 +42,13 @@ func main() {
 	logger := logging.NewLogger(logging.LogLevel(logLevel), os.Stdout)
 	stop := make(chan os.Signal, 1)
 
-	// Validate required token
+	// Validate required token for Discord alerts
 	if discordToken == "" {
-		logger.Error("DISCORD_SECRET environment variable is required")
+		logger.Error("DISCORD_SECRET environment variable is required for alerts")
 		stop <- os.Interrupt
 	}
 
-	// Create Discord alerter to publish alerts
+	// Create Discord alerter for notifications
 	alerter, err := keepalive.NewDiscordAlerter(discordToken, discordUserID, logger)
 	if err != nil {
 		logger.Error("failed to create Discord alerter", "error", err.Error())
@@ -57,25 +56,19 @@ func main() {
 	}
 	defer func() {
 		if err := alerter.Close(); err != nil {
-				stop <- os.Interrupt
+			stop <- os.Interrupt
 		}
 	}()
 
-	// Configure services to monitor pedro discord app
-
-	services := []keepalive.ServiceConfig{
-		{
-			Name:      "Discord Bot",
-			HealthURL: discordBotURL,
-		},
-	}
+	// Configure services to monitor (Discord bot deprecated)
+	services := []keepalive.ServiceConfig{}
 
 	// Add Twitch bot if URL is provided
 	// Extract base URL and add auth health endpoint
 	twitchBotAuthURL := getEnv("TWITCH_BOT_AUTH_URL", "http://localhost:6061/healthz/auth")
 	services = append(services, keepalive.ServiceConfig{
-		Name:         "Twitch Bot",
-		HealthURL:    twitchBotURL,
+		Name:          "Twitch Bot",
+		HealthURL:     twitchBotURL,
 		AuthHealthURL: twitchBotAuthURL,
 	})
 
