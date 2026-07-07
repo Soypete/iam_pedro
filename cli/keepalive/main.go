@@ -42,21 +42,25 @@ func main() {
 	logger := logging.NewLogger(logging.LogLevel(logLevel), os.Stdout)
 	stop := make(chan os.Signal, 1)
 
-	// Validate required token for Discord alerts
-	if discordToken == "" {
-		logger.Error("DISCORD_SECRET environment variable is required for alerts")
-		stop <- os.Interrupt
-	}
-
-	// Create Discord alerter for notifications
-	alerter, err := keepalive.NewDiscordAlerter(discordToken, discordUserID, logger)
-	if err != nil {
-		logger.Error("failed to create Discord alerter", "error", err.Error())
-		stop <- os.Interrupt
+	// Create alerter for notifications
+	// Use NoOpAlerter if Discord token is empty or placeholder
+	var alerter keepalive.Alerter
+	if discordToken == "" || discordToken == "placeholder" {
+		logger.Info("Discord alerts disabled - no valid token configured")
+		alerter = keepalive.NewNoOpAlerter()
+	} else {
+		var err error
+		alerter, err = keepalive.NewDiscordAlerter(discordToken, discordUserID, logger)
+		if err != nil {
+			logger.Error("failed to create Discord alerter, falling back to no-op", "error", err.Error())
+			alerter = keepalive.NewNoOpAlerter()
+		}
 	}
 	defer func() {
-		if err := alerter.Close(); err != nil {
-			stop <- os.Interrupt
+		if closer, ok := alerter.(interface{ Close() error }); ok {
+			if err := closer.Close(); err != nil {
+				logger.Error("failed to close alerter", "error", err.Error())
+			}
 		}
 	}()
 
