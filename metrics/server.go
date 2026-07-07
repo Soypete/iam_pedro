@@ -19,8 +19,6 @@ var (
 	TwitchConnectionCount      = expvar.NewInt("twitch_connection_count")
 	TwitchMessageRecievedCount = expvar.NewInt("twitch_message_recieved_count")
 	TwitchMessageSentCount     = expvar.NewInt("twitch_message_sent_count")
-	DiscordMessageRecieved     = expvar.NewInt("discord_message_recieved")
-	DiscordMessageSent         = expvar.NewInt("discord_message_sent")
 	WebSearchSuccessCount      = expvar.NewInt("web_search_success_count")
 	WebSearchFailCount         = expvar.NewInt("web_search_fail_count")
 	FAQCheckCount              = expvar.NewInt("faq_check_count")
@@ -35,39 +33,6 @@ var (
 	ModActionNoAction = expvar.NewInt("mod_action_no_action")
 
 	// Prometheus metrics with labels
-	DiscordCommandTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "discord_command_total",
-			Help: "Total number of Discord commands invoked by command type",
-		},
-		[]string{"command"},
-	)
-
-	DiscordCommandErrors = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "discord_command_errors",
-			Help: "Total number of Discord command errors by command type",
-		},
-		[]string{"command"},
-	)
-
-	DiscordCommandDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "discord_command_duration_seconds",
-			Help:    "Duration of Discord command execution in seconds",
-			Buckets: prometheus.DefBuckets,
-		},
-		[]string{"command"},
-	)
-
-	DiscordStumpPedroGames = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "discord_stump_pedro_games_total",
-			Help: "Total number of 20 questions games by status (started, won, lost)",
-		},
-		[]string{"status"},
-	)
-
 	// Moderation Prometheus metrics
 	ModerationActionsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -176,8 +141,6 @@ func SetupServer() *Server {
 	TwitchConnectionCount.Set(0)
 	TwitchMessageRecievedCount.Set(0)
 	TwitchMessageSentCount.Set(0)
-	DiscordMessageRecieved.Set(0)
-	DiscordMessageSent.Set(0)
 	WebSearchSuccessCount.Set(0)
 	WebSearchFailCount.Set(0)
 	ModActionTotal.Set(0)
@@ -199,8 +162,6 @@ func SetupServer() *Server {
 				"twitch_connection_count":       prometheus.NewDesc("twitch_connection_count", "number of times twitch connection was established", nil, nil),
 				"twitch_message_recieved_count": prometheus.NewDesc("twitch_message_recieved_count", "number of times twitch recieved a message", nil, nil),
 				"twitch_message_sent_count":     prometheus.NewDesc("twitch_message_sent_count", "number of times twitch sent a message", nil, nil),
-				"discord_message_recieved":      prometheus.NewDesc("discord_message_recieved", "number of times discord received a message", nil, nil),
-				"discord_message_sent":          prometheus.NewDesc("discord_message_sent", "number of times discord sent a message", nil, nil),
 				"empty_llm_response_count":      prometheus.NewDesc("empty_llm_response_count", "number of times llm responded with and empty string ", nil, nil),
 				"successful_llm_gen_count":      prometheus.NewDesc("successful_llm_gen_count", "number of times llm generated a valid response", nil, nil),
 				"failed_llm_gen_count":          prometheus.NewDesc("failed_llm_gen_count", "number of times errors occured in llm generation", nil, nil),
@@ -216,11 +177,6 @@ func SetupServer() *Server {
 				"faq_check_fail_count":          prometheus.NewDesc("faq_check_fail_count", "number of FAQ check failures", nil, nil),
 			},
 		),
-		// Register Discord command metrics with labels
-		DiscordCommandTotal,
-		DiscordCommandErrors,
-		DiscordCommandDuration,
-		DiscordStumpPedroGames,
 		// Register moderation metrics
 		ModerationActionsTotal,
 		ModerationEvaluationsTotal,

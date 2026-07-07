@@ -10,18 +10,6 @@ on:
 
 jobs:
 
-  build-discord:  
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: Set up Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 1.23
-
-    - name: Build Discord
-      run: go build -v -o pedro ./cli/discord
   build-twitch:  
     runs-on: ubuntu-latest
     steps:
