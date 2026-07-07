@@ -38,9 +38,13 @@ spec:
         - name: keepalive
           image: "{{ .Values.keepalive.image.repository }}:{{ .Values.keepalive.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.keepalive.openbaoInjection }}
           command: ["/bin/sh", "-c"]
           args:
-            - ". /vault/secrets/discord && . /vault/secrets/twitch && exec /app/keepalive"
+            - ". /vault/secrets/discord && . /vault/secrets/twitch && exec /app/keepalive-service"
+          {{- else }}
+          command: ["/app/keepalive-service"]
+          {{- end }}
           env:
             {{- range .Values.keepalive.env }}
             - name: {{ .name }}

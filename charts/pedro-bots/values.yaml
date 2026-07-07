@@ -39,20 +39,22 @@ mempalace:
   image:
     repository: 100.81.89.62:5000/pedro-mempalace
     tag: dbca760
+  volume:
+    storageSize: "1Gi"
 
 keepalive:
   enabled: true
   openbaoInjection: false
   image:
     repository: 100.81.89.62:5000/pedro-keepalive
-    tag: df12033
+    tag: ce85152-v2
   env:
     - name: TWITCH_BOT_URL
       value: "http://pedro-twitch:6060/healthz"
     - name: TWITCH_BOT_AUTH_URL
       value: "http://pedro-twitch:6060/healthz/auth"
     - name: LLAMA_CPP_PATH
-      value: "http://100.121.229.114:8080"
+      value: "http://100.121.229.114:8000"
     - name: CHECK_INTERVAL
       value: "60"
     - name: ALERT_INTERVAL
