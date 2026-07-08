@@ -57,6 +57,14 @@ spec:
               value: ":8082"
             - name: MEMPALACE_DATA_DIR
               value: "/data/palaces"
+            - name: LLM_PATH
+              value: "http://100.121.229.114:8080/v1"
+            - name: EMBEDDING_LLM_PATH
+              value: "http://pedro-embeddings.chatbot.svc.cluster.local:8081"
+            - name: MODEL
+              value: "qwen3.6-27b"
+            - name: EMBEDDING_MODEL
+              value: "nomic-embed-text"
           volumeMounts:
             - name: palace-data
               mountPath: /data/palaces
