@@ -38,8 +38,7 @@ spec:
           resources:
             {{- toYaml .Values.embeddings.resources | nindent 12 }}
           {{- end }}
-      nodeSelector:
-        node-role.kubernetes.io/control-plane: "true"
+      
 ---
 apiVersion: v1
 kind: Service
