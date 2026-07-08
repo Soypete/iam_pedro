@@ -39,8 +39,8 @@ mempalace:
   enabled: true
   openbaoInjection: true
   image:
-    repository: 100.81.89.62:5000/pedro-twitch
-    tag: mem-palace
+    repository: 100.81.89.62:5000/pedro-mempalace
+    tag: amd64-fix
   volume:
     storageSize: "1Gi"
 
