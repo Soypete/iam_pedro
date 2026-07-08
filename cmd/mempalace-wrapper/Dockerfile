@@ -4,7 +4,7 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir mempalace
 
-COPY mempalace-wrapper /usr/local/bin/mempalace-wrapper
+COPY cmd/mempalace-wrapper/mempalace-wrapper /usr/local/bin/mempalace-wrapper
 
 ENV MEMPALACE_WRAPPER_ADDR=:8082
 ENV MEMPALACE_DATA_DIR=/data/palaces

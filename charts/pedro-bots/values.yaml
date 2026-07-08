@@ -40,7 +40,7 @@ mempalace:
   openbaoInjection: true
   image:
     repository: 100.81.89.62:5000/pedro-mempalace
-    tag: amd64-fix
+    tag: embed-deploy
   volume:
     storageSize: "1Gi"
 
