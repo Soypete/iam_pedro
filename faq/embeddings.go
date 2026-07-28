@@ -9,8 +9,10 @@ import (
 	"github.com/tmc/langchaingo/llms/openai"
 )
 
-// EmbeddingDimension is the dimension of OpenAI text-embedding-3-small vectors
-const EmbeddingDimension = 1536
+// EmbeddingDimension is the dimension of the embeddings server's model vectors
+// (nomic-embed-text-v1.5 → 768). Must match the pgvector column dimension (see
+// migration 0010_embeddings_768.sql).
+const EmbeddingDimension = 768
 
 // EmbeddingService generates embeddings for text using an OpenAI-compatible API
 type EmbeddingService struct {

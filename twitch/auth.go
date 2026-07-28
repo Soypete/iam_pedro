@@ -16,8 +16,6 @@ import (
 
 const discordAuthChannel = "pedrogpt"
 
-// sendDiscordAuthURL sends the Twitch OAuth URL to the pedrogpt Discord channel.
-// Falls back to logging if Discord is unavailable.
 func (irc *IRC) sendDiscordAuthURL(authURL string) {
 	token := os.Getenv("DISCORD_SECRET")
 	if token == "" {

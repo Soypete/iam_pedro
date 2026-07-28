@@ -9,32 +9,27 @@ import (
 )
 
 const (
-	// Hardcoded channel for soypetetech Discord server
 	alertChannelName = "pedrogpt"
 )
 
-// DiscordAlerter sends alerts to a Discord channel
 type DiscordAlerter struct {
 	session   *discordgo.Session
 	channelID string
-	userID    string // Discord user ID for mentions (e.g., "<@123456789>")
+	userID    string
 	logger    *logging.Logger
 }
 
-// NewDiscordAlerter creates a new Discord alerter using existing Discord bot token
 func NewDiscordAlerter(token string, userID string, logger *logging.Logger) (*DiscordAlerter, error) {
 	session, err := discordgo.New("Bot " + token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Discord session: %w", err)
 	}
 
-	// Open the session to access guilds
 	err = session.Open()
 	if err != nil {
 		return nil, fmt.Errorf("failed to open Discord session: %w", err)
 	}
 
-	// Find the channel ID by name
 	channelID, err := findChannelByName(session, alertChannelName)
 	if err != nil {
 		if closeErr := session.Close(); closeErr != nil {
@@ -53,7 +48,6 @@ func NewDiscordAlerter(token string, userID string, logger *logging.Logger) (*Di
 	}, nil
 }
 
-// findChannelByName searches all guilds for a channel with the given name
 func findChannelByName(session *discordgo.Session, channelName string) (string, error) {
 	for _, guild := range session.State.Guilds {
 		channels, err := session.GuildChannels(guild.ID)
@@ -71,9 +65,7 @@ func findChannelByName(session *discordgo.Session, channelName string) (string, 
 	return "", fmt.Errorf("channel %s not found in any guild", channelName)
 }
 
-// SendAlert sends an alert message to the configured Discord channel
 func (da *DiscordAlerter) SendAlert(ctx context.Context, serviceName string, message string) error {
-	// Format the message with user mention using Discord mention format
 	var alertMessage string
 	if da.userID != "" {
 		alertMessage = fmt.Sprintf("<@%s> **Alert:** %s", da.userID, message)
@@ -97,7 +89,6 @@ func (da *DiscordAlerter) SendAlert(ctx context.Context, serviceName string, mes
 	return nil
 }
 
-// Close closes the Discord session
 func (da *DiscordAlerter) Close() error {
 	return da.session.Close()
 }

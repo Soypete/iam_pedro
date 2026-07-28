@@ -14,8 +14,8 @@ import (
 
 // ServiceConfig represents configuration for a service to monitor
 type ServiceConfig struct {
-	Name         string
-	HealthURL    string
+	Name          string
+	HealthURL     string
 	AuthHealthURL string // Optional: URL to check auth token health (e.g., /healthz/auth)
 }
 
@@ -99,8 +99,9 @@ func (kas *KeepAliveService) Start(ctx context.Context) error {
 	ticker := time.NewTicker(kas.checkInterval)
 	defer ticker.Stop()
 
-	// Do an initial check immediately
+	// Do an initial check immediately and log results
 	kas.checkAllServices(ctx)
+	kas.logServiceStates("initial")
 
 	for {
 		select {
@@ -109,6 +110,7 @@ func (kas *KeepAliveService) Start(ctx context.Context) error {
 			return ctx.Err()
 		case <-ticker.C:
 			kas.checkAllServices(ctx)
+			kas.logServiceStates("periodic")
 		}
 	}
 }
@@ -365,4 +367,23 @@ func (kas *KeepAliveService) GetServiceStates() map[string]ServiceStateSnapshot 
 		svc.mu.RUnlock()
 	}
 	return states
+}
+
+// logServiceStates logs the current state of all services
+func (kas *KeepAliveService) logServiceStates(checkType string) {
+	states := kas.GetServiceStates()
+	for name, state := range states {
+		if state.IsHealthy {
+			kas.logger.Info("service health check passed",
+				"check_type", checkType,
+				"service", name,
+				"url", state.HealthURL)
+		} else {
+			kas.logger.Warn("service health check failed",
+				"check_type", checkType,
+				"service", name,
+				"url", state.HealthURL,
+				"consecutive_failures", state.ConsecutiveFailures)
+		}
+	}
 }
