@@ -29,35 +29,31 @@ twitchBot:
       value: "qwen3.6-27b-mtp"
     - name: LLAMA_CPP_PATH
       value: "http://100.121.229.114:8080"
-    # Embeddings run on the in-pod sidecar (localhost:8081), NOT the chat server —
-    # pedrogpt runs MTP, which is incompatible with the embeddings graph.
+    # Use existing pedro-embeddings service instead of in-pod sidecar
     - name: EMBEDDINGS_PATH
-      value: "http://localhost:8081"
+      value: "http://pedro-embeddings.chatbot.svc.cluster.local:8081/v1"
     - name: EMBEDDINGS_MODEL
-      value: "nomic-embed-text"
+      value: "sentence-transformers/all-MiniLM-L6-v2"
     - name: OAUTH_REDIRECT_HOST
       value: "chatbot-pedro-twitch-auth-ingress.tail6fbc5.ts.net"
     - name: MEMPALACE_DATA_DIR
       value: "/data/palaces"
-  # Embeddings sidecar: CPU llama.cpp serving nomic-embed-text on :8081 in this pod.
+  # Disable failing embed sidecar - use existing pedro-embeddings service instead
   embedSidecar:
-    enabled: true
-    image:
-      repository: 100.81.89.62:5000/pedro-embed
-      tag: latest
-    resources:
-      requests:
-        cpu: "250m"
-        memory: "512Mi"
-      limits:
-        cpu: "2"
-        memory: "1Gi"
+    enabled: false
   args:
     - "-enableMemPalace"
     - "-memPalaceActiveDir"
     - "/data/palaces/active"
     - "-memPalaceArchiveDir"
     - "/data/palaces/archive"
+  resources:
+      requests:
+        cpu: "250m"
+        memory: "512Mi"
+      limits:
+        cpu: "2"
+        memory: "1Gi"
   volumes:
     - name: palace-data
       mountPath: /data/palaces

@@ -19,6 +19,7 @@ spec:
         {{- include "pedro-bots.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: twitch
       annotations:
+        {{- if .Values.twitchBot.openbaoInjection }}
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "pedro"
         vault.hashicorp.com/agent-inject-secret-twitch: "secret/apps/twitch"
@@ -32,6 +33,7 @@ spec:
           {{`{{- with secret "secret/apps/postgres" -}}`}}
           {{`export POSTGRES_URL="{{ .Data.data.url }}"`}}
           {{`{{- end }}`}}
+        {{- end }}
     spec:
       serviceAccountName: pedro-twitch
       containers:
@@ -51,20 +53,36 @@ spec:
               port: 6060
             initialDelaySeconds: 10
             periodSeconds: 30
+          {{- if .Values.twitchBot.openbaoInjection }}
           command: ["/bin/sh", "-c"]
           args:
-            - ". /vault/secrets/twitch && . /vault/secrets/postgres && exec /app/twitch"
-          env:
-            {{- range .Values.twitchBot.env }}
-            - name: {{ .name }}
-              value: {{ .value | quote }}
-            {{- end }}
+            - ". /vault/secrets/twitch && . /vault/secrets/postgres && exec /app/twitch/twitch{{ range .Values.twitchBot.args }} {{ . }}{{ end }}"
+          {{- else }}
+          command: ["/app/twitch/twitch"]
           {{- if .Values.twitchBot.args }}
           args:
             {{- range .Values.twitchBot.args }}
             - {{ . | quote }}
             {{- end }}
           {{- end }}
+          {{- end }}
+          env:
+            {{- range .Values.twitchBot.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+            {{- if not .Values.twitchBot.openbaoInjection }}
+            - name: TWITCH_ID
+              valueFrom:
+                secretKeyRef:
+                  key: twitchId
+                  name: pedro-secrets
+            - name: TWITCH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: twitchSecret
+                  name: pedro-secrets
+            {{- end }}
           volumeMounts:
             {{- if .Values.twitchBot.volumes }}
             {{- range .Values.twitchBot.volumes }}

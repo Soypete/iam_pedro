@@ -17,6 +17,6 @@ WORKDIR /app
 
 EXPOSE 6060
 
-COPY --from=builder /build/twitch /app/main
+COPY --from=builder /build/twitch /app/twitch
 
-CMD ["/app/main"]
+CMD ["/app/twitch"]
