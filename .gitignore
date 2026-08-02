@@ -34,3 +34,9 @@ remote-deploy.sh
 # Palace session data (per-stream memory)
 data/
 palaces/
+
+# LiteDB (mempalace storage)
+.lo/
+lo.db
+lo.db-shm
+lo.db-wal
