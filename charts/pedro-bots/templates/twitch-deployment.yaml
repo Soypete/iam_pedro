@@ -82,6 +82,11 @@ spec:
                 secretKeyRef:
                   key: twitchSecret
                   name: pedro-secrets
+            - name: TWITCH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: twitchToken
+                  name: pedro-secrets
             {{- end }}
           volumeMounts:
             {{- if .Values.twitchBot.volumes }}
