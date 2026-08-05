@@ -28,11 +28,8 @@ func (m *mockConsumer) Name() string {
 func TestNewBroker(t *testing.T) {
 	t.Run("creates broker with default queue size", func(t *testing.T) {
 		broker := NewBroker(0, nil)
-		if broker == nil {
-			t.Error("expected non-nil broker")
-		}
-		if len(broker.msgQueue) != 0 {
-			t.Errorf("expected empty queue, got capacity %d", cap(broker.msgQueue))
+		if broker == nil || len(broker.msgQueue) != 0 {
+			t.Error("expected non-nil broker with empty queue")
 		}
 	})
 

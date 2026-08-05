@@ -43,8 +43,8 @@ func TestMockAlerter(t *testing.T) {
 
 	t.Run("SendAlert tracks multiple messages", func(t *testing.T) {
 		alerter := NewMockAlerter()
-		alerter.SendAlert(context.Background(), "service1", "message1")
-		alerter.SendAlert(context.Background(), "service2", "message2")
+		_ = alerter.SendAlert(context.Background(), "service1", "message1")
+		_ = alerter.SendAlert(context.Background(), "service2", "message2")
 
 		if len(alerter.SentMessages) != 2 {
 			t.Errorf("expected 2 messages, got %d", len(alerter.SentMessages))

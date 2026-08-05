@@ -36,6 +36,16 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: pedro-twitch
+      hostAliases:
+        - ip: "44.237.40.50"
+          hostnames:
+            - "irc.chat.twitch.tv"
+        - ip: "44.227.173.36"
+          hostnames:
+            - "irc.chat.twitch.tv"
+        - ip: "34.212.92.60"
+          hostnames:
+            - "irc.chat.twitch.tv"
       containers:
         - name: twitch-bot
           image: "{{ .Values.twitchBot.image.repository }}:{{ .Values.twitchBot.image.tag }}"
@@ -87,6 +97,7 @@ spec:
                 secretKeyRef:
                   key: twitchToken
                   name: pedro-secrets
+                  optional: true
             {{- end }}
           volumeMounts:
             {{- if .Values.twitchBot.volumes }}

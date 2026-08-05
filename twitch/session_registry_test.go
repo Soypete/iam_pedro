@@ -11,11 +11,8 @@ func TestSessionRegistry(t *testing.T) {
 
 	t.Run("creates new session registry", func(t *testing.T) {
 		registry := NewSessionRegistry("testdata", logger)
-		if registry == nil {
-			t.Error("expected non-nil registry")
-		}
-		if registry.sessions == nil {
-			t.Error("expected sessions map to be initialized")
+		if registry == nil || registry.sessions == nil {
+			t.Error("expected non-nil registry with initialized sessions map")
 		}
 	})
 

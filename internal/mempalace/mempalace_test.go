@@ -27,12 +27,11 @@ func TestConfigStruct(t *testing.T) {
 		c := &Config{}
 		_ = c.LLMPath
 		_ = c.ModelName
-		_ = c.EmbeddingPath
-		_ = c.EmbeddingModel
+		_ = c.EmbeddingsPath
+		_ = c.EmbeddingsModel
 		_ = c.HelixClient
 		_ = c.Logger
 		_ = c.PollInterval
-		_ = c.DB
 		_ = c.ActiveDir
 		_ = c.ArchiveDir
 	})
@@ -66,10 +65,10 @@ func TestNew(t *testing.T) {
 
 	t.Run("returns error when embedding path is empty", func(t *testing.T) {
 		c := &Config{
-			LLMPath:        "http://localhost:8080",
-			ModelName:      "test",
-			EmbeddingPath:  "",
-			EmbeddingModel: "test-model",
+			LLMPath:         "http://localhost:8080",
+			ModelName:       "test",
+			EmbeddingsPath:  "",
+			EmbeddingsModel: "test-model",
 		}
 		_, err := New(c)
 		if err == nil {

@@ -26,7 +26,8 @@ func TestGenerateStateString(t *testing.T) {
 	t.Run("state string is base64 encoded", func(t *testing.T) {
 		state, _ := generateStateString()
 		for _, c := range state {
-			if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '=') {
+			isValid := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '='
+			if !isValid {
 				t.Errorf("unexpected character %c in base64 string", c)
 			}
 		}

@@ -193,11 +193,8 @@ func TestGetClassByLabel(t *testing.T) {
 		loader.classes["http://example.org/go"] = Class{Label: "Go"}
 
 		class := loader.GetClassByLabel("Go")
-		if class == nil {
-			t.Error("expected to find class")
-		}
-		if class.Label != "Go" {
-			t.Errorf("expected 'Go', got %s", class.Label)
+		if class == nil || class.Label != "Go" {
+			t.Error("expected to find class with label 'Go'")
 		}
 	})
 

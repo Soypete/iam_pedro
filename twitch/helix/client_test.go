@@ -9,9 +9,6 @@ import (
 func TestNewClient(t *testing.T) {
 	t.Run("creates client with default logger", func(t *testing.T) {
 		client := NewClient("clientID", "token", "broadcaster", "moderator", nil)
-		if client == nil {
-			t.Error("expected non-nil client")
-		}
 		if client.clientID != "clientID" {
 			t.Errorf("expected clientID 'clientID', got %s", client.clientID)
 		}

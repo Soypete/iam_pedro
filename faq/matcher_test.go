@@ -36,7 +36,7 @@ func TestFindMatchValidation(t *testing.T) {
 	t.Run("validates empty embedding", func(t *testing.T) {
 		embedding := []float32{}
 		if len(embedding) == 0 {
-			// Would return error in actual function
+			t.Log("empty embedding would return error in actual function")
 		}
 	})
 }

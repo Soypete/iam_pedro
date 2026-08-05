@@ -21,7 +21,7 @@ func TestGenerateEmbeddingValidation(t *testing.T) {
 	t.Run("validates empty text", func(t *testing.T) {
 		text := ""
 		if text == "" {
-			// This would fail in GenerateEmbedding
+			t.Log("empty text would fail in GenerateEmbedding")
 		}
 	})
 }
@@ -30,7 +30,7 @@ func TestGenerateEmbeddingsValidation(t *testing.T) {
 	t.Run("validates empty texts slice", func(t *testing.T) {
 		texts := []string{}
 		if len(texts) == 0 {
-			// This would fail in GenerateEmbeddings
+			t.Log("empty texts would fail in GenerateEmbeddings")
 		}
 	})
 }

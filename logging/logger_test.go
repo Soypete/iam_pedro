@@ -87,10 +87,12 @@ func TestNewLogger(t *testing.T) {
 	})
 }
 
+type traceIDKey string
+
 func TestWithContext(t *testing.T) {
 	t.Run("adds trace_id to logger", func(t *testing.T) {
 		logger := Default()
-		ctx := context.WithValue(context.Background(), "trace_id", "test-123")
+		ctx := context.WithValue(context.Background(), traceIDKey("trace_id"), "test-123")
 		loggerWithCtx := logger.WithContext(ctx)
 		if loggerWithCtx == nil {
 			t.Error("expected non-nil logger")
@@ -99,7 +101,7 @@ func TestWithContext(t *testing.T) {
 
 	t.Run("returns same logger for nil context", func(t *testing.T) {
 		logger := Default()
-		loggerWithCtx := logger.WithContext(nil)
+		loggerWithCtx := logger.WithContext(context.TODO())
 		if loggerWithCtx == nil {
 			t.Error("expected non-nil logger")
 		}

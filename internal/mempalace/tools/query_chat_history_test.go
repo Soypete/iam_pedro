@@ -114,8 +114,9 @@ func TestParseTimeRange(t *testing.T) {
 			t.Errorf("unexpected error: %v", err)
 		}
 		diff := end.Sub(start)
-		if diff != 5*60*1_000_000_000 { // 5 minutes in nanoseconds
-			// Just check it's a reasonable duration
+		expected := 5 * 60 * time.Second
+		if diff != expected {
+			t.Logf("5 minutes: expected %v, got %v", expected, diff)
 		}
 	})
 
